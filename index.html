@@ -669,7 +669,11 @@ function openDetail(o){
     <button class="p-close" id="pclose">sluiten ✕</button>
     <div class="p-h">${esc(o.n)} <button class="star big ${favs.has(o.t+o.id)?"on":""}" data-fav="${o.t}${o.id}" title="Favoriet">${STARSVG}</button></div>
     <div class="p-sub">${o.t==="B"?"Brug":"Sluis"}${o.c?" · "+esc(o.c):""}${o.fw?" · "+esc(o.fw):""}</div>
-    <span class="chip ${st.cls}"><span class="dot ${st.cls}"></span>${esc(st.label)}${st.extra?" · "+esc(st.extra):""}</span>
+    <div class="row2" style="margin-top:0">
+      <span class="chip ${st.cls}"><span class="dot ${st.cls}"></span>${esc(st.label)}${st.extra?" · "+esc(st.extra):""}</span>
+      ${o.vhf&&o.vhf.length?`<span class="vhf">VHF ${o.vhf.join(", ")}</span>`:""}
+      ${telHTML(o)}
+    </div>
     ${mastIssue(o)?`<div class="mastwarn">${esc(mastIssue(o))}</div>`:""}
     ${sec}
     <div class="p-sec"><h3>Gegevens</h3><div class="kv">${kv.map(([k,v])=>`<span class="k">${k}</span><span>${v}</span>`).join("")}</div></div>
