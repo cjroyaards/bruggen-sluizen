@@ -131,6 +131,7 @@ def build_full():
             "hm": round(max(mov_h), 2) if mov_h else None,
             "wm": round(max(mov_w), 1) if mov_w else None,
             "w": round(max(all_w), 1) if all_w else None,
+            "cxn": (b.get("RelatedBuildingComplexName") or "").strip(),
         })
     for l in raw["lock"]:
         p = pt(l.get("Geometry"))
@@ -153,7 +154,10 @@ def build_full():
             "nch": l.get("NumberOfChambers"),
             "len": round(max(ln), 1) if ln else None,
             "w": round(max(wd), 1) if wd else None,
+            "cxn": (l.get("RelatedBuildingComplexName") or "").strip(),
         })
+
+    link_complexes(objs)
 
     used = {o["ot"] for o in objs if o.get("ot")}
     otmap = {k: v for k, v in otmap.items() if k in used}
@@ -164,6 +168,74 @@ def build_full():
         f.write(gzip.compress(blob, 9))
     print(f"static.json.gz: {len(objs)} objecten, {len(otmap)} regelingen")
     return gen
+
+
+def _dist_m(a, b):
+    import math
+    dy = (a["lat"] - b["lat"]) * 111320
+    dx = (a["lon"] - b["lon"]) * 111320 * math.cos(math.radians(a["lat"]))
+    return (dx * dx + dy * dy) ** 0.5
+
+
+def link_complexes(objs):
+    """Groepeer objecten die bij elkaar horen (sluis + brug over het sluishoofd).
+
+    1. Expliciet: gelijke RelatedBuildingComplexName uit FIS.
+    2. Heuristiek: brug binnen 400 m van een sluis waarvan de naam in de
+       brugnaam voorkomt (of andersom), of brug pal op de sluis (< 120 m).
+    Resultaat: veld "cx" (groepsnummer) op gekoppelde objecten.
+    """
+    from collections import defaultdict
+
+    def nrm(s):
+        return " ".join((s or "").lower().replace(",", " ").split())
+
+    groups = defaultdict(list)          # sleutel -> [obj]
+    for o in objs:
+        k = nrm(o.get("cxn", ""))
+        if k:
+            groups["n:" + k].append(o)
+
+    # heuristiek voor bruggen zonder complexnaam
+    locks = [o for o in objs if o["t"] == "S"]
+    cell = defaultdict(list)
+    for l in locks:
+        cell[(round(l["lat"] * 100), round(l["lon"] * 100))].append(l)
+    for b in objs:
+        if b["t"] != "B" or nrm(b.get("cxn", "")):
+            continue
+        kx, ky = round(b["lat"] * 100), round(b["lon"] * 100)
+        cand = [l for i in (-1, 0, 1) for j in (-1, 0, 1) for l in cell[(kx + i, ky + j)]]
+        best = None
+        for l in cand:
+            d = _dist_m(b, l)
+            if d > 400:
+                continue
+            bn, ln = nrm(b["n"]), nrm(l["n"])
+            name_hit = len(ln) > 5 and (ln in bn or bn in ln)
+            if name_hit or d < 120:
+                if best is None or d < best[0]:
+                    best = (d, l)
+        if best:
+            l = best[1]
+            key = "n:" + nrm(l.get("cxn", "")) if nrm(l.get("cxn", "")) else "s:" + str(l["id"])
+            if l not in groups[key]:
+                groups[key].append(l)
+            groups[key].append(b)
+
+    gid = 0
+    linked = 0
+    for members in groups.values():
+        uniq = {(m["t"], m["id"]): m for m in members}.values()
+        if len(uniq) < 2:
+            continue
+        gid += 1
+        for m in uniq:
+            m["cx"] = gid
+            linked += 1
+    for o in objs:
+        o.pop("cxn", None)
+    print(f"complexen: {gid} groepen, {linked} gekoppelde objecten")
 
 
 def build_strem():

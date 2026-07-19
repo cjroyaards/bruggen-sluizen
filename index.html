@@ -417,6 +417,28 @@ function heightsTxt(o){
   }
   return parts.join(" · ");
 }
+let cxIndex = null;
+function siblings(o){
+  if (!o.cx) return [];
+  if (!cxIndex){
+    cxIndex = new Map();
+    for (const x of DATA.objs){
+      if (!x.cx) continue;
+      if (!cxIndex.has(x.cx)) cxIndex.set(x.cx, []);
+      cxIndex.get(x.cx).push(x);
+    }
+  }
+  return (cxIndex.get(o.cx)||[]).filter(x=> x!==o);
+}
+function sibHint(o){
+  const s = siblings(o);
+  if (!s.length) return "";
+  const nb = s.filter(x=>x.t==="B").length, ns = s.filter(x=>x.t==="S").length;
+  const parts = [];
+  if (nb) parts.push("+ "+(nb>1?nb+" bruggen":"brug"));
+  if (ns) parts.push("+ "+(ns>1?ns+" sluizen":"sluis"));
+  return `<span class="vhf" title="Hoort bij hetzelfde complex — zie details">${parts.join(" ")}</span>`;
+}
 function mastVal(){ const m = parseFloat($("#mast").value); return isNaN(m)?null:m; }
 function mastIssue(o){
   const m = mastVal();
@@ -438,6 +460,7 @@ function cardHTML(o){
     <div class="row2">
       <span class="chip ${st.cls}"><span class="dot ${st.cls}"></span>${esc(st.label)}${st.extra?" · "+esc(st.extra):""}</span>
       ${o.vhf&&o.vhf.length?`<span class="vhf">VHF ${o.vhf.join(", ")}</span>`:""}
+      ${sibHint(o)}
       <span class="hinfo">${heightsTxt(o)}</span>
     </div>
     ${mi?`<div class="mastwarn">${esc(mi)}</div>`:""}
@@ -586,6 +609,10 @@ function openDetail(o){
     sec += `</div>`;
   } else if (o.open){
     sec += `<div class="p-sec"><h3>Bedieningstijden</h3><div class="p-note">Bedienbaar, maar geen tijden in de dataset — bel of roep op via marifoon.</div></div>`;
+  }
+  const sibs = siblings(o);
+  if (sibs.length){
+    sec += `<div class="p-sec"><h3>Hoort bij hetzelfde complex</h3><div class="note" style="margin-top:0">Vergeet deze niet — bediening kan samenhangen:</div>` + sibs.map(cardHTML).join("") + `</div>`;
   }
   if (st.strems.length){
     sec += `<div class="p-sec"><h3>Berichten in de buurt</h3>` + st.strems.map(stremCard).join("") + `</div>`;
