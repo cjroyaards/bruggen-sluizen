@@ -31,6 +31,12 @@ jobs:
       - name: Data ophalen
         run: python3 scripts/build_data.py ${{ steps.mode.outputs.flag }}
 
+      - name: Officiële UK-getijden (Admiralty)
+        if: steps.mode.outputs.flag == '--full'
+        env:
+          ADMIRALTY_KEY: ${{ secrets.ADMIRALTY_KEY }}
+        run: python3 scripts/fetch_tides.py
+
       - name: Commit & push wijzigingen
         run: |
           git config user.name "data-bot"

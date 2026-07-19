@@ -690,6 +690,26 @@ function scheduleTable(per, highlightToday){
 }
 /* ---------- getijden (Open-Meteo, live) ---------- */
 const tideCache = new Map();
+let ukTidesPromise = null;
+function fetchUkTides(){
+  if (!ukTidesPromise){
+    ukTidesPromise = fetch("data/uktides.json", {cache:"no-cache"})
+      .then(r=> r.ok ? r.json() : null).catch(()=>null);
+  }
+  return ukTidesPromise;
+}
+function fmtUkClock(isoUtc){
+  const d = new Date(isoUtc+":00Z");
+  const p = new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/London",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(d);
+  const g = t => p.find(x=>x.type===t).value;
+  const now = ukNowParts();
+  const dm = g("day")+"/"+g("month");
+  const nowDm = now.date.slice(8,10)+"/"+now.date.slice(5,7);
+  const morgen = new Date(now.date+"T12:00:00Z"); morgen.setUTCDate(morgen.getUTCDate()+1);
+  const morgenDm = String(morgen.getUTCDate()).padStart(2,"0")+"/"+String(morgen.getUTCMonth()+1).padStart(2,"0");
+  const pre = dm===nowDm ? "" : (dm===morgenDm ? "morgen " : dm+" ");
+  return pre+g("hour")+":"+g("minute");
+}
 async function fetchTide(o){
   const key = o.t+o.id;
   if (tideCache.has(key)) return tideCache.get(key);
@@ -720,7 +740,8 @@ async function loadTideInto(o){
   const box = document.getElementById("tidebox");
   if (!box) return;
   try{
-    const d = await fetchTide(o);
+    const [d, uktides] = await Promise.all([fetchTide(o), fetchUkTides()]);
+    const official = uktides && uktides.byId && uktides.byId[o.t+o.id];
     const times = d.hourly.time, vals = d.hourly.sea_level_height_msl;
     if (!times || !vals || !vals.some(v=>v!=null)) throw new Error("leeg");
     const now = ukNowParts();
@@ -738,10 +759,22 @@ async function loadTideInto(o){
       const v = b - 0.25*(a-c)*off;
       ext.push({i, pos:i+off, v, hw:isMax});
     }
-    const upcoming = ext.filter(e=>e.pos>=nowPos).slice(0,4);
-    const chips = upcoming.map(e=>
-      `<span class="tchip${e.hw?" now":""}"><b>${e.hw?"HW":"LW"}</b> ${fmtTideTime(times[e.i], Math.round((e.pos-e.i)*60), now.date)} · ${e.v.toFixed(1).replace(".",",")} m</span>`
-    ).join(" ");
+    let chips, chipsNote;
+    if (official){
+      const nowMs = Date.now();
+      const up = official.events.filter(e=> new Date(e[0]+":00Z").getTime() >= nowMs - 15*60000).slice(0,4);
+      chips = up.map(e=>
+        `<span class="tchip${e[1]==="H"?" now":""}"><b>${e[1]==="H"?"HW":"LW"}</b> ${fmtUkClock(e[0])} · ${e[2].toFixed(1).replace(".",",")} m</span>`
+      ).join(" ");
+      chipsNote = `Officiële Admiralty-voorspelling, station ${esc(official.station)} · hoogte boven kaartnul (LAT) · tijden UK-lokaal`;
+    }
+    if (!chips){
+      const upcoming = ext.filter(e=>e.pos>=nowPos).slice(0,4);
+      chips = upcoming.map(e=>
+        `<span class="tchip${e.hw?" now":""}"><b>${e.hw?"HW":"LW"}</b> ${fmtTideTime(times[e.i], Math.round((e.pos-e.i)*60), now.date)} · ${e.v.toFixed(1).replace(".",",")} m</span>`
+      ).join(" ");
+      chipsNote = null;
+    }
     // curve
     const W=560, Hc=96, PX=8, PY=12;
     const vmin=Math.min(...vals.filter(v=>v!=null)), vmax=Math.max(...vals.filter(v=>v!=null));
@@ -753,7 +786,8 @@ async function loadTideInto(o){
     const dayTicks = times.map((t,i)=> t.endsWith("T00:00") && i>0 ? `<line x1="${X(i)}" y1="${PY}" x2="${X(i)}" y2="${Hc-PY}" stroke="var(--grid)" stroke-width="1"/>` : "").join("");
     box.classList.remove("p-note");
     box.innerHTML = `
-      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">${chips||"<span class='hinfo'>geen extremen gevonden</span>"}</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:${chipsNote?"4":"8"}px">${chips||"<span class='hinfo'>geen extremen gevonden</span>"}</div>
+      ${chipsNote?`<div class="tlegend" style="margin:0 0 8px">${chipsNote}</div>`:""}
       <svg viewBox="0 0 ${W} ${Hc}" style="width:100%;height:auto;display:block" role="img" aria-label="Getijcurve komende 3 dagen">
         ${dayTicks}
         <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2"/>
@@ -761,12 +795,12 @@ async function loadTideInto(o){
         <line x1="${X(nowPos).toFixed(1)}" y1="${PY-4}" x2="${X(nowPos).toFixed(1)}" y2="${Hc-PY+4}" stroke="var(--critical)" stroke-width="1.5"/>
         <text x="${Math.min(X(nowPos)+4, W-30).toFixed(1)}" y="${PY+6}" font-size="10" fill="var(--muted)">nu</text>
       </svg>
-      <div class="tlegend">Komende 3 dagen · tijden UK-lokaal · bron Open-Meteo/ECMWF</div>
+      <div class="tlegend">Curve: komende 3 dagen · model Open-Meteo/ECMWF (t.o.v. MSL) · tijden UK-lokaal</div>
       <details class="tlex">
-        <summary>Waarom is dit geen officiële getijtafel?</summary>
-        <p>Deze verwachting komt uit een wereldwijd getijde-/oceaanmodel (ECMWF, via Open-Meteo), berekend voor het modelpunt op zee dat het dichtst bij deze haven ligt — niet uit de officiële getijtafels van de UK Hydrographic Office voor deze specifieke haven.</p>
-        <p>Waar je op moet letten: <b>1.</b> De hoogtes zijn ten opzichte van <b>gemiddeld zeeniveau (MSL)</b>, terwijl zeekaarten en havengidsen rekenen vanaf <b>kaartnul (LAT)</b> — je kunt deze getallen dus niet zomaar optellen bij kaartdieptes of drempeldieptes. <b>2.</b> In riviermondingen en ondiepe havens kunnen werkelijke tijden en hoogtes merkbaar afwijken van het model. <b>3.</b> Opzet of afwaaiing door wind en luchtdruk zit maar gedeeltelijk in de berekening.</p>
-        <p>Gebruik dit blok om snel het getijritme en het eerstvolgende HW/LW te zien. Voor de echte passageplanning (drempels, HW±-vensters) gebruik je de officiële getijtafels uit je almanak of van de haven zelf.</p>
+        <summary>${chipsNote?"Over deze getijgegevens":"Waarom is dit geen officiële getijtafel?"}</summary>
+        ${chipsNote?`<p>De HW/LW-tijden en -hoogtes hierboven zijn de <b>officiële Admiralty-voorspellingen</b> van de UK Hydrographic Office (station ${esc(official.station)}) — dezelfde bron als de getijtafels in je almanak, met hoogtes boven kaartnul (LAT). Ze worden dagelijks ververst en beslaan 7 dagen vooruit.</p><p>De <b>curve</b> eronder blijft een modelverwachting (ECMWF via Open-Meteo, t.o.v. gemiddeld zeeniveau) en dient alleen om het ritme te zien — de hoogtes van curve en chips zijn dus niet 1-op-1 vergelijkbaar.</p>`:`<p>Deze verwachting komt uit een wereldwijd getijde-/oceaanmodel (ECMWF, via Open-Meteo), berekend voor het modelpunt op zee dat het dichtst bij deze haven ligt — niet uit de officiële getijtafels van de UK Hydrographic Office voor deze specifieke haven.</p>`}
+        ${chipsNote?`<p>Let wel: getijvoorspellingen zijn astronomisch — opzet of afwaaiing door wind en luchtdruk zit er niet in. Controleer bij extreme weersomstandigheden altijd de actuele berichten van de haven.</p>`:`<p>Waar je op moet letten: <b>1.</b> De hoogtes zijn ten opzichte van <b>gemiddeld zeeniveau (MSL)</b>, terwijl zeekaarten en havengidsen rekenen vanaf <b>kaartnul (LAT)</b> — je kunt deze getallen dus niet zomaar optellen bij kaartdieptes of drempeldieptes. <b>2.</b> In riviermondingen en ondiepe havens kunnen werkelijke tijden en hoogtes merkbaar afwijken van het model. <b>3.</b> Opzet of afwaaiing door wind en luchtdruk zit maar gedeeltelijk in de berekening.</p>
+        <p>Gebruik dit blok om snel het getijritme en het eerstvolgende HW/LW te zien. Voor de echte passageplanning (drempels, HW±-vensters) gebruik je de officiële getijtafels uit je almanak of van de haven zelf.</p>`}
       </details>`;
   } catch(e){
     box.textContent = "Getijverwachting kon niet worden geladen.";
