@@ -108,6 +108,8 @@ input:focus{border-color:var(--accent)}
 .dot.good{background:var(--good)} .dot.warn{background:var(--warning)} .dot.ser{background:var(--serious)} .dot.crit{background:var(--critical)} .dot.mut{background:var(--muted)}
 .hinfo{color:var(--muted);font-size:12.5px}
 .vhf{color:var(--ink2);font-size:12px;font-weight:600;letter-spacing:.03em;border:1px solid var(--grid);border-radius:5px;padding:0 6px}
+a.tel{font-size:12px;font-weight:600;letter-spacing:.02em;border:1px solid var(--grid);border-radius:5px;padding:0 6px;font-variant-numeric:tabular-nums}
+a.tel:hover{border-color:var(--accent);text-decoration:none}
 .star{background:none;border:none;cursor:pointer;color:var(--muted);padding:0 2px;line-height:1;margin-left:2px}
 .star svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.6}
 .star.on{color:#dd9a00}
@@ -447,6 +449,11 @@ function sibHint(o){
   if (ns) parts.push("+ "+(ns>1?ns+" sluizen":"sluis"));
   return `<span class="vhf" title="Hoort bij hetzelfde complex — zie details">${parts.join(" ")}</span>`;
 }
+function telHTML(o){
+  const t = o.tel || o.admTel;
+  if (!t) return "";
+  return `<a class="tel" href="tel:${esc(t.replace(/[^+\d]/g,""))}" title="Bel ${esc(o.tel? "de bediening" : "de beheerder")}">${esc(t)}</a>`;
+}
 function mastVal(){ const m = parseFloat($("#mast").value); return isNaN(m)?null:m; }
 function mastIssue(o){
   const m = mastVal();
@@ -480,6 +487,7 @@ function cardHTML(o){
       <div class="row2">
         <span class="chip ${st.cls}"><span class="dot ${st.cls}"></span>${esc(st.label)}${st.extra?" · "+esc(st.extra):""}</span>
         ${o.vhf&&o.vhf.length?`<span class="vhf">VHF ${o.vhf.join(", ")}</span>`:""}
+        ${telHTML(o)}
         ${sibHint(o)}
         <span class="hinfo">${heightsTxt(o)}</span>
       </div>
@@ -776,6 +784,7 @@ document.addEventListener("click", e=>{
     document.querySelectorAll(`[data-fav="${id}"]`).forEach(b=>b.classList.toggle("on", favs.has(id)));
     return;
   }
+  if (e.target.closest("a.tel")){ e.stopPropagation(); return; }
   const pop = e.target.closest("[data-open]");
   if (pop){
     const o = DATA.objs.find(x=> x.t+x.id === pop.dataset.open);
