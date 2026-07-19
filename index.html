@@ -704,8 +704,8 @@ function openDetail(o){
     map.setView([o.lat,o.lon], Math.max(map.getZoom(), 15));
     highlightOnMap(o);
   });
-  // kaart alvast meebewegen op de achtergrond
-  if (map){ map.setView([o.lat,o.lon], Math.max(map.getZoom(), 13), {animate:false}); highlightOnMap(o); }
+  // kaart meteen naar het object zoomen terwijl de details tonen
+  if (map){ map.setView([o.lat,o.lon], Math.max(map.getZoom(), 15), {animate:false}); highlightOnMap(o); }
 }
 function closeDetail(){ $("#panel").classList.remove("open"); $("#ovl").classList.remove("open"); }
 
