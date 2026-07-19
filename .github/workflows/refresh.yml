@@ -1,0 +1,44 @@
+name: Ververs vaarwegdata
+
+on:
+  schedule:
+    - cron: "12 * * * *"    # elk uur: stremmingen
+    - cron: "42 2 * * *"    # dagelijks 02:42 UTC: volledige dataset
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bepaal type verversing
+        id: mode
+        run: |
+          if [ "${{ github.event.schedule }}" = "42 2 * * *" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "flag=--full" >> "$GITHUB_OUTPUT"
+          else
+            echo "flag=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Data ophalen
+        run: python3 scripts/build_data.py ${{ steps.mode.outputs.flag }}
+
+      - name: Commit & push wijzigingen
+        run: |
+          git config user.name "data-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/
+          if git diff --cached --quiet; then
+            echo "Geen wijzigingen."
+          else
+            git commit -m "data: automatische verversing"
+            git push
+          fi
