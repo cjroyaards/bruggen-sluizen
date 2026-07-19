@@ -80,7 +80,9 @@ def main():
                 hgt = e.get("Height")
                 if t and hgt is not None:
                     events.append([t, typ, round(hgt, 2)])
-            cache[best["id"]] = {"station": best["name"], "events": events}
+            cache[best["id"]] = {"station": best["name"], "sid": best["id"],
+                                 "lat": round(best["lat"], 5), "lon": round(best["lon"], 5),
+                                 "events": events}
             time.sleep(0.4)  # netjes binnen de rate limit blijven
         by_id[f"{h['t']}{h['id']}"] = cache[best["id"]]
         print(f"  {h['n']} -> {best['name']} ({d:.1f} km, {len(cache[best['id']]['events'])} events)")

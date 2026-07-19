@@ -59,6 +59,10 @@ header{position:sticky;top:0;z-index:1001;background:var(--brand);color:var(--br
 .h-spacer{flex:1}
 #themeBtn{border:1px solid rgba(255,255,255,.25);background:none;color:var(--brand-dim);border-radius:7px;padding:3px 9px;cursor:pointer;font-size:12px;line-height:1.4}
 #themeBtn:hover{color:var(--brand-ink)}
+.langsw{display:flex;gap:5px}
+.langbtn{background:none;border:1.5px solid transparent;border-radius:5px;padding:2px;cursor:pointer;line-height:0;opacity:.55}
+.langbtn svg{width:26px;height:17px;border-radius:2.5px;display:block}
+.langbtn.on{border-color:#6fa8dc;opacity:1}
 .tabs{display:flex;gap:4px;padding:4px 10px 0;overflow-x:auto}
 .tab{border:none;background:none;color:var(--brand-dim);padding:9px 12px 11px;cursor:pointer;font-size:13.5px;font-weight:550;letter-spacing:.02em;border-bottom:2px solid transparent;white-space:nowrap}
 .tab:hover{color:var(--brand-ink)}
@@ -136,6 +140,7 @@ a.tel:hover{border-color:var(--accent);text-decoration:none}
 .sday{width:118px;flex:none;color:var(--ink2);font-size:13.5px;padding-top:2px}
 .srow.today .sday{color:var(--ink);font-weight:650}
 .srow.today .sday::after{content:"vandaag";display:block;color:var(--accent);font-size:10.5px;font-weight:650;letter-spacing:.06em;text-transform:uppercase}
+html[lang="en"] .srow.today .sday::after{content:"today"}
 .swins{flex:1;display:flex;flex-wrap:wrap;gap:5px;align-items:flex-start}
 .swins .none{color:var(--muted);font-size:13.5px;padding-top:2px}
 .win{font-variant-numeric:tabular-nums}
@@ -227,15 +232,19 @@ footer a{color:var(--brand-dim);text-decoration:underline}
     <h1 class="wordmark" style="margin:0;font-size:16px">Brug<span class="amp">&amp;</span>Sluis</h1>
     <span class="h-sub" id="datastamp"></span>
     <span class="h-spacer"></span>
+    <span class="langsw">
+      <button class="langbtn" data-lang="nl" title="Nederlands"><svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#21468B"/><rect width="30" height="13.3" fill="#fff"/><rect width="30" height="6.7" fill="#AE1C28"/></svg></button>
+      <button class="langbtn" data-lang="en" title="English"><svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#012169"/><path d="M0 0l30 20M30 0L0 20" stroke="#fff" stroke-width="4"/><path d="M0 0l30 20M30 0L0 20" stroke="#C8102E" stroke-width="2"/><path d="M15 0v20M0 10h30" stroke="#fff" stroke-width="7"/><path d="M15 0v20M0 10h30" stroke="#C8102E" stroke-width="4"/></svg></button>
+    </span>
   </div>
   <div class="h-search">
     <input type="search" id="q" placeholder="Zoek brug, sluis, plaats of vaarweg…" autocomplete="off">
     <label class="mastbox" title="Doorvaarthoogte-waarschuwing">mast <input type="number" id="mast" step="0.1" min="0" placeholder="–"> m</label>
   </div>
   <nav class="tabs">
-    <button class="tab on" data-v="kaart">Kaart</button>
-    <button class="tab" data-v="fav">Favorieten <span class="cnt" id="favcnt"></span></button>
-    <button class="tab" data-v="strem">Stremmingen <span class="cnt" id="stremcnt"></span></button>
+    <button class="tab on" data-v="kaart" data-i18n="tab_kaart">Kaart</button>
+    <button class="tab" data-v="fav"><span data-i18n="tab_fav">Favorieten</span> <span class="cnt" id="favcnt"></span></button>
+    <button class="tab" data-v="strem"><span data-i18n="tab_strem">Stremmingen</span> <span class="cnt" id="stremcnt"></span></button>
     <button class="tab" data-v="info">Info</button>
   </nav>
   <div id="searchdrop" hidden>
@@ -246,21 +255,21 @@ footer a{color:var(--brand-dim);text-decoration:underline}
   <div id="loading">Gegevens laden…</div>
   <section id="v-kaart" hidden style="position:relative">
     <div class="mapbar">
-      <button class="mapbtn on" id="mb-all">Alle objecten</button>
-      <button class="mapbtn" id="mb-bedien">Alleen bedienbaar</button>
-      <button class="mapbtn" id="mb-strem"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 22 21H2Z"/><path d="M12 10v5"/><path d="M12 18.2v.1"/></svg>Stremmingen</button>
-      <button class="mapbtn" id="mb-locate"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="2.2"/></svg>Volg mij</button>
-      <button class="mapbtn" id="mb-uk">UK havens</button>
+      <button class="mapbtn on" id="mb-all" data-i18n="mb_all">Alle objecten</button>
+      <button class="mapbtn" id="mb-bedien" data-i18n="mb_bedien">Alleen bedienbaar</button>
+      <button class="mapbtn" id="mb-strem"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 22 21H2Z"/><path d="M12 10v5"/><path d="M12 18.2v.1"/></svg><span data-i18n="mb_strem">Stremmingen</span></button>
+      <button class="mapbtn" id="mb-locate"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="2.2"/></svg><span data-i18n="mb_locate">Volg mij</span></button>
+      <button class="mapbtn" id="mb-uk" data-i18n="mb_uk">UK havens</button>
     </div>
     <div id="map"></div>
   </section>
   <section id="v-fav" hidden>
-    <div class="note">Markeer objecten met ☆ — favorieten worden in je browser bewaard.</div>
+    <div class="note" id="favnote">Markeer objecten met ☆ — favorieten worden in je browser bewaard.</div>
     <div id="favlist"></div>
   </section>
   <section id="v-strem" hidden>
     <div class="searchrow"><input type="search" id="stq" placeholder="Filter op vaarweg, plaats of object…"></div>
-    <div class="note">Actuele en aangekondigde beperkingen uit de scheepvaartberichten (FTM/NtS), ververst <span id="stremstamp"></span>. Klik voor het volledige bericht op vaarweginformatie.nl.</div>
+    <div class="note" id="stremnote">Actuele en aangekondigde beperkingen uit de scheepvaartberichten (FTM/NtS), ververst <span id="stremstamp"></span>. Klik voor het volledige bericht op vaarweginformatie.nl.</div>
     <div id="stremlist"></div>
   </section>
   <section id="v-info" hidden>
@@ -294,6 +303,40 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 <script>
 "use strict";
 let DATA = null, STREM = [], STREMTS = null;
+/* ---------- taal ---------- */
+function readLang(){ try{ const x = localStorage.getItem("bs_lang"); return x==='"en"'||x==="en" ? "en" : (x?JSON.parse(x):"nl"); }catch(e){ return "nl"; } }
+const LANG = readLang();
+const EN = {
+ "bediening nu":"operating now","tot":"until","gesloten":"closed","volgende bediening":"next operation",
+ "morgen":"tomorrow","vanaf":"from","geen bediening deze week":"no operation this week",
+ "vaste brug":"fixed bridge","geen bediening":"no operation","stremming gemeld":"closure reported",
+ "beperking gemeld":"restriction reported","beperking":"restriction","bediening — tijden onbekend":"operated — times unknown",
+ "geen periode gevonden":"no period found","let op bericht":"see notice","UK kusthaven":"UK coastal harbour",
+ "getijstation":"tide station","brug":"bridge","sluis":"lock","haven":"harbour","getij":"tide",
+ "beweegbaar dicht":"opening closed clearance","vast deel":"fixed span","breedte":"width","kolk":"chamber",
+ "aangekondigd":"announced","sinds":"since","gepland / periodiek":"planned / periodic","bericht ↗":"notice ↗",
+ "Geen berichten gevonden.":"No notices found.","alle dagen":"every day","feestdagen":"public holidays","& feestd.":"& holidays",
+ "geen bediening_rooster":"no operation","Bedieningstijden":"Operating times","Volgende periodes:":"Upcoming periods:",
+ "Periode":"Period","t/m":"–","Gegevens":"Details","Links":"Links","Marifoon":"VHF radio","Telefoon":"Phone",
+ "Beheerder":"Authority","Vaarweg":"Waterway","Bediening":"Operation","ja, op afstand bediend":"yes, remotely operated",
+ "ja":"yes","nee (vaste brug)":"no (fixed bridge)","Kolken":"Chambers","Kolklengte":"Chamber length","Kolkbreedte":"Chamber width",
+ "op afstand bediend":"remotely operated","Hoogte beweegbaar (dicht)":"Clearance movable (closed)","Hoogte vast deel":"Clearance fixed span",
+ "Breedte beweegbare opening":"Width of movable opening","Breedte":"Width","kaart ↗":"map ↗","toon op kaart":"show on map",
+ "sluiten ✕":"close ✕","Berichten in de buurt":"Notices nearby","Hoort bij hetzelfde complex":"Part of the same complex",
+ "Vergeet deze niet — bediening kan samenhangen:":"Don't miss these — operation may be linked:",
+ "Toegang & getijdenvenster":"Access & tidal window","Sluis":"Lock","Brug":"Bridge","Praktisch":"Practical","Gebied":"Area",
+ "havenwebsite ↗":"harbour website ↗","notices to mariners ↗":"notices to mariners ↗","Getij":"Tide",
+ "Getijverwachting laden…":"Loading tide forecast…","Getijverwachting kon niet worden geladen.":"Tide forecast could not be loaded.",
+ "Onvoldoende getijdata.":"Insufficient tide data.","geen extremen gevonden":"no extremes found",
+ "geen komende kenteringen in de data":"no upcoming turns in the data",
+ "Bedienbaar, maar geen tijden in de dataset — bel of roep op via marifoon.":"Operable, but no times in the dataset — phone or call on VHF.",
+ "Favoriet":"Favourite","details →":"details →","nu":"now","Getijstation":"Tide station","km van deze locatie":"km from this location",
+ "Officieel getijstation Rijkswaterstaat":"Official Rijkswaterstaat tide station","Officieel Admiralty-getijstation (UKHO)":"Official Admiralty tide station (UKHO)",
+ "Getij (astronomisch)":"Tide (astronomical)","N→Z / Z→N = schutrichting":"N→S / S→N = locking direction",
+ "geen verwachtingen beschikbaar — ververs vannacht":"no predictions available yet — refreshes tonight"
+};
+function T(s){ return LANG==="en" ? (EN[s] ?? s) : s; }
+document.documentElement.lang = LANG;
 const $ = s => document.querySelector(s);
 
 /* ---------- opslag (favorieten & mast) ---------- */
@@ -334,6 +377,17 @@ async function loadData(){
   for (const s of (nlt&&nlt.stations)||[]){
     DATA.objs.push({t:"G", id:s.code, n:"Getijstation "+s.n, c:"NL", fw:"getij Rijkswaterstaat",
       lat:s.lat, lon:s.lon, vhf:[], tel:"", st:s});
+  }
+  // UK Admiralty-stations als getijstation-objecten (zodra coördinaten in de data zitten)
+  const ukt = await fetchUkTides();
+  if (ukt && ukt.byId){
+    const seen = new Set();
+    for (const v of Object.values(ukt.byId)){
+      if (!v.sid || v.lat==null || seen.has(v.sid)) continue;
+      seen.add(v.sid);
+      DATA.objs.push({t:"G", id:"U"+v.sid, n:"Getijstation "+v.station, c:"UK", fw:"getij Admiralty",
+        lat:v.lat, lon:v.lon, vhf:[], tel:"", uk:v});
+    }
   }
 }
 
@@ -390,31 +444,31 @@ function dayAt(n, offset){
   return nn;
 }
 function statusFor(obj){
-  if (obj.t==="H") return {cls:"mut", label:"UK kusthaven", strems:[]};
-  if (obj.t==="G") return {cls:"mut", label:"getijstation", strems:[]};
+  if (obj.t==="H") return {cls:"mut", label:T("UK kusthaven"), strems:[]};
+  if (obj.t==="G") return {cls:"mut", label:T("getijstation"), strems:[]};
   const strems = stremsNear(obj);
   const actStrems = strems.filter(s=>s.act);          // alleen berichten die nú gelden
   const worst = actStrems.length ? Math.max(...actStrems.map(s=>sevRank(s.code))) : 0;
   if (!obj.open){
-    const st = {cls:"mut", label: obj.t==="B" ? "vaste brug" : "geen bediening", strems};
-    if (worst>=3) { st.cls="crit"; st.label="stremming gemeld"; }
-    else if (worst===2){ st.cls="ser"; st.label="beperking gemeld"; }
+    const st = {cls:"mut", label: obj.t==="B" ? T("vaste brug") : T("geen bediening"), strems};
+    if (worst>=3) { st.cls="crit"; st.label=T("stremming gemeld"); }
+    else if (worst===2){ st.cls="ser"; st.label=T("beperking gemeld"); }
     return st;
   }
   const ot = DATA.ot[obj.ot];
   let core;
-  if (!ot){ core = {cls:"warn", label:"bediening — tijden onbekend"}; }
+  if (!ot){ core = {cls:"warn", label:T("bediening — tijden onbekend")}; }
   else {
     const n = amsNow();
     const per = (ot[1]||[]).find(p=>periodMatches(p,n.m,n.d));
-    if (!per){ core = {cls:"warn", label:"geen periode gevonden"}; }
+    if (!per){ core = {cls:"warn", label:T("geen periode gevonden")}; }
     else {
       const rules = rulesForDay(per, n.wd, isHoliday(n));
       const inWin = rules.find(r=> n.min>=r[1] && n.min<r[2]);
-      if (inWin) core = {cls:"good", label:"bediening nu", extra:"tot "+fmtMin(inWin[2])};
+      if (inWin) core = {cls:"good", label:T("bediening nu"), extra:T("tot")+" "+fmtMin(inWin[2])};
       else {
         const next = rules.filter(r=>r[1]>n.min).sort((a,b)=>a[1]-b[1])[0];
-        if (next) core = {cls:"warn", label:"gesloten", extra:"volgende bediening "+fmtMin(next[1])};
+        if (next) core = {cls:"warn", label:T("gesloten"), extra:T("volgende bediening")+" "+fmtMin(next[1])};
         else {
           let found=null;
           for(let off=1; off<=7 && !found; off++){
@@ -424,15 +478,15 @@ function statusFor(obj){
             const rr = rulesForDay(p2, dn.wd, dn.hol).sort((a,b)=>a[1]-b[1]);
             if (rr.length) found = {off, t:rr[0][1]};
           }
-          if (found) core = {cls:"warn", label:"gesloten", extra:(found.off===1?"morgen":"over "+found.off+" dgn")+" vanaf "+fmtMin(found.t)};
-          else core = {cls:"crit", label:"geen bediening deze week"};
+          if (found) core = {cls:"warn", label:T("gesloten"), extra:(found.off===1?T("morgen"):(LANG==="en"?"in "+found.off+" days":"over "+found.off+" dgn"))+" "+T("vanaf")+" "+fmtMin(found.t)};
+          else core = {cls:"crit", label:T("geen bediening deze week")};
         }
       }
     }
   }
-  if (worst>=3){ core = {cls:"crit", label:"stremming gemeld", extra:core.label+(core.extra?" "+core.extra:"")}; }
-  else if (worst===2 && core.cls!=="crit"){ core.cls="ser"; core.label="beperking · "+core.label; }
-  else if (worst===1 && core.cls==="good"){ core.label+=" · let op bericht"; }
+  if (worst>=3){ core = {cls:"crit", label:T("stremming gemeld"), extra:core.label+(core.extra?" "+core.extra:"")}; }
+  else if (worst===2 && core.cls!=="crit"){ core.cls="ser"; core.label=T("beperking")+" · "+core.label; }
+  else if (worst===1 && core.cls==="good"){ core.label+=" · "+T("let op bericht"); }
   core.strems = strems;
   return core;
 }
@@ -442,7 +496,8 @@ const SEVMAP = {OBSTRU:3,NOSERV:3,CLEHEI:2,CLEWID:2,DELAY:2,VESDRA:2,SERVIC:1,CA
 const CODELBL = {OBSTRU:"gestremd",NOSERV:"geen bediening",CLEHEI:"beperkte hoogte",CLEWID:"beperkte breedte",DELAY:"vertraging",SERVIC:"gewijzigde bediening",CAUTIO:"voorzichtig varen",PAROBS:"deels gestremd",AVADEP:"beperkte diepte",OVRTAK:"oploopverbod",PASSIN:"passeren beperkt",WAVWAS:"hekgolf vermijden",NOMOOR:"afmeren beperkt",NOLIM:"geen beperking",VESDRA:"diepgangbeperking"};
 function sevRank(c){ return SEVMAP[c] ?? 1; }
 function sevCls(c){ return ["mut","warn","ser","crit"][sevRank(c)]; }
-function codeLbl(c){ return CODELBL[c] || c; }
+const CODELBL_EN = {OBSTRU:"blocked",NOSERV:"no operation",CLEHEI:"reduced clearance",CLEWID:"reduced width",DELAY:"delay",SERVIC:"changed operation",CAUTIO:"navigate with caution",PAROBS:"partially blocked",AVADEP:"reduced depth",OVRTAK:"no overtaking",PASSIN:"passing restricted",WAVWAS:"avoid wash",NOMOOR:"mooring restricted",NOLIM:"no limitation",VESDRA:"draught restriction"};
+function codeLbl(c){ return (LANG==="en" ? CODELBL_EN[c] : CODELBL[c]) || CODELBL[c] || c; }
 function dist2(aLat,aLon,bLat,bLon){
   const dy=(aLat-bLat)*111320, dx=(aLon-bLon)*111320*Math.cos(aLat*Math.PI/180);
   return Math.sqrt(dx*dx+dy*dy);
@@ -497,12 +552,12 @@ function esc(s){ return (s||"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;","
 function heightsTxt(o){
   const parts=[];
   if (o.t==="B"){
-    if (o.hm!=null) parts.push("beweegbaar dicht "+o.hm.toFixed(1).replace(".",",")+" m");
-    if (o.hf!=null) parts.push("vast deel "+o.hf.toFixed(1).replace(".",",")+" m");
-    if (o.wm!=null) parts.push("breedte "+String(o.wm).replace(".",",")+" m");
+    if (o.hm!=null) parts.push(T("beweegbaar dicht")+" "+o.hm.toFixed(1).replace(".",",")+" m");
+    if (o.hf!=null) parts.push(T("vast deel")+" "+o.hf.toFixed(1).replace(".",",")+" m");
+    if (o.wm!=null) parts.push(T("breedte")+" "+String(o.wm).replace(".",",")+" m");
   } else {
-    if (o.len!=null) parts.push("kolk "+String(o.len).replace(".",",")+"×"+(o.w!=null?String(o.w).replace(".",","):"?")+" m");
-    else if (o.w!=null) parts.push("breedte "+String(o.w).replace(".",",")+" m");
+    if (o.len!=null) parts.push(T("kolk")+" "+String(o.len).replace(".",",")+"×"+(o.w!=null?String(o.w).replace(".",","):"?")+" m");
+    else if (o.w!=null) parts.push(T("breedte")+" "+String(o.w).replace(".",",")+" m");
   }
   return parts.join(" · ");
 }
@@ -524,9 +579,9 @@ function sibHint(o){
   if (!s.length) return "";
   const nb = s.filter(x=>x.t==="B").length, ns = s.filter(x=>x.t==="S").length;
   const parts = [];
-  if (nb) parts.push("+ "+(nb>1?nb+" bruggen":"brug"));
-  if (ns) parts.push("+ "+(ns>1?ns+" sluizen":"sluis"));
-  return `<span class="vhf" title="Hoort bij hetzelfde complex — zie details">${parts.join(" ")}</span>`;
+  if (nb) parts.push("+ "+(nb>1?nb+" "+(LANG==="en"?"bridges":"bruggen"):T("brug")));
+  if (ns) parts.push("+ "+(ns>1?ns+" "+(LANG==="en"?"locks":"sluizen"):T("sluis")));
+  return `<span class="vhf" title="${T("Hoort bij hetzelfde complex")}">${parts.join(" ")}</span>`;
 }
 function telHTML(o){
   const t = o.tel || o.admTel;
@@ -542,7 +597,7 @@ function fmtNlClock(isoUtc){
   const nowDm = String(n.d).padStart(2,"0")+"/"+String(n.m).padStart(2,"0");
   const mo = dayAt(n,1);
   const moDm = String(mo.d).padStart(2,"0")+"/"+String(mo.m).padStart(2,"0");
-  const pre = dm===nowDm ? "" : (dm===moDm ? "morgen " : dm+" ");
+  const pre = dm===nowDm ? "" : (dm===moDm ? T("morgen")+" " : dm+" ");
   return pre+g("hour")+":"+g("minute");
 }
 function nextTideTxt(o){
@@ -555,7 +610,7 @@ function mastVal(){ const m = parseFloat($("#mast").value); return isNaN(m)?null
 function mastIssue(o){
   const m = mastVal();
   if (m==null || o.t!=="B" || o.open) return null;
-  if (o.hf!=null && o.hf < m + 0.2) return "vaste brug "+o.hf.toFixed(1).replace(".",",")+" m — te laag voor mast "+m.toLocaleString("nl-NL")+" m";
+  if (o.hf!=null && o.hf < m + 0.2) return LANG==="en" ? ("fixed bridge "+o.hf.toFixed(1)+" m — too low for mast "+m+" m") : ("vaste brug "+o.hf.toFixed(1).replace(".",",")+" m — te laag voor mast "+m.toLocaleString("nl-NL")+" m");
   return null;
 }
 const STARSVG = `<svg viewBox="0 0 24 24"><path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg>`;
@@ -576,16 +631,16 @@ function cardHTML(o){
     ${thumbHTML(o)}
     <div class="cbody">
       <div class="row1">
-        <span class="otype">${o.t==="B"?"brug":o.t==="S"?"sluis":o.t==="G"?"getij":"haven"}</span>
+        <span class="otype">${T(o.t==="B"?"brug":o.t==="S"?"sluis":o.t==="G"?"getij":"haven")}</span>
         <span class="oname">${esc(o.n)}</span>
         <span class="oplace">${esc(o.c)}${o.c&&o.fw?" · ":""}${esc(o.fw)}</span>
-        <button class="star ${favs.has(o.t+o.id)?"on":""}" data-fav="${o.t}${o.id}" title="Favoriet">${STARSVG}</button>
+        <button class="star ${favs.has(o.t+o.id)?"on":""}" data-fav="${o.t}${o.id}" title="${T("Favoriet")}">${STARSVG}</button>
       </div>
       <div class="row2">
         <span class="chip ${st.cls}"><span class="dot ${st.cls}"></span>${esc(st.label)}${st.extra?" · "+esc(st.extra):""}</span>
         ${o.vhf&&o.vhf.length?`<span class="vhf">VHF ${o.vhf.join(", ")}</span>`:""}
         ${telHTML(o)}
-        ${o.t==="H"?(o.lock?'<span class="vhf">sluis</span>':"")+(o.bridge?'<span class="vhf">brug</span>':""):""}
+        ${o.t==="H"?(o.lock?`<span class="vhf">${T("sluis")}</span>`:"")+(o.bridge?`<span class="vhf">${T("brug")}</span>`:""):""}
         ${sibHint(o)}
         <span class="hinfo">${o.t==="G"?esc(nextTideTxt(o)):heightsTxt(o)}</span>
       </div>
@@ -597,27 +652,27 @@ function renderResults(){
   const q = $("#q").value;
   const rs = search(q);
   $("#results").innerHTML = rs.length ? rs.map(cardHTML).join("")
-    : (norm(q).trim().length>=2 ? `<div class="empty">Niets gevonden voor “${esc(q)}”.</div>`
-       : `<div class="empty">Typ minimaal 2 tekens — naam, plaats of vaarweg.</div>`);
+    : (norm(q).trim().length>=2 ? `<div class="empty">${LANG==="en"?`Nothing found for “${esc(q)}”.`:`Niets gevonden voor “${esc(q)}”.`}</div>`
+       : `<div class="empty">${LANG==="en"?"Type at least 2 characters — name, place or waterway.":"Typ minimaal 2 tekens — naam, plaats of vaarweg."}</div>`);
 }
 function renderFavs(){
   $("#favcnt").textContent = favs.size ? "("+favs.size+")" : "";
   const list = [...favs].map(fid => DATA.objs.find(o=>o.t+o.id===fid)).filter(Boolean);
-  $("#favlist").innerHTML = list.length ? list.map(cardHTML).join("") : `<div class="empty">Nog geen favorieten — zoek een brug of sluis via de balk bovenin en markeer met de ster.</div>`;
+  $("#favlist").innerHTML = list.length ? list.map(cardHTML).join("") : `<div class="empty">${LANG==="en"?"No favourites yet — search via the bar above and mark with the star.":"Nog geen favorieten — zoek een brug of sluis via de balk bovenin en markeer met de ster."}</div>`;
 }
 function fmtDate(ms){
   if(!ms) return "";
-  return new Intl.DateTimeFormat("nl-NL",{timeZone:"Europe/Amsterdam",day:"numeric",month:"short",year:"numeric"}).format(new Date(ms));
+  return new Intl.DateTimeFormat(LANG==="en"?"en-GB":"nl-NL",{timeZone:"Europe/Amsterdam",day:"numeric",month:"short",year:"numeric"}).format(new Date(ms));
 }
 function stremCard(s){
   return `<div class="stcard s-${sevCls(s.code)}">
       <div class="row1">
         <span class="chip ${sevCls(s.code)}"><span class="dot ${sevCls(s.code)}"></span>${esc(codeLbl(s.code))}</span>
-        ${s.act?"":`<span class="chip mut">aangekondigd</span>`}
+        ${s.act?"":`<span class="chip mut">${T("aangekondigd")}</span>`}
         <b>${esc(s.loc)}</b>
-        <span class="stwhen">${s.act?"sinds "+fmtDate(s.start):(s.start>Date.now()?"vanaf "+fmtDate(s.start):"gepland / periodiek")}</span>
+        <span class="stwhen">${s.act?T("sinds")+" "+fmtDate(s.start):(s.start>Date.now()?T("vanaf")+" "+fmtDate(s.start):T("gepland / periodiek"))}</span>
       </div>
-      <div class="row2"><span class="stfw">${esc(s.fw)}</span><span style="margin-left:auto"><a href="${ntsUrl(s)}" target="_blank" rel="noopener">bericht ↗</a></span></div>
+      <div class="row2"><span class="stfw">${esc(s.fw)}</span><span style="margin-left:auto"><a href="${ntsUrl(s)}" target="_blank" rel="noopener">${T("bericht ↗")}</a></span></div>
     </div>`;
 }
 function renderStrem(){
@@ -626,14 +681,14 @@ function renderStrem(){
   if (q) list = list.filter(s=> (norm(s.loc)+" "+norm(s.fw)).includes(q));
   const nAct = STREM.filter(s=>s.act).length;
   $("#stremcnt").textContent = "("+nAct+")";
-  $("#stremlist").innerHTML = list.slice(0,300).map(stremCard).join("") || `<div class="empty">Geen berichten gevonden.</div>`;
+  $("#stremlist").innerHTML = list.slice(0,300).map(stremCard).join("") || `<div class="empty">${T("Geen berichten gevonden.")}</div>`;
 }
 
 /* ---------- detail ---------- */
-const DAYNAMES = ["maandag","dinsdag","woensdag","donderdag","vrijdag","zaterdag","zondag"];
+const DAYNAMES = LANG==="en" ? ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"] : ["maandag","dinsdag","woensdag","donderdag","vrijdag","zaterdag","zondag"];
 function periodLabel(p){
-  const f = s=>{ const m=+s.slice(0,2), d=+s.slice(2); const M=["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"]; return d+" "+(M[m-1]||"?"); };
-  return f(p[0])+" t/m "+f(p[1]);
+  const f = s=>{ const m=+s.slice(0,2), d=+s.slice(2); const M=LANG==="en"?["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]:["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"]; return d+" "+(M[m-1]||"?"); };
+  return f(p[0])+" "+T("t/m")+" "+f(p[1]);
 }
 function dirAbbr(note){
   if (!note) return "";
@@ -663,20 +718,20 @@ function dayGroups(per){
   return [...bySig.values()].sort((a,b)=> (a.days[0]??9)-(b.days[0]??9));
 }
 function groupLabel(g){
-  const D = ["ma","di","wo","do","vr","za","zo"];
+  const D = LANG==="en" ? ["Mo","Tu","We","Th","Fr","Sa","Su"] : ["ma","di","wo","do","vr","za","zo"];
   let label = "";
-  if (g.days.length===7) label = "alle dagen";
+  if (g.days.length===7) label = T("alle dagen");
   else if (g.days.length){
     const runs=[]; let s=g.days[0], p=g.days[0];
     for (const d of g.days.slice(1)){ if (d===p+1) p=d; else { runs.push([s,p]); s=p=d; } }
     runs.push([s,p]);
     label = runs.map(([a,b])=> a===b ? D[a] : (b===a+1 ? D[a]+" & "+D[b] : D[a]+"–"+D[b])).join(", ");
   }
-  if (g.hol) label = label ? label+" & feestd." : "feestdagen";
+  if (g.hol) label = label ? label+" "+T("& feestd.") : T("feestdagen");
   return label;
 }
 function winsHTML(rules, isToday, nowMin){
-  if (!rules.length) return `<span class="none">geen bediening</span>`;
+  if (!rules.length) return `<span class="none">${T("geen bediening_rooster")}</span>`;
   // doorlopende tijden (weinig, lange vensters) → gewone notatie; bloktijden (veel korte vensters) → chips
   const blocky = rules.length >= 5;
   const notes = [];
@@ -698,7 +753,7 @@ function winsHTML(rules, isToday, nowMin){
   });
   let html = parts.join(" ");
   const legend = [];
-  if (rules.some(r=>dirAbbr(r[3]))) legend.push("N→Z / Z→N = schutrichting");
+  if (rules.some(r=>dirAbbr(r[3]))) legend.push(T("N→Z / Z→N = schutrichting"));
   notes.forEach((t,i)=>legend.push("*"+(i+1)+" "+esc(t)));
   if (legend.length) html += `<div class="tlegend">${legend.join(" · ")}</div>`;
   return html;
@@ -761,7 +816,7 @@ function fmtTideTime(iso, offMin, todayDate){
   const hhmm = String(d2.getUTCHours()).padStart(2,"0")+":"+String(d2.getUTCMinutes()).padStart(2,"0");
   if (dstr===todayDate) return hhmm;
   const morgen = new Date(todayDate+"T12:00:00Z"); morgen.setUTCDate(morgen.getUTCDate()+1);
-  return (dstr===morgen.toISOString().slice(0,10) ? "morgen " : dstr.slice(8,10)+"/"+dstr.slice(5,7)+" ") + hhmm;
+  return (dstr===morgen.toISOString().slice(0,10) ? T("morgen")+" " : dstr.slice(8,10)+"/"+dstr.slice(5,7)+" ") + hhmm;
 }
 function wireTideScrub(box, X, Yv, labels, vals){
   const svg = box.querySelector("svg.tidecurve");
@@ -807,7 +862,20 @@ function wireTideScrub(box, X, Yv, labels, vals){
     svg.addEventListener("pointercancel", up, {once:true});
   });
 }
-function renderOfficialTide(box, official){
+function stationRow(official, refObj){
+  if (!official || official.lat==null) return "";
+  const stn = {lat: official.lat, lon: official.lon};
+  let distTxt = "";
+  if (refObj && refObj.lat && Math.abs(refObj.lat-stn.lat)+Math.abs(refObj.lon-stn.lon) > 0.0005){
+    const dkm = dist2(refObj.lat, refObj.lon, stn.lat, stn.lon)/1000;
+    distTxt = "<br>"+dkm.toFixed(1).replace(".",",")+" "+T("km van deze locatie");
+  }
+  return `<div style="display:flex;gap:10px;align-items:center;margin-top:10px">
+    ${thumbHTML(stn)}
+    <div class="hinfo">${T("Getijstation")} <b>${esc(official.station)}</b>${distTxt}</div>
+  </div>`;
+}
+function renderOfficialTide(box, official, refObj){
   const nowMs = Date.now();
   const evs = official.events
     .map(e=>({t:new Date(e[0]+":00Z").getTime(), typ:e[1], v:e[2]}))
@@ -831,7 +899,7 @@ function renderOfficialTide(box, official){
     }
   }
   if (seg.length) samples.push({t:seg[seg.length-1].t, v:seg[seg.length-1].v});
-  if (samples.length < 8){ box.textContent = "Onvoldoende getijdata."; return; }
+  if (samples.length < 8){ box.textContent = T("Onvoldoende getijdata."); return; }
   const W=560, Hc=96, PX=8, PY=12;
   const t0=samples[0].t, t1=samples[samples.length-1].t;
   const vmin=Math.min(...samples.map(s=>s.v)), vmax=Math.max(...samples.map(s=>s.v));
@@ -842,19 +910,24 @@ function renderOfficialTide(box, official){
   const nowX = (nowMs>=t0&&nowMs<=t1) ? X(nowMs) : null;
   box.classList.remove("p-note");
   box.innerHTML = `
-    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px">${chips||"<span class='hinfo'>geen komende kenteringen in de data</span>"}</div>
-    <div class="tlegend" style="margin:0 0 8px">Officiële Admiralty-voorspelling, station ${esc(official.station)} · hoogte boven kaartnul (LAT) · tijden UK-lokaal</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px">${chips||`<span class='hinfo'>${T("geen komende kenteringen in de data")}</span>`}</div>
+    <div class="tlegend" style="margin:0 0 8px">${LANG==="en"?`Official Admiralty prediction, station ${esc(official.station)} · height above chart datum (LAT) · times UK local`:`Officiële Admiralty-voorspelling, station ${esc(official.station)} · hoogte boven kaartnul (LAT) · tijden UK-lokaal`}</div>
     <svg class="tidecurve" viewBox="0 0 ${W} ${Hc}" style="width:100%;height:auto;display:block" role="img" aria-label="Getijcurve uit officiële kenteringen">
       <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2"/>
       ${dots}
-      ${nowX!=null?`<line x1="${nowX.toFixed(1)}" y1="${PY-4}" x2="${nowX.toFixed(1)}" y2="${Hc-PY+4}" stroke="var(--critical)" stroke-width="1.5"/><text x="${Math.min(nowX+4,W-30).toFixed(1)}" y="${PY+6}" font-size="10" fill="var(--muted)">nu</text>`:""}
+      ${nowX!=null?`<line x1="${nowX.toFixed(1)}" y1="${PY-4}" x2="${nowX.toFixed(1)}" y2="${Hc-PY+4}" stroke="var(--critical)" stroke-width="1.5"/><text x="${Math.min(nowX+4,W-30).toFixed(1)}" y="${PY+6}" font-size="10" fill="var(--muted)">${T("nu")}</text>`:""}
     </svg>
-    <div class="tlegend">Curve berekend uit dezelfde officiële kenteringen als hierboven · sleep of tik voor tijd en hoogte</div>
+    <div class="tlegend">${LANG==="en"?"Curve computed from the same official turns as above · drag or tap for time and height":"Curve berekend uit dezelfde officiële kenteringen als hierboven · sleep of tik voor tijd en hoogte"}</div>
+    ${stationRow(official, refObj)}
     <details class="tlex">
-      <summary>Over deze getijgegevens</summary>
+      <summary>${LANG==="en"?"About this tide data":"Over deze getijgegevens"}</summary>
+      ${LANG==="en"?`
+      <p>The HW/LW times and heights are the <b>official Admiralty predictions</b> of the UK Hydrographic Office (station ${esc(official.station)}) — the same source as the tide tables in your almanac, with heights above <b>chart datum (LAT)</b>. Refreshed daily, covering 7 days ahead.</p>
+      <p>The curve passes exactly through those official HW/LW points; values in between are a smooth (cosine) approximation. In areas with unusual tide shapes — such as the double high water in the Solent — the real curve between the turns is more irregular.</p>
+      <p>Note: tide predictions are astronomical — surge or set-down caused by wind and air pressure is not included. In extreme weather, check the harbour's own notices.</p>`:`
       <p>De HW/LW-tijden en -hoogtes zijn de <b>officiële Admiralty-voorspellingen</b> van de UK Hydrographic Office (station ${esc(official.station)}) — dezelfde bron als de getijtafels in je almanak, met hoogtes boven <b>kaartnul (LAT)</b>. Ze worden dagelijks ververst en beslaan 7 dagen vooruit.</p>
       <p>De curve loopt exact door die officiële HW/LW-punten; de tussenliggende waarden zijn een vloeiende benadering (cosinusverloop). In gebieden met een afwijkend getijverloop — zoals dubbel hoogwater in de Solent — is het werkelijke verloop tussen de kenteringen grilliger dan deze curve.</p>
-      <p>Let wel: getijvoorspellingen zijn astronomisch — opzet of afwaaiing door wind en luchtdruk zit er niet in. Controleer bij extreme weersomstandigheden de actuele berichten van de haven.</p>
+      <p>Let wel: getijvoorspellingen zijn astronomisch — opzet of afwaaiing door wind en luchtdruk zit er niet in. Controleer bij extreme weersomstandigheden de actuele berichten van de haven.</p>`}
     </details>`;
   const sx=[], sy=[], slbl=[], sval=[];
   for (const s of samples){ sx.push(X(s.t)); sy.push(Y(s.v)); slbl.push(fmtUkClock(s.t)); sval.push(s.v); }
@@ -868,7 +941,7 @@ async function loadTideInto(o){
     const official = uktides && uktides.byId && uktides.byId[o.t+o.id];
     if (official && official.events && official.events.length > 3
         && new Date(official.events[official.events.length-1][0]+":00Z").getTime() > Date.now() + 6*3600000){
-      renderOfficialTide(box, official);
+      renderOfficialTide(box, official, o);
       return;
     }
     const d = await fetchTide(o);
@@ -896,7 +969,7 @@ async function loadTideInto(o){
       chips = up.map(e=>
         `<span class="tchip${e[1]==="H"?" now":""}"><b>${e[1]==="H"?"HW":"LW"}</b> ${fmtUkClock(e[0])} · ${e[2].toFixed(1).replace(".",",")} m</span>`
       ).join(" ");
-      chipsNote = `Officiële Admiralty-voorspelling, station ${esc(official.station)} · hoogte boven kaartnul (LAT) · tijden UK-lokaal`;
+      chipsNote = LANG==="en" ? `Official Admiralty prediction, station ${esc(official.station)} · height above chart datum (LAT) · times UK local` : `Officiële Admiralty-voorspelling, station ${esc(official.station)} · hoogte boven kaartnul (LAT) · tijden UK-lokaal`;
     }
     if (!chips){
       const upcoming = ext.filter(e=>e.pos>=nowPos).slice(0,4);
@@ -916,18 +989,18 @@ async function loadTideInto(o){
     const dayTicks = times.map((t,i)=> t.endsWith("T00:00") && i>0 ? `<line x1="${X(i)}" y1="${PY}" x2="${X(i)}" y2="${Hc-PY}" stroke="var(--grid)" stroke-width="1"/>` : "").join("");
     box.classList.remove("p-note");
     box.innerHTML = `
-      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:${chipsNote?"4":"8"}px">${chips||"<span class='hinfo'>geen extremen gevonden</span>"}</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:${chipsNote?"4":"8"}px">${chips||`<span class='hinfo'>${T("geen extremen gevonden")}</span>`}</div>
       ${chipsNote?`<div class="tlegend" style="margin:0 0 8px">${chipsNote}</div>`:""}
       <svg class="tidecurve" viewBox="0 0 ${W} ${Hc}" style="width:100%;height:auto;display:block" role="img" aria-label="Getijcurve komende 3 dagen">
         ${dayTicks}
         <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2"/>
         ${dots}
         <line x1="${X(nowPos).toFixed(1)}" y1="${PY-4}" x2="${X(nowPos).toFixed(1)}" y2="${Hc-PY+4}" stroke="var(--critical)" stroke-width="1.5"/>
-        <text x="${Math.min(X(nowPos)+4, W-30).toFixed(1)}" y="${PY+6}" font-size="10" fill="var(--muted)">nu</text>
+        <text x="${Math.min(X(nowPos)+4, W-30).toFixed(1)}" y="${PY+6}" font-size="10" fill="var(--muted)">${T("nu")}</text>
       </svg>
-      <div class="tlegend">Curve: komende 3 dagen · model Open-Meteo/ECMWF (t.o.v. MSL) · tijden UK-lokaal · sleep of tik op de grafiek voor tijd en hoogte</div>
+      <div class="tlegend">${LANG==="en"?"Curve: next 3 days · Open-Meteo/ECMWF model (rel. to MSL) · times UK local · drag or tap the chart for time and height":"Curve: komende 3 dagen · model Open-Meteo/ECMWF (t.o.v. MSL) · tijden UK-lokaal · sleep of tik op de grafiek voor tijd en hoogte"}</div>
       <details class="tlex">
-        <summary>${chipsNote?"Over deze getijgegevens":"Waarom is dit geen officiële getijtafel?"}</summary>
+        <summary>${LANG==="en"?(chipsNote?"About this tide data":"Why is this not an official tide table?"):(chipsNote?"Over deze getijgegevens":"Waarom is dit geen officiële getijtafel?")}</summary>
         ${chipsNote?`<p>De HW/LW-tijden en -hoogtes hierboven zijn de <b>officiële Admiralty-voorspellingen</b> van de UK Hydrographic Office (station ${esc(official.station)}) — dezelfde bron als de getijtafels in je almanak, met hoogtes boven kaartnul (LAT). Ze worden dagelijks ververst en beslaan 7 dagen vooruit.</p><p>De <b>curve</b> eronder blijft een modelverwachting (ECMWF via Open-Meteo, t.o.v. gemiddeld zeeniveau) en dient alleen om het ritme te zien — de hoogtes van curve en chips zijn dus niet 1-op-1 vergelijkbaar.</p>`:`<p>Deze verwachting komt uit een wereldwijd getijde-/oceaanmodel (ECMWF, via Open-Meteo), berekend voor het modelpunt op zee dat het dichtst bij deze haven ligt — niet uit de officiële getijtafels van de UK Hydrographic Office voor deze specifieke haven.</p>`}
         ${chipsNote?`<p>Let wel: getijvoorspellingen zijn astronomisch — opzet of afwaaiing door wind en luchtdruk zit er niet in. Controleer bij extreme weersomstandigheden altijd de actuele berichten van de haven.</p>`:`<p>Waar je op moet letten: <b>1.</b> De hoogtes zijn ten opzichte van <b>gemiddeld zeeniveau (MSL)</b>, terwijl zeekaarten en havengidsen rekenen vanaf <b>kaartnul (LAT)</b> — je kunt deze getallen dus niet zomaar optellen bij kaartdieptes of drempeldieptes. <b>2.</b> In riviermondingen en ondiepe havens kunnen werkelijke tijden en hoogtes merkbaar afwijken van het model. <b>3.</b> Opzet of afwaaiing door wind en luchtdruk zit maar gedeeltelijk in de berekening.</p>
         <p>Gebruik dit blok om snel het getijritme en het eerstvolgende HW/LW te zien. Voor de echte passageplanning (drempels, HW±-vensters) gebruik je de officiële getijtafels uit je almanak of van de haven zelf.</p>`}
@@ -936,37 +1009,37 @@ async function loadTideInto(o){
     vals.forEach((v,i)=>{ if(v==null) return; sx.push(X(i)); sy.push(Y(v)); slbl.push(fmtTideTime(times[i], 0, now.date)); sval.push(v); });
     wireTideScrub(box, sx, sy, slbl, sval);
   } catch(e){
-    box.textContent = "Getijverwachting kon niet worden geladen.";
+    box.textContent = T("Getijverwachting kon niet worden geladen.");
   }
 }
 function openHarbourDetail(o){
   const sec = [];
-  sec.push(`<div class="p-sec"><h3>Getij (verwachting)</h3><div id="tidebox" class="p-note" style="margin-top:0">Getijverwachting laden…</div></div>`);
-  if (o.access) sec.push(`<div class="p-sec"><h3>Toegang &amp; getijdenvenster</h3><p style="margin:0">${esc(o.access)}</p></div>`);
-  if (o.lock) sec.push(`<div class="p-sec"><h3>Sluis</h3><p style="margin:0">${esc(o.lock)}</p></div>`);
-  if (o.bridge) sec.push(`<div class="p-sec"><h3>Brug</h3><p style="margin:0">${esc(o.bridge)}</p></div>`);
-  if (o.notes) sec.push(`<div class="p-sec"><h3>Praktisch</h3><p style="margin:0">${esc(o.notes)}</p></div>`);
+  if (o.access) sec.push(`<div class="p-sec"><h3>${T("Toegang & getijdenvenster")}</h3><p style="margin:0">${esc(o.access)}</p></div>`);
+  if (o.lock) sec.push(`<div class="p-sec"><h3>${T("Sluis")}</h3><p style="margin:0">${esc(o.lock)}</p></div>`);
+  if (o.bridge) sec.push(`<div class="p-sec"><h3>${T("Brug")}</h3><p style="margin:0">${esc(o.bridge)}</p></div>`);
+  if (o.notes) sec.push(`<div class="p-sec"><h3>${T("Praktisch")}</h3><p style="margin:0">${esc(o.notes)}</p></div>`);
   const kv = [];
   if (o.vhf&&o.vhf.length) kv.push(["Marifoon", "VHF "+o.vhf.join(", ")+(o.vhfName?" — "+esc(o.vhfName):"")]);
-  if (o.tel) kv.push(["Telefoon", `<a href="tel:${esc(o.tel.replace(/[^+\d]/g,""))}">${esc(o.tel)}</a>`]);
-  kv.push(["Gebied", esc(o.fw)]);
-  const links = [`<a href="${esc(o.web)}" target="_blank" rel="noopener">havenwebsite ↗</a>`];
+  if (o.tel) kv.push([T("Telefoon"), `<a href="tel:${esc(o.tel.replace(/[^+\d]/g,""))}">${esc(o.tel)}</a>`]);
+  kv.push([T("Gebied"), esc(o.fw)]);
+  const links = [`<a href="${esc(o.web)}" target="_blank" rel="noopener">${T("havenwebsite ↗")}</a>`];
   if (o.notices) links.push(`<a href="${esc(o.notices)}" target="_blank" rel="noopener">notices to mariners ↗</a>`);
-  links.push(`<a href="https://www.google.com/maps?q=${o.lat},${o.lon}" target="_blank" rel="noopener">kaart ↗</a>`);
+  links.push(`<a href="https://www.google.com/maps?q=${o.lat},${o.lon}" target="_blank" rel="noopener">${T("kaart ↗")}</a>`);
   $("#panel").innerHTML = `
-    <button class="p-close" id="pclose">sluiten ✕</button>
-    <div class="p-h">${esc(o.n)} <button class="star big ${favs.has(o.t+o.id)?"on":""}" data-fav="${o.t}${o.id}" title="Favoriet">${STARSVG}</button></div>
-    <div class="p-sub">UK kusthaven · ${esc(o.fw)}</div>
+    <button class="p-close" id="pclose">${T("sluiten ✕")}</button>
+    <div class="p-h">${esc(o.n)} <button class="star big ${favs.has(o.t+o.id)?"on":""}" data-fav="${o.t}${o.id}" title="${T("Favoriet")}">${STARSVG}</button></div>
+    <div class="p-sub">${T("UK kusthaven")} · ${esc(o.fw)}</div>
     <div class="row2" style="margin-top:0">
-      <span class="chip mut"><span class="dot mut"></span>UK kusthaven</span>
+      <span class="chip mut"><span class="dot mut"></span>${T("UK kusthaven")}</span>
       ${o.vhf&&o.vhf.length?`<span class="vhf">VHF ${o.vhf.join(", ")}</span>`:""}
       ${telHTML(o)}
-      <a href="#" class="tel showOnMap">toon op kaart</a>
+      <a href="#" class="tel showOnMap">${T("toon op kaart")}</a>
     </div>
     ${sec.join("")}
-    <div class="p-sec"><h3>Gegevens</h3><div class="kv">${kv.map(([k,v])=>`<span class="k">${k}</span><span>${v}</span>`).join("")}</div></div>
-    <div class="p-sec"><h3>Links</h3><div class="linkrow">${links.join("")}</div></div>
-    <div class="p-note">Gecureerde haveninfo, laatst gecontroleerd ${esc(UKCHECKED)}. Geen navigatiebron — controleer vóór vertrek altijd de actuele almanak, getijtafels en notices van de haven.</div>`;
+    <div class="p-sec"><h3>${T("Gegevens")}</h3><div class="kv">${kv.map(([k,v])=>`<span class="k">${k}</span><span>${v}</span>`).join("")}</div></div>
+    <div class="p-sec"><h3>${T("Links")}</h3><div class="linkrow">${links.join("")}</div></div>
+    <div class="p-sec"><h3>${T("Getij")}</h3><div id="tidebox" class="p-note" style="margin-top:0">${T("Getijverwachting laden…")}</div></div>
+    <div class="p-note">${LANG==="en"?`Curated harbour info, last verified ${esc(UKCHECKED)}. Not a navigational source — always check the current almanac, tide tables and the harbour's notices before departure. Descriptions are in Dutch for now.`:`Gecureerde haveninfo, laatst gecontroleerd ${esc(UKCHECKED)}. Geen navigatiebron — controleer vóór vertrek altijd de actuele almanak, getijtafels en notices van de haven.`}</div>`;
   $("#panel").classList.add("open"); $("#ovl").classList.add("open");
   $("#pclose").onclick = closeDetail;
   $("#panel").querySelectorAll(".showOnMap").forEach(el=> el.onclick = (e)=>{
@@ -980,6 +1053,33 @@ function openHarbourDetail(o){
   loadTideInto(o);
 }
 function openTideStationDetail(o){
+  if (o.uk){
+    // officieel Admiralty-station
+    $("#panel").innerHTML = `
+      <button class="p-close" id="pclose">${T("sluiten ✕")}</button>
+      <div class="p-h">${esc(o.n)} <button class="star big ${favs.has(o.t+o.id)?"on":""}" data-fav="${o.t}${o.id}" title="${T("Favoriet")}">${STARSVG}</button></div>
+      <div class="p-sub">${T("Officieel Admiralty-getijstation (UKHO)")}</div>
+      <div class="row2" style="margin-top:0">
+        <span class="chip mut"><span class="dot mut"></span>${T("getijstation")}</span>
+        <a href="#" class="tel showOnMap">${T("toon op kaart")}</a>
+      </div>
+      <div class="p-sec"><h3>${T("Getij")}</h3><div id="tidebox" class="p-note" style="margin-top:0">${T("Getijverwachting laden…")}</div></div>
+      <div class="p-sec"><h3>${T("Links")}</h3><div class="linkrow">
+        <a href="https://www.google.com/maps?q=${o.lat},${o.lon}" target="_blank" rel="noopener">${T("kaart ↗")}</a>
+      </div></div>`;
+    $("#panel").classList.add("open"); $("#ovl").classList.add("open");
+    $("#pclose").onclick = closeDetail;
+    $("#panel").querySelectorAll(".showOnMap").forEach(el=> el.onclick = (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      closeDetail(); $("#searchdrop").hidden = true;
+      switchView("kaart");
+      map.setView([o.lat,o.lon], Math.max(map.getZoom(), 11));
+      highlightOnMap(o);
+    });
+    if (map){ map.setView([o.lat,o.lon], Math.max(map.getZoom(), 10), {animate:false}); highlightOnMap(o); }
+    renderOfficialTide(document.getElementById("tidebox"), o.uk, null);
+    return;
+  }
   const s = o.st;
   const nowMs = Date.now();
   const up = s.events.filter(e=> new Date(e[0]+":00Z").getTime() >= nowMs - 15*60000).slice(0,6);
@@ -1001,33 +1101,37 @@ function openTideStationDetail(o){
     curve = `<svg class="tidecurve" viewBox="0 0 ${W} ${Hc}" style="width:100%;height:auto;display:block" role="img" aria-label="Getijcurve">
       ${zeroY}
       <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2"/>
-      ${nowIdx>=0&&nowIdx<=s.series.length-1?`<line x1="${X(nowIdx).toFixed(1)}" y1="${PY-4}" x2="${X(nowIdx).toFixed(1)}" y2="${Hc-PY+4}" stroke="var(--critical)" stroke-width="1.5"/><text x="${Math.min(X(nowIdx)+4,W-30).toFixed(1)}" y="${PY+6}" font-size="10" fill="var(--muted)">nu</text>`:""}
+      ${nowIdx>=0&&nowIdx<=s.series.length-1?`<line x1="${X(nowIdx).toFixed(1)}" y1="${PY-4}" x2="${X(nowIdx).toFixed(1)}" y2="${Hc-PY+4}" stroke="var(--critical)" stroke-width="1.5"/><text x="${Math.min(X(nowIdx)+4,W-30).toFixed(1)}" y="${PY+6}" font-size="10" fill="var(--muted)">${T("nu")}</text>`:""}
     </svg>
-    <div class="tlegend">Sleep of tik op de grafiek voor tijd en hoogte op dat moment.</div>`;
+    <div class="tlegend">${LANG==="en"?"Drag or tap the chart for time and height at that moment.":"Sleep of tik op de grafiek voor tijd en hoogte op dat moment."}</div>`;
     scrub = {x:s.series.map((_,i)=>X(i)), y:vals.map(v=>Y(v)), lbl:s.series.map(x=>fmtNlClock(x[0])), val:vals};
   }
   const checked = NLTIDES&&NLTIDES.checked ? new Intl.DateTimeFormat("nl-NL",{timeZone:"Europe/Amsterdam",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}).format(new Date(NLTIDES.checked)) : "";
   $("#panel").innerHTML = `
-    <button class="p-close" id="pclose">sluiten ✕</button>
-    <div class="p-h">${esc(o.n)} <button class="star big ${favs.has(o.t+o.id)?"on":""}" data-fav="${o.t}${o.id}" title="Favoriet">${STARSVG}</button></div>
-    <div class="p-sub">Officieel getijstation Rijkswaterstaat (${esc(s.code)})</div>
+    <button class="p-close" id="pclose">${T("sluiten ✕")}</button>
+    <div class="p-h">${esc(o.n)} <button class="star big ${favs.has(o.t+o.id)?"on":""}" data-fav="${o.t}${o.id}" title="${T("Favoriet")}">${STARSVG}</button></div>
+    <div class="p-sub">${T("Officieel getijstation Rijkswaterstaat")} (${esc(s.code)})</div>
     <div class="row2" style="margin-top:0">
-      <span class="chip mut"><span class="dot mut"></span>getijstation</span>
-      <a href="#" class="tel showOnMap">toon op kaart</a>
+      <span class="chip mut"><span class="dot mut"></span>${T("getijstation")}</span>
+      <a href="#" class="tel showOnMap">${T("toon op kaart")}</a>
     </div>
-    <div class="p-sec"><h3>Getij (astronomisch)</h3>
-      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px">${chips||"<span class='hinfo'>geen verwachtingen beschikbaar — ververs vannacht</span>"}</div>
-      <div class="tlegend" style="margin:0 0 8px">Officiële astronomische getijverwachting Rijkswaterstaat · hoogte t.o.v. NAP · tijden NL-tijd · ververst ${esc(checked)}</div>
+    <div class="p-sec"><h3>${T("Getij (astronomisch)")}</h3>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px">${chips||`<span class='hinfo'>${T("geen verwachtingen beschikbaar — ververs vannacht")}</span>`}</div>
+      <div class="tlegend" style="margin:0 0 8px">${LANG==="en"?`Official astronomical tide prediction by Rijkswaterstaat · height rel. to NAP · times NL local · refreshed ${esc(checked)}`:`Officiële astronomische getijverwachting Rijkswaterstaat · hoogte t.o.v. NAP · tijden NL-tijd · ververst ${esc(checked)}`}</div>
       ${curve}
+      ${stationRow({lat:o.lat, lon:o.lon, station:s.n}, null)}
       <details class="tlex">
-        <summary>Over deze getijgegevens</summary>
+        <summary>${LANG==="en"?"About this tide data":"Over deze getijgegevens"}</summary>
+        ${LANG==="en"?`
+        <p>These are the <b>official astronomical tide predictions by Rijkswaterstaat</b> for this station — the same computation behind the Dutch tide tables. Heights are in metres relative to <b>NAP</b> (Amsterdam Ordnance Datum), as used in the HP33 and on waterinfo.</p>
+        <p>Astronomical means: without wind surge or set-down. In strong winds the actual water level can differ considerably — see <a href="https://waterinfo.rws.nl/" target="_blank" rel="noopener">waterinfo.rws.nl ↗</a> for the actual and forecast level including wind.</p>`:`
         <p>Dit zijn de <b>officiële astronomische getijverwachtingen van Rijkswaterstaat</b> voor dit meetstation — dezelfde berekening als achter de Nederlandse getijtafels. Hoogtes zijn in meters ten opzichte van <b>NAP</b> (zo staan ze ook in de HP33 en op waterinfo).</p>
-        <p>Astronomisch betekent: zonder windopzet of afwaaiing. Bij stevige wind kan de werkelijke waterstand flink afwijken — kijk dan op <a href="https://waterinfo.rws.nl/" target="_blank" rel="noopener">waterinfo.rws.nl ↗</a> voor de actuele en verwachte waterstand inclusief wind.</p>
+        <p>Astronomisch betekent: zonder windopzet of afwaaiing. Bij stevige wind kan de werkelijke waterstand flink afwijken — kijk dan op <a href="https://waterinfo.rws.nl/" target="_blank" rel="noopener">waterinfo.rws.nl ↗</a> voor de actuele en verwachte waterstand inclusief wind.</p>`}
       </details>
     </div>
-    <div class="p-sec"><h3>Links</h3><div class="linkrow">
+    <div class="p-sec"><h3>${T("Links")}</h3><div class="linkrow">
       <a href="https://waterinfo.rws.nl/" target="_blank" rel="noopener">waterinfo.rws.nl ↗</a>
-      <a href="https://www.google.com/maps?q=${o.lat},${o.lon}" target="_blank" rel="noopener">kaart ↗</a>
+      <a href="https://www.google.com/maps?q=${o.lat},${o.lon}" target="_blank" rel="noopener">${T("kaart ↗")}</a>
     </div></div>`;
   $("#panel").classList.add("open"); $("#ovl").classList.add("open");
   $("#pclose").onclick = closeDetail;
@@ -1054,59 +1158,59 @@ function openDetail(o){
     // komende periodes eerst, in kalendervolgorde vanaf vandaag (alles herhaalt jaarlijks)
     const others = (ot[1]||[]).filter(p=>p!==cur)
       .sort((a,b)=> (((+a[0]-today)+1300)%1300) - (((+b[0]-today)+1300)%1300));
-    sec += `<div class="p-sec"><h3>Bedieningstijden — ${cur?periodLabel(cur):"?"}</h3>`;
+    sec += `<div class="p-sec"><h3>${T("Bedieningstijden")} — ${cur?periodLabel(cur):"?"}</h3>`;
     if (cur) sec += scheduleTable(cur, true);
     if (ot[0]) sec += `<div class="p-note">${esc(ot[0])}</div>`;
-    if (others.length) sec += `<div class="note" style="margin-top:10px">Volgende periodes:</div>`;
+    if (others.length) sec += `<div class="note" style="margin-top:10px">${T("Volgende periodes:")}</div>`;
     for (const p of others){
-      sec += `<details class="period"><summary>Periode ${periodLabel(p)}</summary>${scheduleTable(p,false)}</details>`;
+      sec += `<details class="period"><summary>${T("Periode")} ${periodLabel(p)}</summary>${scheduleTable(p,false)}</details>`;
     }
     sec += `</div>`;
   } else if (o.open){
-    sec += `<div class="p-sec"><h3>Bedieningstijden</h3><div class="p-note">Bedienbaar, maar geen tijden in de dataset — bel of roep op via marifoon.</div></div>`;
+    sec += `<div class="p-sec"><h3>${T("Bedieningstijden")}</h3><div class="p-note">${T("Bedienbaar, maar geen tijden in de dataset — bel of roep op via marifoon.")}</div></div>`;
   }
   const sibs = siblings(o);
   if (sibs.length){
-    sec += `<div class="p-sec"><h3>Hoort bij hetzelfde complex</h3><div class="note" style="margin-top:0">Vergeet deze niet — bediening kan samenhangen:</div>` + sibs.map(cardHTML).join("") + `</div>`;
+    sec += `<div class="p-sec"><h3>${T("Hoort bij hetzelfde complex")}</h3><div class="note" style="margin-top:0">${T("Vergeet deze niet — bediening kan samenhangen:")}</div>` + sibs.map(cardHTML).join("") + `</div>`;
   }
   if (st.strems.length){
-    sec += `<div class="p-sec"><h3>Berichten in de buurt</h3>` + st.strems.map(stremCard).join("") + `</div>`;
+    sec += `<div class="p-sec"><h3>${T("Berichten in de buurt")}</h3>` + st.strems.map(stremCard).join("") + `</div>`;
   }
   const kv=[];
   if (o.t==="B"){
-    if (o.hm!=null) kv.push(["Hoogte beweegbaar (dicht)", o.hm.toFixed(2).replace(".",",")+" m"]);
-    if (o.hf!=null) kv.push(["Hoogte vast deel", o.hf.toFixed(2).replace(".",",")+" m"]);
-    if (o.wm!=null) kv.push(["Breedte beweegbare opening", String(o.wm).replace(".",",")+" m"]);
-    else if (o.w!=null) kv.push(["Breedte", String(o.w).replace(".",",")+" m"]);
-    kv.push(["Bediening", o.open ? (o.rem?"ja, op afstand bediend":"ja") : "nee (vaste brug)"]);
+    if (o.hm!=null) kv.push([T("Hoogte beweegbaar (dicht)"), o.hm.toFixed(2).replace(".",",")+" m"]);
+    if (o.hf!=null) kv.push([T("Hoogte vast deel"), o.hf.toFixed(2).replace(".",",")+" m"]);
+    if (o.wm!=null) kv.push([T("Breedte beweegbare opening"), String(o.wm).replace(".",",")+" m"]);
+    else if (o.w!=null) kv.push([T("Breedte"), String(o.w).replace(".",",")+" m"]);
+    kv.push([T("Bediening"), o.open ? (o.rem?T("ja, op afstand bediend"):T("ja")) : T("nee (vaste brug)")]);
   } else {
-    if (o.nch) kv.push(["Kolken", String(o.nch)]);
-    if (o.len!=null) kv.push(["Kolklengte", String(o.len).replace(".",",")+" m"]);
-    if (o.w!=null) kv.push(["Kolkbreedte", String(o.w).replace(".",",")+" m"]);
-    if (o.rem) kv.push(["Bediening", "op afstand bediend"]);
+    if (o.nch) kv.push([T("Kolken"), String(o.nch)]);
+    if (o.len!=null) kv.push([T("Kolklengte"), String(o.len).replace(".",",")+" m"]);
+    if (o.w!=null) kv.push([T("Kolkbreedte"), String(o.w).replace(".",",")+" m"]);
+    if (o.rem) kv.push([T("Bediening"), T("op afstand bediend")]);
   }
-  if (o.vhf&&o.vhf.length) kv.push(["Marifoon", "VHF "+o.vhf.join(", ")]);
-  if (o.tel) kv.push(["Telefoon", `<a href="tel:${esc(o.tel.replace(/[^+\d]/g,""))}">${esc(o.tel)}</a>`]);
-  if (o.adm) kv.push(["Beheerder", esc(o.adm)+(o.admTel?` — <a href="tel:${esc(o.admTel.replace(/[^+\d]/g,""))}">${esc(o.admTel)}</a>`:"")]);
-  if (o.fw) kv.push(["Vaarweg", esc(o.fw)]);
+  if (o.vhf&&o.vhf.length) kv.push([T("Marifoon"), "VHF "+o.vhf.join(", ")]);
+  if (o.tel) kv.push([T("Telefoon"), `<a href="tel:${esc(o.tel.replace(/[^+\d]/g,""))}">${esc(o.tel)}</a>`]);
+  if (o.adm) kv.push([T("Beheerder"), esc(o.adm)+(o.admTel?` — <a href="tel:${esc(o.admTel.replace(/[^+\d]/g,""))}">${esc(o.admTel)}</a>`:"")]);
+  if (o.fw) kv.push([T("Vaarweg"), esc(o.fw)]);
   const gmaps = `https://www.google.com/maps?q=${o.lat},${o.lon}`;
   const vwi = `https://www.vaarweginformatie.nl/frp/main/#/geo/detail/${o.t==="B"?"BRIDGE":"LOCK"}/${o.id}`;
   $("#panel").innerHTML = `
-    <button class="p-close" id="pclose">sluiten ✕</button>
-    <div class="p-h">${esc(o.n)} <button class="star big ${favs.has(o.t+o.id)?"on":""}" data-fav="${o.t}${o.id}" title="Favoriet">${STARSVG}</button></div>
-    <div class="p-sub">${o.t==="B"?"Brug":"Sluis"}${o.c?" · "+esc(o.c):""}${o.fw?" · "+esc(o.fw):""}</div>
+    <button class="p-close" id="pclose">${T("sluiten ✕")}</button>
+    <div class="p-h">${esc(o.n)} <button class="star big ${favs.has(o.t+o.id)?"on":""}" data-fav="${o.t}${o.id}" title="${T("Favoriet")}">${STARSVG}</button></div>
+    <div class="p-sub">${T(o.t==="B"?"Brug":"Sluis")}${o.c?" · "+esc(o.c):""}${o.fw?" · "+esc(o.fw):""}</div>
     <div class="row2" style="margin-top:0">
       <span class="chip ${st.cls}"><span class="dot ${st.cls}"></span>${esc(st.label)}${st.extra?" · "+esc(st.extra):""}</span>
       ${o.vhf&&o.vhf.length?`<span class="vhf">VHF ${o.vhf.join(", ")}</span>`:""}
       ${telHTML(o)}
-      <a href="#" class="tel showOnMap">toon op kaart</a>
+      <a href="#" class="tel showOnMap">${T("toon op kaart")}</a>
     </div>
     ${mastIssue(o)?`<div class="mastwarn">${esc(mastIssue(o))}</div>`:""}
     ${sec}
-    <div class="p-sec"><h3>Gegevens</h3><div class="kv">${kv.map(([k,v])=>`<span class="k">${k}</span><span>${v}</span>`).join("")}</div></div>
+    <div class="p-sec"><h3>${T("Gegevens")}</h3><div class="kv">${kv.map(([k,v])=>`<span class="k">${k}</span><span>${v}</span>`).join("")}</div></div>
     <div class="p-sec"><h3>Links</h3><div class="linkrow">
       <a href="${vwi}" target="_blank" rel="noopener">vaarweginformatie.nl ↗</a>
-      <a href="${gmaps}" target="_blank" rel="noopener">kaart ↗</a>
+      <a href="${gmaps}" target="_blank" rel="noopener">${T("kaart ↗")}</a>
     </div></div>`;
   $("#panel").classList.add("open"); $("#ovl").classList.add("open");
   $("#pclose").onclick = closeDetail;
@@ -1158,12 +1262,12 @@ function buildHarbourLayer(){
     if (o.t==="H"){
       const icon = L.divIcon({className:"", html:`<div class="harb-pin">${ANCHORSVG}</div>`, iconSize:[22,22], iconAnchor:[11,11]});
       L.marker([o.lat,o.lon], {icon, zIndexOffset:400})
-        .bindPopup(`<b>${esc(o.n)}</b><br>UK kusthaven · ${esc(o.fw)}<br><span class="pop-open" data-open="${o.t}${o.id}">details →</span>`)
+        .bindPopup(`<b>${esc(o.n)}</b><br>${T("UK kusthaven")} · ${esc(o.fw)}<br><span class="pop-open" data-open="${o.t}${o.id}">${T("details →")}</span>`)
         .addTo(harbourLayer);
     } else if (o.t==="G"){
       const icon = L.divIcon({className:"", html:`<div class="harb-pin tide">${WAVESVG}</div>`, iconSize:[22,22], iconAnchor:[11,11]});
       L.marker([o.lat,o.lon], {icon, zIndexOffset:350})
-        .bindPopup(`<b>${esc(o.n)}</b><br>${esc(nextTideTxt(o))||"getijstation"}<br><span class="pop-open" data-open="${o.t}${o.id}">details →</span>`)
+        .bindPopup(`<b>${esc(o.n)}</b><br>${esc(nextTideTxt(o))||T("getijstation")}<br><span class="pop-open" data-open="${o.t}${o.id}">${T("details →")}</span>`)
         .addTo(harbourLayer);
     }
   }
@@ -1178,7 +1282,7 @@ function buildMarkers(){
     const m = L.circleMarker([o.lat, o.lon], {
       radius: o.open?7:5, weight:2, color:"#ffffff", fillColor: markerColor(o), fillOpacity:0.95
     });
-    m.bindPopup(`<b>${esc(o.n)}</b><br>${o.t==="B"?"brug":"sluis"}${o.c?" · "+esc(o.c):""}<br><span class="pop-open" data-open="${o.t}${o.id}">details →</span>`);
+    m.bindPopup(`<b>${esc(o.n)}</b><br>${o.t==="B"?"brug":"sluis"}${o.c?" · "+esc(o.c):""}<br><span class="pop-open" data-open="${o.t}${o.id}">${T("details →")}</span>`);
     ms.push(m);
   }
   cluster.addLayers(ms);
@@ -1191,7 +1295,7 @@ function buildStremLayer(){
     if (!s.act || sevRank(s.code) < 2) continue;
     const icon = L.divIcon({className:"", html:`<div class="strem-pin ${sevRank(s.code)>=3?"crit":"ser"}">!</div>`, iconSize:[16,16], iconAnchor:[8,8]});
     L.marker([s.lat,s.lon], {icon, zIndexOffset:500})
-      .bindPopup(`<b>${esc(codeLbl(s.code))}</b><br>${esc(s.loc)}<br>${esc(s.fw)}<br><a href="${ntsUrl(s)}" target="_blank" rel="noopener">bericht ↗</a>`)
+      .bindPopup(`<b>${esc(codeLbl(s.code))}</b><br>${esc(s.loc)}<br>${esc(s.fw)}<br><a href="${ntsUrl(s)}" target="_blank" rel="noopener">${T("bericht ↗")}</a>`)
       .addTo(stremLayer);
   }
   stremLayer.addTo(map);
@@ -1287,16 +1391,67 @@ $("#mb-uk").onclick = ()=>{
   else map.setView([52.2,5.3], 8);
 };
 
+const STATIC_EN = {
+  tab_kaart:"Map", tab_fav:"Favourites", tab_strem:"Closures",
+  mb_all:"All objects", mb_bedien:"Operable only", mb_strem:"Closures", mb_locate:"Follow me", mb_uk:"UK harbours",
+};
+function applyStaticLang(){
+  document.querySelectorAll(".langbtn").forEach(b=> b.classList.toggle("on", b.dataset.lang===LANG));
+  if (LANG!=="en") return;
+  document.querySelectorAll("[data-i18n]").forEach(el=>{
+    const k = el.dataset.i18n;
+    if (STATIC_EN[k]) el.textContent = STATIC_EN[k];
+  });
+  $("#q").placeholder = "Search bridge, lock, place or waterway…";
+  const fn = $("#favnote");
+  if (fn) fn.textContent = "Mark objects with ☆ — favourites are stored in your browser.";
+  const sn = $("#stremnote");
+  if (sn) sn.innerHTML = 'Current and announced restrictions from the notices to skippers (FTM/NtS), refreshed <span id="stremstamp"></span>. Click through for the full notice on vaarweginformatie.nl.';
+  const inf = $("#v-info");
+  if (inf) inf.innerHTML = `
+    <div class="p-sec"><h3 style="color:var(--ink)">About this site</h3>
+      <p>Operating times of every operated bridge and lock in the Netherlands, with clearance heights, VHF channels, phone numbers and live closure notices — plus 48 curated UK coastal harbours and official tide predictions for both countries.</p>
+      <div class="kv">
+        <span class="k">Static source</span><span>Rijkswaterstaat — Fairway Information Services (vaarweginformatie.nl), refreshed daily</span>
+        <span class="k">Live source</span><span>Notices to skippers (NtS/FTM) via vaarweginformatie.nl, refreshed hourly</span>
+        <span class="k">Tides NL</span><span>Rijkswaterstaat astronomical predictions (NAP)</span>
+        <span class="k">Tides UK</span><span>UKHO Admiralty predictions (above chart datum, LAT)</span>
+        <span class="k">Objects</span><span id="objcount"></span>
+      </div>
+      <p style="color:var(--muted);font-size:12.5px">Not an official source — when in doubt check the notice via its link, or call the bridge/lock on VHF or phone. Dutch data descriptions remain in Dutch. Map: © OpenStreetMap contributors.</p>
+    </div>
+    <div class="p-sec"><h3 style="color:var(--ink)">As an app on your phone</h3>
+      <p>Add this site to your home screen — own icon, no browser bar.</p>
+      <div class="kv">
+        <span class="k">iPhone / iPad</span><span>Open in <b>Safari</b> → tap the <b>share button</b> → <b>"Add to Home Screen"</b>.</span>
+        <span class="k">Android</span><span>Open in <b>Chrome</b> → tap <b>⋮</b> → <b>"Install app"</b> or <b>"Add to home screen"</b>.</span>
+      </div>
+    </div>`;
+  const mb = document.querySelector(".h-search .mastbox");
+  if (mb) mb.childNodes[0].textContent = "mast ";
+  $("#loading") && ($("#loading").textContent = "Loading data…");
+  $("#stq") && ($("#stq").placeholder = "Filter by waterway, place or object…");
+  const foot = $("#foot");
+  if (foot) foot.textContent = "Data: Rijkswaterstaat FIS & notices to skippers · refreshed automatically · not an official source, verify locally.";
+}
+document.addEventListener("click", e=>{
+  const lb = e.target.closest(".langbtn");
+  if (lb && lb.dataset.lang !== LANG){
+    try{ localStorage.setItem("bs_lang", JSON.stringify(lb.dataset.lang)); }catch(_){}
+    location.reload();
+  }
+});
+applyStaticLang();
 let deb;
 loadData().then(()=>{
   buildStremIndex();
   $("#loading").remove();
   const fmt = ms => new Intl.DateTimeFormat("nl-NL",{timeZone:"Europe/Amsterdam",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}).format(new Date(ms));
-  $("#datastamp").textContent = "berichten ververst "+fmt(STREMTS);
-  $("#stremstamp").textContent = fmt(STREMTS);
-  $("#stremstamp2").textContent = fmt(STREMTS);
+  $("#datastamp").textContent = (LANG==="en"?"notices refreshed ":"berichten ververst ")+fmt(STREMTS);
+  const ss1 = $("#stremstamp"); if (ss1) ss1.textContent = fmt(STREMTS);
+  const ss2 = $("#stremstamp2"); if (ss2) ss2.textContent = fmt(STREMTS);
   document.querySelectorAll(".snapdate").forEach(el=>el.textContent = "generatie "+DATA.gen);
-  $("#objcount").textContent = DATA.objs.filter(o=>o.t==="B").length+" bruggen · "+DATA.objs.filter(o=>o.t==="S").length+" sluizen · "+DATA.objs.filter(o=>o.t==="H").length+" UK-kusthavens · "+STREM.length+" actuele berichten";
+  const oc = $("#objcount"); if (oc) oc.textContent = DATA.objs.filter(o=>o.t==="B").length+" bruggen · "+DATA.objs.filter(o=>o.t==="S").length+" sluizen · "+DATA.objs.filter(o=>o.t==="H").length+" UK-kusthavens · "+STREM.length+" actuele berichten";
   const m = readStore("bs_mast", null);
   if (m!=null) $("#mast").value = m;
   $("#q").addEventListener("input", ()=>{ clearTimeout(deb); deb=setTimeout(()=>{ renderResults(); updateDrop(); },120); });
