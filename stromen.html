@@ -94,13 +94,13 @@
 
 <div id="layersPanel" class="panel">
   <div class="t">Lagen</div>
-  <label><input type="checkbox" id="cbParticles" checked> Stroomanimatie</label>
-  <label><input type="checkbox" id="cbCmems" checked> Copernicus kleurlaag</label>
-  <label><input type="checkbox" id="cbArrows"> Copernicus pijlen</label>
+  <label><input type="checkbox" id="cbArrows" checked> Stroompijlen (vloeiend)</label>
+  <label><input type="checkbox" id="cbParticles"> Deeltjesanimatie</label>
+  <label><input type="checkbox" id="cbCmems"> Copernicus kleurlaag</label>
 </div>
 
 <div id="legend" class="panel">
-  <div class="t">Stroomsnelheid (animatie)</div>
+  <div class="t">Stroomsnelheid</div>
   <div class="bar"></div>
   <div class="ticks"><span>0</span><span>0,5</span><span>1</span><span>1,5</span><span>2</span><span>≥2,5 kn</span></div>
   <div class="sub">1 kn = 1,852 km/u · klik op zee voor details</div>
@@ -126,7 +126,7 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 function isoHour(unixSec) { return new Date(unixSec * 1000).toISOString().replace(/\.\d{3}Z$/, '.000Z'); }
 
-let cmemsLayer = null, arrowLayer = null;
+let cmemsLayer = null;
 function makeCmemsLayer(styleStr, opacity, timeIso) {
   return L.tileLayer(WMTS + '&STYLE=' + encodeURIComponent(styleStr) + '&time=' + encodeURIComponent(timeIso),
     { opacity, maxNativeZoom: 9, maxZoom: 11, pane: 'tilePane' });
@@ -217,7 +217,7 @@ const canvas = document.createElement('canvas');
 canvas.id = 'currentCanvas';
 map.getContainer().appendChild(canvas);
 const ctx = canvas.getContext('2d');
-let particles = [], animOn = true, rafId = null, lastTs = 0;
+let particles = [], particlesOn = false, arrowsOn = true, rafId = null, lastTs = 0;
 
 const RAMP = [[0,'#9ec5f4'],[0.93,'#6da7ec'],[1.85,'#3987e5'],[2.8,'#256abf'],[3.7,'#184f95'],[4.6,'#0d366b']];
 function speedColor(kmh) {
@@ -254,6 +254,36 @@ function resetParticles() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
+/* vloeiende stroompijlen — getekend uit het (in de tijd geïnterpoleerde) veld */
+function drawArrows() {
+  const sz = map.getSize();
+  const step = 44;                                   // schermafstand tussen pijlen (px)
+  ctx.lineWidth = 1.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.globalAlpha = 1;
+  for (let x = step * 0.6; x < sz.x; x += step) {
+    for (let y = step * 0.6; y < sz.y; y += step) {
+      const ll = map.containerPointToLatLng([x, y]);
+      const uv = sampleUV(ll.lat, ll.lng, tFloat);
+      if (!uv) continue;
+      const u = uv[0], v = uv[1], kmh = Math.hypot(u, v);
+      if (kmh < 0.05) continue;
+      const dx = u, dy = -v, m = Math.hypot(dx, dy) || 1;   // scherm: oost=+x, noord=-y
+      const ux = dx / m, uy = dy / m;
+      const len = Math.min(step * 0.5, 7 + kmh * 4.2);
+      const hx = x + ux * len * 0.5, hy = y + uy * len * 0.5;
+      const tx = x - ux * len * 0.5, ty = y - uy * len * 0.5;
+      const ah = Math.min(5.5, len * 0.42), ang = Math.atan2(uy, ux);
+      ctx.strokeStyle = speedColor(kmh);
+      ctx.beginPath();
+      ctx.moveTo(tx, ty); ctx.lineTo(hx, hy);
+      ctx.lineTo(hx - ah * Math.cos(ang - 0.45), hy - ah * Math.sin(ang - 0.45));
+      ctx.moveTo(hx, hy);
+      ctx.lineTo(hx - ah * Math.cos(ang + 0.45), hy - ah * Math.sin(ang + 0.45));
+      ctx.stroke();
+    }
+  }
+}
+
 function frame(ts) {
   rafId = requestAnimationFrame(frame);
   const dt = lastTs ? Math.min(0.08, (ts - lastTs) / 1000) : 0;  // s, gecapt tegen sprongen
@@ -267,31 +297,38 @@ function frame(ts) {
     updateWmtsTime();
   }
 
-  if (!U || !animOn) return;
+  if (!U || (!particlesOn && !arrowsOn)) return;
   const sz = map.getSize();
-  ctx.globalCompositeOperation = 'destination-out';
-  ctx.fillStyle = 'rgba(0,0,0,0.055)';
-  ctx.fillRect(0, 0, sz.x, sz.y);
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.lineWidth = 1.8; ctx.lineCap = 'round';
-  const speedScale = 0.0022 * Math.pow(1.35, map.getZoom() - 6);
-  for (const p of particles) {
-    if (--p.age <= 0) { spawnParticle(p); continue; }
-    const uv = sampleUV(p.lat, p.lon, tFloat);
-    if (!uv) { spawnParticle(p); continue; }
-    const [u, v] = uv;
-    const kmh = Math.hypot(u, v);
-    const dLat = v * speedScale / 1.5;
-    const dLon = u * speedScale / (1.5 * Math.cos(p.lat * Math.PI / 180));
-    const a = map.latLngToContainerPoint([p.lat, p.lon]);
-    p.lat += dLat; p.lon += dLon;
-    const b2 = map.latLngToContainerPoint([p.lat, p.lon]);
-    if (b2.x < -20 || b2.y < -20 || b2.x > sz.x + 20 || b2.y > sz.y + 20) { spawnParticle(p); continue; }
-    ctx.strokeStyle = speedColor(kmh);
-    ctx.globalAlpha = Math.min(1, 0.45 + kmh / 3.5);
-    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b2.x, b2.y); ctx.stroke();
+
+  if (particlesOn) {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = 'rgba(0,0,0,0.055)';
+    ctx.fillRect(0, 0, sz.x, sz.y);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.lineWidth = 1.8; ctx.lineCap = 'round';
+    const speedScale = 0.0022 * Math.pow(1.35, map.getZoom() - 6);
+    for (const p of particles) {
+      if (--p.age <= 0) { spawnParticle(p); continue; }
+      const uv = sampleUV(p.lat, p.lon, tFloat);
+      if (!uv) { spawnParticle(p); continue; }
+      const [u, v] = uv;
+      const kmh = Math.hypot(u, v);
+      const dLat = v * speedScale / 1.5;
+      const dLon = u * speedScale / (1.5 * Math.cos(p.lat * Math.PI / 180));
+      const a = map.latLngToContainerPoint([p.lat, p.lon]);
+      p.lat += dLat; p.lon += dLon;
+      const b2 = map.latLngToContainerPoint([p.lat, p.lon]);
+      if (b2.x < -20 || b2.y < -20 || b2.x > sz.x + 20 || b2.y > sz.y + 20) { spawnParticle(p); continue; }
+      ctx.strokeStyle = speedColor(kmh);
+      ctx.globalAlpha = Math.min(1, 0.45 + kmh / 3.5);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b2.x, b2.y); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  } else {
+    ctx.clearRect(0, 0, sz.x, sz.y);
   }
-  ctx.globalAlpha = 1;
+
+  if (arrowsOn) drawArrows();
 }
 
 map.on('resize', () => { resizeCanvas(); resetParticles(); });
@@ -321,7 +358,6 @@ function updateWmtsTime() {
   wmtsDebounce = setTimeout(() => {
     const iso = isoHour(times[hr]);
     if (cmemsLayer) cmemsLayer.setUrl(WMTS + '&STYLE=' + encodeURIComponent('cmap:speed,vectorStyle:solid') + '&time=' + encodeURIComponent(iso));
-    if (arrowLayer) arrowLayer.setUrl(WMTS + '&STYLE=' + encodeURIComponent('cmap:speed,vectorStyle:vector') + '&time=' + encodeURIComponent(iso));
   }, 220);
 }
 function setTimeFloat(tf) {
@@ -349,12 +385,11 @@ function syncLayers() {
   const iso = times ? isoHour(times[Math.round(tFloat)]) : isoHour(Math.floor(Date.now() / 3600000) * 3600);
   if ($('cbCmems').checked && !cmemsLayer) cmemsLayer = makeCmemsLayer('cmap:speed,vectorStyle:solid', 0.5, iso).addTo(map);
   if (!$('cbCmems').checked && cmemsLayer) { map.removeLayer(cmemsLayer); cmemsLayer = null; }
-  if ($('cbArrows').checked && !arrowLayer) arrowLayer = makeCmemsLayer('cmap:speed,vectorStyle:vector', 0.85, iso).addTo(map);
-  if (!$('cbArrows').checked && arrowLayer) { map.removeLayer(arrowLayer); arrowLayer = null; }
   lastWmtsHour = Math.round(tFloat);
-  animOn = $('cbParticles').checked;
-  canvas.style.display = animOn ? 'block' : 'none';
-  if (animOn) resetParticles();
+  particlesOn = $('cbParticles').checked;
+  arrowsOn = $('cbArrows').checked;
+  canvas.style.display = (particlesOn || arrowsOn) ? 'block' : 'none';
+  if (particlesOn) resetParticles();
 }
 ['cbParticles', 'cbCmems', 'cbArrows'].forEach(id => $(id).addEventListener('change', syncLayers));
 
