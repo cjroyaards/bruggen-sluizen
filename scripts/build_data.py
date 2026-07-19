@@ -169,6 +169,10 @@ def build_full():
 def build_strem():
     now = int(time.time() * 1000)
     until = now + 60 * 86400 * 1000
+    # berichten die NU (komende 24 uur) gelden — alleen die tellen mee voor de status
+    d_act = get(f"{NTS}?validFrom={now}&validUntil={now + 86400000}&ntsTypes=FTM&limitationGroup=ALL")
+    act_ids = {s.get("ntsSummaryId") for s in d_act}
+    # alle berichten voor de komende 60 dagen (incl. aangekondigde werkzaamheden)
     d = get(f"{NTS}?validFrom={now}&validUntil={until}&ntsTypes=FTM&limitationGroup=ALL")
     strem = []
     for s in d:
@@ -182,7 +186,8 @@ def build_strem():
             "loc": s.get("locationName") or "",
             "fw": s.get("fairwayName") or "",
             "start": s.get("startDate"),
-            "nts": f"{nn.get('organisation','')}-{nn.get('year','')}-{nn.get('number','')}-{nn.get('serialNumber','')}",
+            "act": 1 if s.get("ntsSummaryId") in act_ids else 0,
+            "nts": f"{nn.get('organisation','')}-{nn.get('year','')}-{nn.get('number','')}",
         })
     with open(os.path.join(OUT, "strem.json"), "w") as f:
         json.dump({"ts": now, "strem": strem}, f, ensure_ascii=False, separators=(",", ":"))

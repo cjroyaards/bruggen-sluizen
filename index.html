@@ -144,7 +144,7 @@ footer{max-width:860px;margin:20px auto;padding:0 14px 30px;color:var(--muted);f
     <div class="mapbar">
       <button class="mapbtn on" id="mb-all">Alle objecten</button>
       <button class="mapbtn" id="mb-bedien">Alleen bedienbaar</button>
-      <button class="mapbtn on" id="mb-strem">⚠ Stremmingen</button>
+      <button class="mapbtn" id="mb-strem">⚠ Stremmingen</button>
       <button class="mapbtn" id="mb-locate">📍 Volg mij</button>
     </div>
     <div id="map"></div>
@@ -264,7 +264,8 @@ function dayAt(n, offset){
 }
 function statusFor(obj){
   const strems = stremsNear(obj);
-  const worst = strems.length ? Math.max(...strems.map(s=>sevRank(s.code))) : 0;
+  const actStrems = strems.filter(s=>s.act);          // alleen berichten die nú gelden
+  const worst = actStrems.length ? Math.max(...actStrems.map(s=>sevRank(s.code))) : 0;
   if (!obj.open){
     const st = {cls:"mut", label: obj.t==="B" ? "vaste brug" : "geen bediening", strems};
     if (worst>=3) { st.cls="crit"; st.label="stremming gemeld"; }
@@ -333,6 +334,7 @@ function stremsNear(obj){
     const arr = stremIndex.get((kx+i)+"_"+(ky+j));
     if(arr) for(const s of arr) if (dist2(obj.lat,obj.lon,s.lat,s.lon)<400) out.push(s);
   }
+  out.sort((a,b)=> (b.act||0)-(a.act||0) || sevRank(b.code)-sevRank(a.code));
   return out;
 }
 function ntsUrl(s){ return "https://www.vaarweginformatie.nl/frp/main/#/nts/FTM/"+encodeURIComponent(s.nts); }
@@ -416,20 +418,24 @@ function fmtDate(ms){
   if(!ms) return "";
   return new Intl.DateTimeFormat("nl-NL",{timeZone:"Europe/Amsterdam",day:"numeric",month:"short",year:"numeric"}).format(new Date(ms));
 }
-function renderStrem(){
-  const q = norm($("#stq").value).trim();
-  let list = STREM.slice().sort((a,b)=> sevRank(b.code)-sevRank(a.code) || (b.start||0)-(a.start||0));
-  if (q) list = list.filter(s=> (norm(s.loc)+" "+norm(s.fw)).includes(q));
-  $("#stremcnt").textContent = "("+STREM.length+")";
-  $("#stremlist").innerHTML = list.slice(0,300).map(s=>`
-    <div class="stcard">
+function stremCard(s){
+  return `<div class="stcard">
       <div class="row1">
         <span class="chip ${sevCls(s.code)}"><span class="dot ${sevCls(s.code)}"></span>${esc(codeLbl(s.code))}</span>
+        ${s.act?"":`<span class="chip mut">aangekondigd</span>`}
         <b>${esc(s.loc)}</b>
-        <span class="stwhen">sinds ${fmtDate(s.start)}</span>
+        <span class="stwhen">${s.act?"sinds "+fmtDate(s.start):(s.start>Date.now()?"vanaf "+fmtDate(s.start):"gepland / periodiek")}</span>
       </div>
       <div class="row2"><span class="stfw">${esc(s.fw)}</span><span style="margin-left:auto"><a href="${ntsUrl(s)}" target="_blank" rel="noopener">bericht ↗</a></span></div>
-    </div>`).join("") || `<div class="empty">Geen berichten gevonden.</div>`;
+    </div>`;
+}
+function renderStrem(){
+  const q = norm($("#stq").value).trim();
+  let list = STREM.slice().sort((a,b)=> (b.act||0)-(a.act||0) || sevRank(b.code)-sevRank(a.code) || (b.start||0)-(a.start||0));
+  if (q) list = list.filter(s=> (norm(s.loc)+" "+norm(s.fw)).includes(q));
+  const nAct = STREM.filter(s=>s.act).length;
+  $("#stremcnt").textContent = "("+nAct+")";
+  $("#stremlist").innerHTML = list.slice(0,300).map(stremCard).join("") || `<div class="empty">Geen berichten gevonden.</div>`;
 }
 
 /* ---------- detail ---------- */
@@ -464,10 +470,14 @@ function openDetail(o){
   let sec = "";
   if (o.open && ot){
     const cur = (ot[1]||[]).find(p=>periodMatches(p,n.m,n.d));
-    const others = (ot[1]||[]).filter(p=>p!==cur);
+    const today = n.m*100+n.d;
+    // komende periodes eerst, in kalendervolgorde vanaf vandaag (alles herhaalt jaarlijks)
+    const others = (ot[1]||[]).filter(p=>p!==cur)
+      .sort((a,b)=> (((+a[0]-today)+1300)%1300) - (((+b[0]-today)+1300)%1300));
     sec += `<div class="p-sec"><h3>Bedieningstijden — ${cur?periodLabel(cur):"?"}</h3>`;
     if (cur) sec += scheduleTable(cur, true);
     if (ot[0]) sec += `<div class="p-note">${esc(ot[0])}</div>`;
+    if (others.length) sec += `<div class="note" style="margin-top:10px">Volgende periodes:</div>`;
     for (const p of others){
       sec += `<details class="period"><summary>Periode ${periodLabel(p)}</summary>${scheduleTable(p,false)}</details>`;
     }
@@ -476,11 +486,7 @@ function openDetail(o){
     sec += `<div class="p-sec"><h3>Bedieningstijden</h3><div class="p-note">Bedienbaar, maar geen tijden in de dataset — bel of roep op via marifoon.</div></div>`;
   }
   if (st.strems.length){
-    sec += `<div class="p-sec"><h3>Actuele berichten in de buurt</h3>` + st.strems.map(s=>`
-      <div class="stcard"><div class="row1">
-        <span class="chip ${sevCls(s.code)}"><span class="dot ${sevCls(s.code)}"></span>${esc(codeLbl(s.code))}</span>
-        <b>${esc(s.loc)}</b><span class="stwhen">sinds ${fmtDate(s.start)}</span></div>
-      <div class="row2"><span class="stfw">${esc(s.fw)}</span><span style="margin-left:auto"><a href="${ntsUrl(s)}" target="_blank" rel="noopener">bericht ↗</a></span></div></div>`).join("") + `</div>`;
+    sec += `<div class="p-sec"><h3>Berichten in de buurt</h3>` + st.strems.map(stremCard).join("") + `</div>`;
   }
   const kv=[];
   if (o.t==="B"){
@@ -520,13 +526,13 @@ function openDetail(o){
 function closeDetail(){ $("#panel").classList.remove("open"); $("#ovl").classList.remove("open"); }
 
 /* ---------- kaart ---------- */
-let map=null, cluster=null, stremLayer=null, meMarker=null, watchId=null, onlyBedien=false, showStrem=true;
+let map=null, cluster=null, stremLayer=null, meMarker=null, watchId=null, onlyBedien=false, showStrem=false;
 function markerColor(o){
   const st = o._mapcls || (o._mapcls = quickCls(o));
   return {good:"#0ca30c", warn:"#fab219", ser:"#ec835a", crit:"#d03b3b", mut:"#898781", open:"#2a78d6"}[st];
 }
 function quickCls(o){
-  const strems = stremsNear(o);
+  const strems = stremsNear(o).filter(s=>s.act);
   const worst = strems.length ? Math.max(...strems.map(s=>sevRank(s.code))) : 0;
   if (worst>=3) return "crit";
   if (worst===2) return "ser";
@@ -562,7 +568,7 @@ function buildStremLayer(){
   if (!showStrem) return;
   stremLayer = L.layerGroup();
   for (const s of STREM){
-    if (sevRank(s.code) < 2) continue;
+    if (!s.act || sevRank(s.code) < 2) continue;
     const icon = L.divIcon({className:"", html:`<div class="strem-icon">${sevRank(s.code)>=3?"🔴":"🟠"}</div>`, iconSize:[18,18], iconAnchor:[9,9]});
     L.marker([s.lat,s.lon], {icon, zIndexOffset:500})
       .bindPopup(`<b>${esc(codeLbl(s.code))}</b><br>${esc(s.loc)}<br>${esc(s.fw)}<br><a href="${ntsUrl(s)}" target="_blank" rel="noopener">bericht ↗</a>`)
