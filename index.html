@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bruggen &amp; Sluizen — bedieningstijden en actuele vaarweginfo</title>
+<link rel="stylesheet" href="assets/leaflet.min.css">
+<link rel="stylesheet" href="assets/MarkerCluster.min.css">
+<link rel="stylesheet" href="assets/MarkerCluster.Default.min.css">
+<style>
+:root{
+  color-scheme: light;
+  --surface:#fcfcfb; --page:#f9f9f7; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --border:rgba(11,11,11,0.10);
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --accent:#2a78d6; --accent-soft:#e8f1fb;
+  --chip-good-bg:#e6f6e6; --chip-warn-bg:#fdf3dc; --chip-ser-bg:#fdeae2; --chip-crit-bg:#fae3e3; --chip-mut-bg:#f0efec;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --surface:#1a1a19; --page:#0d0d0d; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --border:rgba(255,255,255,0.12);
+    --accent:#3987e5; --accent-soft:#12253c;
+    --chip-good-bg:#12310f; --chip-warn-bg:#3a2d08; --chip-ser-bg:#3b1e12; --chip-crit-bg:#3a1414; --chip-mut-bg:#2c2c2a;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --surface:#1a1a19; --page:#0d0d0d; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --border:rgba(255,255,255,0.12);
+  --accent:#3987e5; --accent-soft:#12253c;
+  --chip-good-bg:#12310f; --chip-warn-bg:#3a2d08; --chip-ser-bg:#3b1e12; --chip-crit-bg:#3a1414; --chip-mut-bg:#2c2c2a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{position:sticky;top:0;z-index:1001;background:var(--surface);border-bottom:1px solid var(--grid);padding:10px 14px 0}
+.h-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+h1{font-size:17px;margin:0;font-weight:650;letter-spacing:-0.01em}
+.h-sub{color:var(--muted);font-size:12px}
+.h-spacer{flex:1}
+#themeBtn{border:1px solid var(--border);background:none;color:var(--ink2);border-radius:8px;padding:4px 9px;cursor:pointer;font-size:12px}
+.tabs{display:flex;gap:2px;margin-top:8px;overflow-x:auto}
+.tab{border:none;background:none;color:var(--ink2);padding:8px 12px;cursor:pointer;font-size:14px;border-bottom:2px solid transparent;font-weight:500;white-space:nowrap}
+.tab.on{color:var(--ink);border-bottom-color:var(--accent);font-weight:650}
+.tab .cnt{color:var(--muted);font-size:12px}
+main{max-width:860px;margin:0 auto;padding:12px 14px 80px}
+main.wide{max-width:none;padding:0}
+.searchrow{display:flex;gap:8px;margin:4px 0 10px;flex-wrap:wrap}
+input[type=search],input[type=number]{background:var(--surface);border:1px solid var(--grid);border-radius:10px;padding:9px 12px;font-size:15px;color:var(--ink);outline:none;min-width:0}
+input[type=search]{flex:1}
+input:focus{border-color:var(--accent)}
+.mastbox{display:flex;align-items:center;gap:6px;color:var(--ink2);font-size:13px;background:var(--surface);border:1px solid var(--grid);border-radius:10px;padding:0 10px}
+.mastbox input{border:none;width:52px;padding:9px 0;font-size:14px;background:none}
+.card{background:var(--surface);border:1px solid var(--grid);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
+.card:hover{border-color:var(--accent)}
+.card .row1{display:flex;align-items:baseline;gap:8px}
+.oname{font-weight:650;font-size:15px}
+.otype{font-size:11px;color:var(--muted);border:1px solid var(--grid);border-radius:5px;padding:1px 5px;text-transform:uppercase;letter-spacing:.04em}
+.oplace{color:var(--muted);font-size:12.5px;margin-left:auto;text-align:right}
+.row2{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;border-radius:7px;padding:2px 8px;font-weight:550}
+.chip.good{background:var(--chip-good-bg);color:var(--ink)}
+.chip.warn{background:var(--chip-warn-bg);color:var(--ink)}
+.chip.ser{background:var(--chip-ser-bg);color:var(--ink)}
+.chip.crit{background:var(--chip-crit-bg);color:var(--ink)}
+.chip.mut{background:var(--chip-mut-bg);color:var(--ink2);font-weight:500}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.dot.good{background:var(--good)} .dot.warn{background:var(--warning)} .dot.ser{background:var(--serious)} .dot.crit{background:var(--critical)} .dot.mut{background:var(--muted)}
+.hinfo{color:var(--ink2);font-size:12.5px}
+.star{background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);padding:0 2px;line-height:1}
+.star.on{color:#eda100}
+.empty{color:var(--muted);text-align:center;padding:30px 10px;font-size:14px}
+.note{color:var(--muted);font-size:12.5px;margin:6px 0 12px}
+#ovl{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:1100;display:none}
+#panel{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);background:var(--surface);z-index:1101;display:none;overflow-y:auto;border-left:1px solid var(--grid);padding:16px 18px 40px}
+#panel.open,#ovl.open{display:block}
+.p-close{position:sticky;top:0;float:right;background:var(--surface);border:1px solid var(--grid);border-radius:8px;padding:4px 10px;cursor:pointer;color:var(--ink2)}
+.p-h{font-size:19px;font-weight:700;margin:2px 0 2px}
+.p-sub{color:var(--muted);font-size:13px;margin-bottom:10px}
+.p-sec{margin-top:16px}
+.p-sec h3{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 6px;font-weight:600}
+table.times{border-collapse:collapse;width:100%;font-size:14px}
+table.times td{padding:4px 8px 4px 0;vertical-align:top}
+table.times td:first-child{color:var(--ink2);width:110px}
+table.times tr.today td{font-weight:650}
+table.times tr.today td:first-child::after{content:" ← vandaag";color:var(--accent);font-size:11px;font-weight:600}
+.win{font-variant-numeric:tabular-nums}
+.kv{display:grid;grid-template-columns:130px 1fr;gap:3px 10px;font-size:14px}
+.kv .k{color:var(--ink2)}
+.p-note{background:var(--chip-mut-bg);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--ink2);white-space:pre-wrap;margin-top:6px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.linkrow{display:flex;gap:14px;flex-wrap:wrap;font-size:14px;margin-top:4px}
+.stcard{background:var(--surface);border:1px solid var(--grid);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.stcard .row1{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.stwhen{color:var(--muted);font-size:12px;margin-left:auto}
+.stfw{color:var(--ink2);font-size:13px}
+details.period{margin-top:8px}
+details.period summary{cursor:pointer;color:var(--ink2);font-size:13px}
+.mastwarn{border-left:3px solid var(--serious);padding:6px 10px;background:var(--chip-ser-bg);border-radius:6px;font-size:13px;margin-top:8px}
+#loading{text-align:center;padding:60px 20px;color:var(--muted)}
+footer{max-width:860px;margin:20px auto;padding:0 14px 30px;color:var(--muted);font-size:12px}
+/* kaart */
+#map{height:calc(100vh - 92px);width:100%}
+.mapbar{position:absolute;z-index:1000;top:10px;left:54px;display:flex;gap:6px;flex-wrap:wrap}
+.mapbtn{background:var(--surface);border:1px solid var(--grid);border-radius:9px;padding:6px 11px;font-size:13px;color:var(--ink);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.mapbtn.on{border-color:var(--accent);color:var(--accent);font-weight:600}
+.brug-marker{border-radius:50%;border:2px solid #fff;box-shadow:0 0 3px rgba(0,0,0,.4)}
+.strem-icon{font-size:18px;line-height:1;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+.leaflet-popup-content{font:13px/1.4 system-ui,sans-serif;margin:10px 12px}
+.leaflet-popup-content b{font-size:14px}
+.pop-open{color:var(--accent);cursor:pointer;font-weight:600}
+@media (max-width:600px){ .oplace{display:none} .kv{grid-template-columns:110px 1fr} #map{height:calc(100vh - 100px)} }
+</style>
+</head>
+<body>
+<header>
+  <div class="h-top">
+    <h1>⛵ Bruggen &amp; Sluizen</h1>
+    <span class="h-sub" id="datastamp"></span>
+    <span class="h-spacer"></span>
+    <button id="themeBtn" title="Licht/donker">◐</button>
+  </div>
+  <nav class="tabs">
+    <button class="tab on" data-v="zoek">Zoeken</button>
+    <button class="tab" data-v="kaart">Kaart</button>
+    <button class="tab" data-v="fav">Favorieten <span class="cnt" id="favcnt"></span></button>
+    <button class="tab" data-v="strem">Stremmingen <span class="cnt" id="stremcnt"></span></button>
+    <button class="tab" data-v="info">Info</button>
+  </nav>
+</header>
+<main id="main">
+  <div id="loading">Gegevens laden…</div>
+  <section id="v-zoek" hidden>
+    <div class="searchrow">
+      <input type="search" id="q" placeholder="Zoek brug, sluis, plaats of vaarweg…" autocomplete="off">
+      <label class="mastbox" title="Doorvaarthoogte-waarschuwing">masthoogte <input type="number" id="mast" step="0.1" min="0" placeholder="–"> m</label>
+    </div>
+    <div class="note">Typ minimaal 2 tekens. Status is berekend uit de officiële bedieningstijden (Rijkswaterstaat FIS) plus actuele scheepvaartberichten in de buurt van het object.</div>
+    <div id="results"></div>
+  </section>
+  <section id="v-kaart" hidden style="position:relative">
+    <div class="mapbar">
+      <button class="mapbtn on" id="mb-all">Alle objecten</button>
+      <button class="mapbtn" id="mb-bedien">Alleen bedienbaar</button>
+      <button class="mapbtn on" id="mb-strem">⚠ Stremmingen</button>
+      <button class="mapbtn" id="mb-locate">📍 Volg mij</button>
+    </div>
+    <div id="map"></div>
+  </section>
+  <section id="v-fav" hidden>
+    <div class="note">Markeer objecten met ☆ — favorieten worden in je browser bewaard.</div>
+    <div id="favlist"></div>
+  </section>
+  <section id="v-strem" hidden>
+    <div class="searchrow"><input type="search" id="stq" placeholder="Filter op vaarweg, plaats of object…"></div>
+    <div class="note">Actuele en aangekondigde beperkingen uit de scheepvaartberichten (FTM/NtS), ververst <span id="stremstamp"></span>. Klik voor het volledige bericht op vaarweginformatie.nl.</div>
+    <div id="stremlist"></div>
+  </section>
+  <section id="v-info" hidden>
+    <div class="p-sec"><h3>Over deze site</h3>
+      <p>Bedieningstijden van alle bedienbare bruggen en sluizen in Nederland, met doorvaarthoogtes, marifoonkanalen, telefoonnummers en actuele scheepvaartberichten — op één plek, doorzoekbaar en op de kaart.</p>
+      <div class="kv">
+        <span class="k">Bron statisch</span><span>Rijkswaterstaat — Fairway Information Services (vaarweginformatie.nl), dagelijks ververst</span>
+        <span class="k">Bron actueel</span><span>Scheepvaartberichten (NtS/FTM) via vaarweginformatie.nl, elk uur ververst</span>
+        <span class="k">Dataset</span><span class="snapdate"></span>
+        <span class="k">Berichten</span><span id="stremstamp2"></span>
+        <span class="k">Objecten</span><span id="objcount"></span>
+      </div>
+      <p style="color:var(--muted);font-size:12.5px">Status-legenda: <span class="chip good"><span class="dot good"></span>bediening nu</span> <span class="chip warn"><span class="dot warn"></span>let op / gesloten</span> <span class="chip ser"><span class="dot ser"></span>beperking</span> <span class="chip crit"><span class="dot crit"></span>gestremd / geen bediening</span> <span class="chip mut"><span class="dot mut"></span>vast object</span></p>
+      <p style="color:var(--muted);font-size:12.5px">Geen officiële bron — controleer bij twijfel het bericht via de link, of roep de brug/sluis op via marifoon of telefoon. Kaart: © OpenStreetMap-bijdragers.</p>
+    </div>
+  </section>
+</main>
+<div id="ovl"></div>
+<aside id="panel" role="dialog" aria-modal="true"></aside>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse.</footer>
+
+<script src="assets/leaflet.min.js"></script>
+<script src="assets/leaflet.markercluster.js"></script>
+<script>
+"use strict";
+let DATA = null, STREM = [], STREMTS = null;
+const $ = s => document.querySelector(s);
+
+/* ---------- opslag (favorieten & mast) ---------- */
+function store(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function readStore(k, d){ try{ const x = localStorage.getItem(k); return x==null?d:JSON.parse(x); }catch(e){ return d; } }
+let favs = new Set(readStore("bs_favs", []));
+
+/* ---------- data laden ---------- */
+async function fetchGz(url){
+  const r = await fetch(url, {cache:"no-cache"});
+  if (!r.ok) throw new Error(url+" → "+r.status);
+  const buf = await r.arrayBuffer();
+  const head = new Uint8Array(buf.slice(0,2));
+  if (head[0]===0x1f && head[1]===0x8b){
+    const ds = new DecompressionStream("gzip");
+    const stream = new Blob([buf]).stream().pipeThrough(ds);
+    return JSON.parse(await new Response(stream).text());
+  }
+  return JSON.parse(new TextDecoder().decode(buf));
+}
+async function loadData(){
+  const [stat, st] = await Promise.all([
+    fetchGz("data/static.json.gz"),
+    fetch("data/strem.json", {cache:"no-cache"}).then(r=>r.json()),
+  ]);
+  DATA = stat; STREM = st.strem; STREMTS = st.ts;
+}
+
+/* ---------- tijd & feestdagen (Europe/Amsterdam) ---------- */
+function amsNow(){
+  const p = new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Amsterdam",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",weekday:"short",hour12:false}).formatToParts(new Date());
+  const g = t => p.find(x=>x.type===t).value;
+  const wd = {Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5,Sun:6}[g("weekday")];
+  return {y:+g("year"), m:+g("month"), d:+g("day"), min: (+g("hour"))*60 + (+g("minute")), wd};
+}
+function easter(y){
+  const a=y%19,b=Math.floor(y/100),c=y%100,dd=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),
+  g=Math.floor((b-f+1)/3),h=(19*a+b-dd-g+15)%30,i=Math.floor(c/4),k=c%4,
+  l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;
+  return new Date(Date.UTC(y,mo-1,da));
+}
+const holCache = {};
+function holidaySet(y){
+  if (holCache[y]) return holCache[y];
+  const s = new Set([`${y}-1-1`,`${y}-12-25`,`${y}-12-26`,`${y}-5-5`]);
+  let kd = new Date(Date.UTC(y,3,27));
+  if (kd.getUTCDay()===0) kd = new Date(Date.UTC(y,3,26));
+  s.add(`${y}-${kd.getUTCMonth()+1}-${kd.getUTCDate()}`);
+  const e = easter(y);
+  for (const off of [0,1,39,49,50]){
+    const d = new Date(e.getTime()+off*86400000);
+    s.add(`${d.getUTCFullYear()}-${d.getUTCMonth()+1}-${d.getUTCDate()}`);
+  }
+  return holCache[y] = s;
+}
+function isHoliday(n){ return holidaySet(n.y).has(`${n.y}-${n.m}-${n.d}`); }
+
+/* ---------- bedieningstijden ---------- */
+function periodMatches(p, m, d){
+  const s = +p[0], e = +p[1], t = m*100+d;
+  if (isNaN(s)||isNaN(e)) return false;
+  return s<=e ? (t>=s && t<=e) : (t>=s || t<=e);
+}
+function fmtMin(x){
+  x = ((x%1440)+1440)%1440;
+  return String(Math.floor(x/60)).padStart(2,"0")+":"+String(x%60).padStart(2,"0");
+}
+function rulesForDay(period, wd, hol){
+  const rules = period[3]||[];
+  const holRules = rules.filter(r=> r[0] & 128);
+  if (hol && holRules.length) return holRules;
+  return rules.filter(r=> r[0] & (1<<wd));
+}
+function dayAt(n, offset){
+  const base = new Date(Date.UTC(n.y, n.m-1, n.d + offset));
+  const wd = (base.getUTCDay()+6)%7;
+  const nn = {y:base.getUTCFullYear(), m:base.getUTCMonth()+1, d:base.getUTCDate(), wd, min:0};
+  nn.hol = isHoliday(nn);
+  return nn;
+}
+function statusFor(obj){
+  const strems = stremsNear(obj);
+  const worst = strems.length ? Math.max(...strems.map(s=>sevRank(s.code))) : 0;
+  if (!obj.open){
+    const st = {cls:"mut", label: obj.t==="B" ? "vaste brug" : "geen bediening", strems};
+    if (worst>=3) { st.cls="crit"; st.label="stremming gemeld"; }
+    else if (worst===2){ st.cls="ser"; st.label="beperking gemeld"; }
+    return st;
+  }
+  const ot = DATA.ot[obj.ot];
+  let core;
+  if (!ot){ core = {cls:"warn", label:"bediening — tijden onbekend"}; }
+  else {
+    const n = amsNow();
+    const per = (ot[1]||[]).find(p=>periodMatches(p,n.m,n.d));
+    if (!per){ core = {cls:"warn", label:"geen periode gevonden"}; }
+    else {
+      const rules = rulesForDay(per, n.wd, isHoliday(n));
+      const inWin = rules.find(r=> n.min>=r[1] && n.min<r[2]);
+      if (inWin) core = {cls:"good", label:"bediening nu", extra:"tot "+fmtMin(inWin[2])};
+      else {
+        const next = rules.filter(r=>r[1]>n.min).sort((a,b)=>a[1]-b[1])[0];
+        if (next) core = {cls:"warn", label:"gesloten", extra:"volgende bediening "+fmtMin(next[1])};
+        else {
+          let found=null;
+          for(let off=1; off<=7 && !found; off++){
+            const dn = dayAt(amsNow(), off);
+            const p2 = (ot[1]||[]).find(p=>periodMatches(p,dn.m,dn.d));
+            if(!p2) continue;
+            const rr = rulesForDay(p2, dn.wd, dn.hol).sort((a,b)=>a[1]-b[1]);
+            if (rr.length) found = {off, t:rr[0][1]};
+          }
+          if (found) core = {cls:"warn", label:"gesloten", extra:(found.off===1?"morgen":"over "+found.off+" dgn")+" vanaf "+fmtMin(found.t)};
+          else core = {cls:"crit", label:"geen bediening deze week"};
+        }
+      }
+    }
+  }
+  if (worst>=3){ core = {cls:"crit", label:"stremming gemeld", extra:core.label+(core.extra?" "+core.extra:"")}; }
+  else if (worst===2 && core.cls!=="crit"){ core.cls="ser"; core.label="beperking · "+core.label; }
+  else if (worst===1 && core.cls==="good"){ core.label+=" · let op bericht"; }
+  core.strems = strems;
+  return core;
+}
+
+/* ---------- stremmingen ---------- */
+const SEVMAP = {OBSTRU:3,NOSERV:3,CLEHEI:2,CLEWID:2,DELAY:2,VESDRA:2,SERVIC:1,CAUTIO:1,PAROBS:2,AVADEP:1,OVRTAK:1,PASSIN:1,WAVWAS:0,NOMOOR:0,NOLIM:0};
+const CODELBL = {OBSTRU:"gestremd",NOSERV:"geen bediening",CLEHEI:"beperkte hoogte",CLEWID:"beperkte breedte",DELAY:"vertraging",SERVIC:"gewijzigde bediening",CAUTIO:"voorzichtig varen",PAROBS:"deels gestremd",AVADEP:"beperkte diepte",OVRTAK:"oploopverbod",PASSIN:"passeren beperkt",WAVWAS:"hekgolf vermijden",NOMOOR:"afmeren beperkt",NOLIM:"geen beperking",VESDRA:"diepgangbeperking"};
+function sevRank(c){ return SEVMAP[c] ?? 1; }
+function sevCls(c){ return ["mut","warn","ser","crit"][sevRank(c)]; }
+function codeLbl(c){ return CODELBL[c] || c; }
+function dist2(aLat,aLon,bLat,bLon){
+  const dy=(aLat-bLat)*111320, dx=(aLon-bLon)*111320*Math.cos(aLat*Math.PI/180);
+  return Math.sqrt(dx*dx+dy*dy);
+}
+let stremIndex = null;
+function buildStremIndex(){
+  stremIndex = new Map();
+  for (const s of STREM){
+    const key = Math.round(s.lat*100)+"_"+Math.round(s.lon*100);
+    if(!stremIndex.has(key)) stremIndex.set(key, []);
+    stremIndex.get(key).push(s);
+  }
+}
+function stremsNear(obj){
+  const out=[];
+  const kx = Math.round(obj.lat*100), ky = Math.round(obj.lon*100);
+  for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){
+    const arr = stremIndex.get((kx+i)+"_"+(ky+j));
+    if(arr) for(const s of arr) if (dist2(obj.lat,obj.lon,s.lat,s.lon)<400) out.push(s);
+  }
+  return out;
+}
+function ntsUrl(s){ return "https://www.vaarweginformatie.nl/frp/main/#/nts/FTM/"+encodeURIComponent(s.nts); }
+
+/* ---------- zoeken ---------- */
+function norm(x){ return (x||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""); }
+function search(q){
+  q = norm(q).trim();
+  if (q.length<2) return [];
+  const toks = q.split(/\s+/);
+  const scored=[];
+  for (const o of DATA.objs){
+    const hay = o._hay || (o._hay = norm(o.n)+" "+norm(o.c)+" "+norm(o.fw));
+    let ok=true, score=0;
+    for(const t of toks){
+      const idx = hay.indexOf(t);
+      if (idx<0){ ok=false; break; }
+      score += (idx===0 || hay[idx-1]===" ") ? 3 : 1;
+    }
+    if(!ok) continue;
+    if (o.open) score+=2;
+    if (norm(o.n).startsWith(q)) score+=4;
+    scored.push([score,o]);
+  }
+  scored.sort((a,b)=> b[0]-a[0] || a[1].n.localeCompare(b[1].n));
+  return scored.slice(0,60).map(x=>x[1]);
+}
+
+/* ---------- rendering lijsten ---------- */
+function esc(s){ return (s||"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function heightsTxt(o){
+  const parts=[];
+  if (o.t==="B"){
+    if (o.hm!=null) parts.push("beweegbaar dicht "+o.hm.toFixed(1).replace(".",",")+" m");
+    if (o.hf!=null) parts.push("vast deel "+o.hf.toFixed(1).replace(".",",")+" m");
+    if (o.wm!=null) parts.push("breedte "+String(o.wm).replace(".",",")+" m");
+  } else {
+    if (o.len!=null) parts.push("kolk "+String(o.len).replace(".",",")+"×"+(o.w!=null?String(o.w).replace(".",","):"?")+" m");
+    else if (o.w!=null) parts.push("breedte "+String(o.w).replace(".",",")+" m");
+  }
+  return parts.join(" · ");
+}
+function mastVal(){ const m = parseFloat($("#mast").value); return isNaN(m)?null:m; }
+function mastIssue(o){
+  const m = mastVal();
+  if (m==null || o.t!=="B" || o.open) return null;
+  if (o.hf!=null && o.hf < m + 0.2) return "vaste brug "+o.hf.toFixed(1).replace(".",",")+" m — te laag voor mast "+m.toLocaleString("nl-NL")+" m";
+  return null;
+}
+function cardHTML(o){
+  const st = statusFor(o);
+  const mi = mastIssue(o);
+  return `<div class="card" data-id="${o.t}${o.id}">
+    <div class="row1">
+      <span class="otype">${o.t==="B"?"brug":"sluis"}</span>
+      <span class="oname">${esc(o.n)}</span>
+      <span class="oplace">${esc(o.c)}${o.c&&o.fw?" · ":""}${esc(o.fw)}</span>
+      <button class="star ${favs.has(o.t+o.id)?"on":""}" data-fav="${o.t}${o.id}" title="Favoriet">${favs.has(o.t+o.id)?"★":"☆"}</button>
+    </div>
+    <div class="row2">
+      <span class="chip ${st.cls}"><span class="dot ${st.cls}"></span>${esc(st.label)}${st.extra?" · "+esc(st.extra):""}</span>
+      ${o.vhf&&o.vhf.length?`<span class="chip mut">VHF ${o.vhf.join(", ")}</span>`:""}
+      <span class="hinfo">${heightsTxt(o)}</span>
+    </div>
+    ${mi?`<div class="mastwarn">⚠ ${esc(mi)}</div>`:""}
+  </div>`;
+}
+function renderResults(){
+  const q = $("#q").value;
+  const rs = search(q);
+  $("#results").innerHTML = rs.length ? rs.map(cardHTML).join("")
+    : (norm(q).trim().length>=2 ? `<div class="empty">Niets gevonden voor “${esc(q)}”.</div>`
+       : `<div class="empty">Zoek op naam (bijv. “Spoorbrug HRMK”), plaats (“Leeuwarden”) of vaarweg (“Prinses Margrietkanaal”).</div>`);
+}
+function renderFavs(){
+  $("#favcnt").textContent = favs.size ? "("+favs.size+")" : "";
+  const list = [...favs].map(fid => DATA.objs.find(o=>o.t+o.id===fid)).filter(Boolean);
+  $("#favlist").innerHTML = list.length ? list.map(cardHTML).join("") : `<div class="empty">Nog geen favorieten — markeer objecten met ☆ in het zoekscherm.</div>`;
+}
+function fmtDate(ms){
+  if(!ms) return "";
+  return new Intl.DateTimeFormat("nl-NL",{timeZone:"Europe/Amsterdam",day:"numeric",month:"short",year:"numeric"}).format(new Date(ms));
+}
+function renderStrem(){
+  const q = norm($("#stq").value).trim();
+  let list = STREM.slice().sort((a,b)=> sevRank(b.code)-sevRank(a.code) || (b.start||0)-(a.start||0));
+  if (q) list = list.filter(s=> (norm(s.loc)+" "+norm(s.fw)).includes(q));
+  $("#stremcnt").textContent = "("+STREM.length+")";
+  $("#stremlist").innerHTML = list.slice(0,300).map(s=>`
+    <div class="stcard">
+      <div class="row1">
+        <span class="chip ${sevCls(s.code)}"><span class="dot ${sevCls(s.code)}"></span>${esc(codeLbl(s.code))}</span>
+        <b>${esc(s.loc)}</b>
+        <span class="stwhen">sinds ${fmtDate(s.start)}</span>
+      </div>
+      <div class="row2"><span class="stfw">${esc(s.fw)}</span><span style="margin-left:auto"><a href="${ntsUrl(s)}" target="_blank" rel="noopener">bericht ↗</a></span></div>
+    </div>`).join("") || `<div class="empty">Geen berichten gevonden.</div>`;
+}
+
+/* ---------- detail ---------- */
+const DAYNAMES = ["maandag","dinsdag","woensdag","donderdag","vrijdag","zaterdag","zondag"];
+function periodLabel(p){
+  const f = s=>{ const m=+s.slice(0,2), d=+s.slice(2); const M=["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"]; return d+" "+(M[m-1]||"?"); };
+  return f(p[0])+" t/m "+f(p[1]);
+}
+function scheduleTable(per, highlightToday){
+  const n = amsNow();
+  let html = `<table class="times">`;
+  for (let wd=0; wd<7; wd++){
+    const rr = (per[3]||[]).filter(r=> r[0] & (1<<wd)).sort((a,b)=>a[1]-b[1]);
+    const wins = rr.map(r=> `<span class="win">${fmtMin(r[1])}–${fmtMin(r[2])}</span>${r[3]?" <span style='color:var(--muted);font-size:12px'>("+esc(r[3])+")</span>":""}`).join(", ");
+    const today = highlightToday && wd===n.wd && !isHoliday(n);
+    html += `<tr${today?" class='today'":""}><td>${DAYNAMES[wd]}</td><td>${wins||"<span style='color:var(--muted)'>geen bediening</span>"}</td></tr>`;
+  }
+  const hol = (per[3]||[]).filter(r=> r[0]&128).sort((a,b)=>a[1]-b[1]);
+  if (hol.length){
+    const wins = hol.map(r=> `<span class="win">${fmtMin(r[1])}–${fmtMin(r[2])}</span>`).join(", ");
+    const isHol = highlightToday && isHoliday(amsNow());
+    html += `<tr${isHol?" class='today'":""}><td>feestdagen</td><td>${wins}</td></tr>`;
+  }
+  html += `</table>`;
+  if (per[2]) html += `<div class="p-note">${esc(per[2])}</div>`;
+  return html;
+}
+function openDetail(o){
+  const st = statusFor(o);
+  const ot = DATA.ot[o.ot];
+  const n = amsNow();
+  let sec = "";
+  if (o.open && ot){
+    const cur = (ot[1]||[]).find(p=>periodMatches(p,n.m,n.d));
+    const others = (ot[1]||[]).filter(p=>p!==cur);
+    sec += `<div class="p-sec"><h3>Bedieningstijden — ${cur?periodLabel(cur):"?"}</h3>`;
+    if (cur) sec += scheduleTable(cur, true);
+    if (ot[0]) sec += `<div class="p-note">${esc(ot[0])}</div>`;
+    for (const p of others){
+      sec += `<details class="period"><summary>Periode ${periodLabel(p)}</summary>${scheduleTable(p,false)}</details>`;
+    }
+    sec += `</div>`;
+  } else if (o.open){
+    sec += `<div class="p-sec"><h3>Bedieningstijden</h3><div class="p-note">Bedienbaar, maar geen tijden in de dataset — bel of roep op via marifoon.</div></div>`;
+  }
+  if (st.strems.length){
+    sec += `<div class="p-sec"><h3>Actuele berichten in de buurt</h3>` + st.strems.map(s=>`
+      <div class="stcard"><div class="row1">
+        <span class="chip ${sevCls(s.code)}"><span class="dot ${sevCls(s.code)}"></span>${esc(codeLbl(s.code))}</span>
+        <b>${esc(s.loc)}</b><span class="stwhen">sinds ${fmtDate(s.start)}</span></div>
+      <div class="row2"><span class="stfw">${esc(s.fw)}</span><span style="margin-left:auto"><a href="${ntsUrl(s)}" target="_blank" rel="noopener">bericht ↗</a></span></div></div>`).join("") + `</div>`;
+  }
+  const kv=[];
+  if (o.t==="B"){
+    if (o.hm!=null) kv.push(["Hoogte beweegbaar (dicht)", o.hm.toFixed(2).replace(".",",")+" m"]);
+    if (o.hf!=null) kv.push(["Hoogte vast deel", o.hf.toFixed(2).replace(".",",")+" m"]);
+    if (o.wm!=null) kv.push(["Breedte beweegbare opening", String(o.wm).replace(".",",")+" m"]);
+    else if (o.w!=null) kv.push(["Breedte", String(o.w).replace(".",",")+" m"]);
+    kv.push(["Bediening", o.open ? (o.rem?"ja, op afstand bediend":"ja") : "nee (vaste brug)"]);
+  } else {
+    if (o.nch) kv.push(["Kolken", String(o.nch)]);
+    if (o.len!=null) kv.push(["Kolklengte", String(o.len).replace(".",",")+" m"]);
+    if (o.w!=null) kv.push(["Kolkbreedte", String(o.w).replace(".",",")+" m"]);
+    if (o.rem) kv.push(["Bediening", "op afstand bediend"]);
+  }
+  if (o.vhf&&o.vhf.length) kv.push(["Marifoon", "VHF "+o.vhf.join(", ")]);
+  if (o.tel) kv.push(["Telefoon", `<a href="tel:${esc(o.tel.replace(/[^+\d]/g,""))}">${esc(o.tel)}</a>`]);
+  if (o.adm) kv.push(["Beheerder", esc(o.adm)+(o.admTel?` — <a href="tel:${esc(o.admTel.replace(/[^+\d]/g,""))}">${esc(o.admTel)}</a>`:"")]);
+  if (o.fw) kv.push(["Vaarweg", esc(o.fw)]);
+  const gmaps = `https://www.google.com/maps?q=${o.lat},${o.lon}`;
+  const vwi = `https://www.vaarweginformatie.nl/frp/main/#/geo/detail/${o.t==="B"?"BRIDGE":"LOCK"}/${o.id}`;
+  $("#panel").innerHTML = `
+    <button class="p-close" id="pclose">sluiten ✕</button>
+    <div class="p-h">${esc(o.n)}</div>
+    <div class="p-sub">${o.t==="B"?"Brug":"Sluis"}${o.c?" · "+esc(o.c):""}${o.fw?" · "+esc(o.fw):""}</div>
+    <span class="chip ${st.cls}"><span class="dot ${st.cls}"></span>${esc(st.label)}${st.extra?" · "+esc(st.extra):""}</span>
+    ${sec}
+    <div class="p-sec"><h3>Gegevens</h3><div class="kv">${kv.map(([k,v])=>`<span class="k">${k}</span><span>${v}</span>`).join("")}</div></div>
+    <div class="p-sec"><h3>Links</h3><div class="linkrow">
+      <a href="${vwi}" target="_blank" rel="noopener">vaarweginformatie.nl ↗</a>
+      <a href="${gmaps}" target="_blank" rel="noopener">kaart ↗</a>
+      <a href="#" id="showOnMap">toon op kaart</a>
+    </div></div>`;
+  $("#panel").classList.add("open"); $("#ovl").classList.add("open");
+  $("#pclose").onclick = closeDetail;
+  $("#showOnMap").onclick = (e)=>{ e.preventDefault(); closeDetail(); switchView("kaart"); map.setView([o.lat,o.lon], 15); };
+}
+function closeDetail(){ $("#panel").classList.remove("open"); $("#ovl").classList.remove("open"); }
+
+/* ---------- kaart ---------- */
+let map=null, cluster=null, stremLayer=null, meMarker=null, watchId=null, onlyBedien=false, showStrem=true;
+function markerColor(o){
+  const st = o._mapcls || (o._mapcls = quickCls(o));
+  return {good:"#0ca30c", warn:"#fab219", ser:"#ec835a", crit:"#d03b3b", mut:"#898781", open:"#2a78d6"}[st];
+}
+function quickCls(o){
+  const strems = stremsNear(o);
+  const worst = strems.length ? Math.max(...strems.map(s=>sevRank(s.code))) : 0;
+  if (worst>=3) return "crit";
+  if (worst===2) return "ser";
+  if (!o.open) return "mut";
+  return "open";
+}
+function initMap(){
+  if (map) return;
+  map = L.map("map", {preferCanvas:true}).setView([52.2,5.3], 8);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19, attribution: "© OpenStreetMap"
+  }).addTo(map);
+  cluster = L.markerClusterGroup({chunkedLoading:true, disableClusteringAtZoom:14, maxClusterRadius:55});
+  buildMarkers();
+  map.addLayer(cluster);
+  buildStremLayer();
+}
+function buildMarkers(){
+  cluster.clearLayers();
+  const ms = [];
+  for (const o of DATA.objs){
+    if (onlyBedien && !o.open) continue;
+    const m = L.circleMarker([o.lat, o.lon], {
+      radius: o.open?7:5, weight:2, color:"#ffffff", fillColor: markerColor(o), fillOpacity:0.95
+    });
+    m.bindPopup(`<b>${esc(o.n)}</b><br>${o.t==="B"?"brug":"sluis"}${o.c?" · "+esc(o.c):""}<br><span class="pop-open" data-open="${o.t}${o.id}">details →</span>`);
+    ms.push(m);
+  }
+  cluster.addLayers(ms);
+}
+function buildStremLayer(){
+  if (stremLayer){ map.removeLayer(stremLayer); stremLayer=null; }
+  if (!showStrem) return;
+  stremLayer = L.layerGroup();
+  for (const s of STREM){
+    if (sevRank(s.code) < 2) continue;
+    const icon = L.divIcon({className:"", html:`<div class="strem-icon">${sevRank(s.code)>=3?"🔴":"🟠"}</div>`, iconSize:[18,18], iconAnchor:[9,9]});
+    L.marker([s.lat,s.lon], {icon, zIndexOffset:500})
+      .bindPopup(`<b>${esc(codeLbl(s.code))}</b><br>${esc(s.loc)}<br>${esc(s.fw)}<br><a href="${ntsUrl(s)}" target="_blank" rel="noopener">bericht ↗</a>`)
+      .addTo(stremLayer);
+  }
+  stremLayer.addTo(map);
+}
+function toggleLocate(){
+  const btn = $("#mb-locate");
+  if (watchId!=null){
+    navigator.geolocation.clearWatch(watchId); watchId=null;
+    if (meMarker){ map.removeLayer(meMarker); meMarker=null; }
+    btn.classList.remove("on");
+    return;
+  }
+  if (!navigator.geolocation){ alert("Geolocatie niet beschikbaar in deze browser."); return; }
+  btn.classList.add("on");
+  watchId = navigator.geolocation.watchPosition(pos=>{
+    const ll = [pos.coords.latitude, pos.coords.longitude];
+    if (!meMarker){
+      meMarker = L.circleMarker(ll, {radius:9, color:"#fff", weight:3, fillColor:"#2a78d6", fillOpacity:1}).addTo(map);
+      map.setView(ll, 13);
+    } else meMarker.setLatLng(ll);
+  }, err=>{ btn.classList.remove("on"); watchId=null; alert("Kon locatie niet bepalen: "+err.message); }, {enableHighAccuracy:true, maximumAge:5000});
+}
+
+/* ---------- events & init ---------- */
+function switchView(v){
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on", t.dataset.v===v));
+  for (const id of ["zoek","kaart","fav","strem","info"]) $("#v-"+id).hidden = (id!==v);
+  $("#main").classList.toggle("wide", v==="kaart");
+  $("#foot").style.display = v==="kaart" ? "none" : "";
+  if (v==="fav") renderFavs();
+  if (v==="strem") renderStrem();
+  if (v==="kaart"){ initMap(); setTimeout(()=>map.invalidateSize(), 50); }
+}
+document.addEventListener("click", e=>{
+  const fav = e.target.closest("[data-fav]");
+  if (fav){
+    e.stopPropagation();
+    const id = fav.dataset.fav;
+    favs.has(id) ? favs.delete(id) : favs.add(id);
+    store("bs_favs", [...favs]);
+    renderResults(); renderFavs();
+    return;
+  }
+  const pop = e.target.closest("[data-open]");
+  if (pop){
+    const o = DATA.objs.find(x=> x.t+x.id === pop.dataset.open);
+    if (o) openDetail(o);
+    return;
+  }
+  const card = e.target.closest(".card[data-id]");
+  if (card){
+    const o = DATA.objs.find(x=> x.t+x.id === card.dataset.id);
+    if (o) openDetail(o);
+  }
+  const tab = e.target.closest(".tab");
+  if (tab) switchView(tab.dataset.v);
+});
+$("#ovl").addEventListener("click", closeDetail);
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeDetail(); });
+$("#themeBtn").onclick = ()=>{
+  const r = document.documentElement;
+  const cur = r.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
+  r.dataset.theme = cur==="dark" ? "light" : "dark";
+};
+$("#mb-all").onclick = ()=>{ onlyBedien=false; $("#mb-all").classList.add("on"); $("#mb-bedien").classList.remove("on"); buildMarkers(); };
+$("#mb-bedien").onclick = ()=>{ onlyBedien=true; $("#mb-bedien").classList.add("on"); $("#mb-all").classList.remove("on"); buildMarkers(); };
+$("#mb-strem").onclick = ()=>{ showStrem=!showStrem; $("#mb-strem").classList.toggle("on", showStrem); buildStremLayer(); };
+$("#mb-locate").onclick = toggleLocate;
+
+let deb;
+loadData().then(()=>{
+  buildStremIndex();
+  $("#loading").remove();
+  $("#v-zoek").hidden = false;
+  const fmt = ms => new Intl.DateTimeFormat("nl-NL",{timeZone:"Europe/Amsterdam",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}).format(new Date(ms));
+  $("#datastamp").textContent = "berichten ververst "+fmt(STREMTS);
+  $("#stremstamp").textContent = fmt(STREMTS);
+  $("#stremstamp2").textContent = fmt(STREMTS);
+  document.querySelectorAll(".snapdate").forEach(el=>el.textContent = "generatie "+DATA.gen);
+  $("#objcount").textContent = DATA.objs.filter(o=>o.t==="B").length+" bruggen · "+DATA.objs.filter(o=>o.t==="S").length+" sluizen · "+STREM.length+" actuele berichten";
+  const m = readStore("bs_mast", null);
+  if (m!=null) $("#mast").value = m;
+  $("#q").addEventListener("input", ()=>{ clearTimeout(deb); deb=setTimeout(renderResults,120); });
+  $("#mast").addEventListener("input", ()=>{ store("bs_mast", mastVal()); clearTimeout(deb); deb=setTimeout(renderResults,200); });
+  $("#stq").addEventListener("input", ()=>{ clearTimeout(deb); deb=setTimeout(renderStrem,120); });
+  renderFavs(); renderStrem(); renderResults();
+}).catch(err=>{
+  $("#loading").textContent = "Kon gegevens niet laden: "+err;
+});
+</script>
+</body>
+</html>
