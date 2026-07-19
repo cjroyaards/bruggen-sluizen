@@ -763,6 +763,50 @@ function fmtTideTime(iso, offMin, todayDate){
   const morgen = new Date(todayDate+"T12:00:00Z"); morgen.setUTCDate(morgen.getUTCDate()+1);
   return (dstr===morgen.toISOString().slice(0,10) ? "morgen " : dstr.slice(8,10)+"/"+dstr.slice(5,7)+" ") + hhmm;
 }
+function wireTideScrub(box, X, Yv, labels, vals){
+  const svg = box.querySelector("svg.tidecurve");
+  if (!svg || !X.length) return;
+  const ns = "http://www.w3.org/2000/svg";
+  const W = svg.viewBox.baseVal.width, H = svg.viewBox.baseVal.height;
+  const g = document.createElementNS(ns,"g");
+  g.setAttribute("style","display:none;pointer-events:none");
+  const ln = document.createElementNS(ns,"line");
+  ln.setAttribute("y1",6); ln.setAttribute("y2",H-6);
+  ln.setAttribute("stroke","var(--ink)"); ln.setAttribute("stroke-width","1.2"); ln.setAttribute("stroke-dasharray","2 3");
+  const c = document.createElementNS(ns,"circle");
+  c.setAttribute("r","5"); c.setAttribute("fill","var(--accent)"); c.setAttribute("stroke","#fff"); c.setAttribute("stroke-width","2");
+  const tx = document.createElementNS(ns,"text");
+  tx.setAttribute("font-size","11.5"); tx.setAttribute("font-weight","650"); tx.setAttribute("fill","var(--ink)");
+  tx.setAttribute("paint-order","stroke"); tx.setAttribute("stroke","var(--surface)"); tx.setAttribute("stroke-width","3.5");
+  g.appendChild(ln); g.appendChild(c); g.appendChild(tx);
+  svg.appendChild(g);
+  function show(clientX){
+    const r = svg.getBoundingClientRect();
+    const x = (clientX - r.left)/r.width*W;
+    let bi=0, bd=1e9;
+    for (let i=0;i<X.length;i++){ const d=Math.abs(X[i]-x); if(d<bd){bd=d;bi=i;} }
+    g.style.display="";
+    ln.setAttribute("x1",X[bi]); ln.setAttribute("x2",X[bi]);
+    c.setAttribute("cx",X[bi]); c.setAttribute("cy",Yv[bi]);
+    tx.textContent = labels[bi]+" · "+vals[bi].toFixed(2).replace(".",",")+" m";
+    const anchorRight = X[bi] > W*0.62;
+    tx.setAttribute("text-anchor", anchorRight?"end":"start");
+    tx.setAttribute("x", X[bi] + (anchorRight?-8:8));
+    tx.setAttribute("y", Math.max(14, Math.min(H-8, Yv[bi]-10)));
+  }
+  svg.style.touchAction = "none";
+  svg.style.cursor = "crosshair";
+  svg.addEventListener("pointerdown", e=>{
+    e.preventDefault();
+    try{ svg.setPointerCapture(e.pointerId); }catch(_){}
+    show(e.clientX);
+    const mv = ev=>show(ev.clientX);
+    svg.addEventListener("pointermove", mv);
+    const up = ()=> svg.removeEventListener("pointermove", mv);
+    svg.addEventListener("pointerup", up, {once:true});
+    svg.addEventListener("pointercancel", up, {once:true});
+  });
+}
 async function loadTideInto(o){
   const box = document.getElementById("tidebox");
   if (!box) return;
@@ -815,20 +859,23 @@ async function loadTideInto(o){
     box.innerHTML = `
       <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:${chipsNote?"4":"8"}px">${chips||"<span class='hinfo'>geen extremen gevonden</span>"}</div>
       ${chipsNote?`<div class="tlegend" style="margin:0 0 8px">${chipsNote}</div>`:""}
-      <svg viewBox="0 0 ${W} ${Hc}" style="width:100%;height:auto;display:block" role="img" aria-label="Getijcurve komende 3 dagen">
+      <svg class="tidecurve" viewBox="0 0 ${W} ${Hc}" style="width:100%;height:auto;display:block" role="img" aria-label="Getijcurve komende 3 dagen">
         ${dayTicks}
         <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2"/>
         ${dots}
         <line x1="${X(nowPos).toFixed(1)}" y1="${PY-4}" x2="${X(nowPos).toFixed(1)}" y2="${Hc-PY+4}" stroke="var(--critical)" stroke-width="1.5"/>
         <text x="${Math.min(X(nowPos)+4, W-30).toFixed(1)}" y="${PY+6}" font-size="10" fill="var(--muted)">nu</text>
       </svg>
-      <div class="tlegend">Curve: komende 3 dagen · model Open-Meteo/ECMWF (t.o.v. MSL) · tijden UK-lokaal</div>
+      <div class="tlegend">Curve: komende 3 dagen · model Open-Meteo/ECMWF (t.o.v. MSL) · tijden UK-lokaal · sleep of tik op de grafiek voor tijd en hoogte</div>
       <details class="tlex">
         <summary>${chipsNote?"Over deze getijgegevens":"Waarom is dit geen officiële getijtafel?"}</summary>
         ${chipsNote?`<p>De HW/LW-tijden en -hoogtes hierboven zijn de <b>officiële Admiralty-voorspellingen</b> van de UK Hydrographic Office (station ${esc(official.station)}) — dezelfde bron als de getijtafels in je almanak, met hoogtes boven kaartnul (LAT). Ze worden dagelijks ververst en beslaan 7 dagen vooruit.</p><p>De <b>curve</b> eronder blijft een modelverwachting (ECMWF via Open-Meteo, t.o.v. gemiddeld zeeniveau) en dient alleen om het ritme te zien — de hoogtes van curve en chips zijn dus niet 1-op-1 vergelijkbaar.</p>`:`<p>Deze verwachting komt uit een wereldwijd getijde-/oceaanmodel (ECMWF, via Open-Meteo), berekend voor het modelpunt op zee dat het dichtst bij deze haven ligt — niet uit de officiële getijtafels van de UK Hydrographic Office voor deze specifieke haven.</p>`}
         ${chipsNote?`<p>Let wel: getijvoorspellingen zijn astronomisch — opzet of afwaaiing door wind en luchtdruk zit er niet in. Controleer bij extreme weersomstandigheden altijd de actuele berichten van de haven.</p>`:`<p>Waar je op moet letten: <b>1.</b> De hoogtes zijn ten opzichte van <b>gemiddeld zeeniveau (MSL)</b>, terwijl zeekaarten en havengidsen rekenen vanaf <b>kaartnul (LAT)</b> — je kunt deze getallen dus niet zomaar optellen bij kaartdieptes of drempeldieptes. <b>2.</b> In riviermondingen en ondiepe havens kunnen werkelijke tijden en hoogtes merkbaar afwijken van het model. <b>3.</b> Opzet of afwaaiing door wind en luchtdruk zit maar gedeeltelijk in de berekening.</p>
         <p>Gebruik dit blok om snel het getijritme en het eerstvolgende HW/LW te zien. Voor de echte passageplanning (drempels, HW±-vensters) gebruik je de officiële getijtafels uit je almanak of van de haven zelf.</p>`}
       </details>`;
+    const sx=[], sy=[], slbl=[], sval=[];
+    vals.forEach((v,i)=>{ if(v==null) return; sx.push(X(i)); sy.push(Y(v)); slbl.push(fmtTideTime(times[i], 0, now.date)); sval.push(v); });
+    wireTideScrub(box, sx, sy, slbl, sval);
   } catch(e){
     box.textContent = "Getijverwachting kon niet worden geladen.";
   }
@@ -880,7 +927,7 @@ function openTideStationDetail(o){
   const chips = up.map(e=>
     `<span class="tchip${e[1]==="H"?" now":""}"><b>${e[1]==="H"?"HW":"LW"}</b> ${fmtNlClock(e[0])} · ${e[2].toFixed(2).replace(".",",")} m</span>`).join(" ");
   // officiële curve uit de RWS-reeks
-  let curve = "";
+  let curve = "", scrub = null;
   if (s.series && s.series.length > 5){
     const vals = s.series.map(x=>x[1]);
     const W=560, Hc=96, PX=8, PY=12;
@@ -892,11 +939,13 @@ function openTideStationDetail(o){
     const t1 = new Date(s.series[s.series.length-1][0]+":00Z").getTime();
     const nowIdx = (nowMs-t0)/(t1-t0)*(s.series.length-1);
     const zeroY = (0>=vmin && 0<=vmax) ? `<line x1="${PX}" y1="${Y(0).toFixed(1)}" x2="${W-PX}" y2="${Y(0).toFixed(1)}" stroke="var(--grid)" stroke-width="1" stroke-dasharray="3 4"/><text x="${PX+2}" y="${(Y(0)-3).toFixed(1)}" font-size="9" fill="var(--muted)">NAP</text>` : "";
-    curve = `<svg viewBox="0 0 ${W} ${Hc}" style="width:100%;height:auto;display:block" role="img" aria-label="Getijcurve">
+    curve = `<svg class="tidecurve" viewBox="0 0 ${W} ${Hc}" style="width:100%;height:auto;display:block" role="img" aria-label="Getijcurve">
       ${zeroY}
       <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2"/>
       ${nowIdx>=0&&nowIdx<=s.series.length-1?`<line x1="${X(nowIdx).toFixed(1)}" y1="${PY-4}" x2="${X(nowIdx).toFixed(1)}" y2="${Hc-PY+4}" stroke="var(--critical)" stroke-width="1.5"/><text x="${Math.min(X(nowIdx)+4,W-30).toFixed(1)}" y="${PY+6}" font-size="10" fill="var(--muted)">nu</text>`:""}
-    </svg>`;
+    </svg>
+    <div class="tlegend">Sleep of tik op de grafiek voor tijd en hoogte op dat moment.</div>`;
+    scrub = {x:s.series.map((_,i)=>X(i)), y:vals.map(v=>Y(v)), lbl:s.series.map(x=>fmtNlClock(x[0])), val:vals};
   }
   const checked = NLTIDES&&NLTIDES.checked ? new Intl.DateTimeFormat("nl-NL",{timeZone:"Europe/Amsterdam",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}).format(new Date(NLTIDES.checked)) : "";
   $("#panel").innerHTML = `
@@ -931,6 +980,7 @@ function openTideStationDetail(o){
     highlightOnMap(o);
   });
   if (map){ map.setView([o.lat,o.lon], Math.max(map.getZoom(), 10), {animate:false}); highlightOnMap(o); }
+  if (scrub) wireTideScrub($("#panel"), scrub.x, scrub.y, scrub.lbl, scrub.val);
 }
 function openDetail(o){
   if (o.t==="H"){ openHarbourDetail(o); return; }
