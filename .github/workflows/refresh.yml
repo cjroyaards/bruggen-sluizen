@@ -37,6 +37,10 @@ jobs:
           ADMIRALTY_KEY: ${{ secrets.ADMIRALTY_KEY }}
         run: python3 scripts/fetch_tides.py
 
+      - name: Officiële NL-getijden (Rijkswaterstaat)
+        if: steps.mode.outputs.flag == '--full'
+        run: python3 scripts/fetch_tides_nl.py
+
       - name: Commit & push wijzigingen
         run: |
           git config user.name "data-bot"

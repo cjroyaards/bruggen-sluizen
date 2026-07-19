@@ -171,6 +171,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 .strem-pin{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;line-height:1}
 .strem-pin.crit{background:var(--critical)} .strem-pin.ser{background:var(--serious)}
 .harb-pin{width:22px;height:22px;border-radius:50%;background:#122b42;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;padding:3px}
+.harb-pin.tide{background:#0e6e6e}
 .leaflet-popup-content{font:13px/1.45 -apple-system,system-ui,sans-serif;margin:10px 13px}
 .leaflet-popup-content b{font-size:14px}
 .pop-open{color:var(--accent);cursor:pointer;font-weight:600}
@@ -314,18 +315,25 @@ async function fetchGz(url){
   return JSON.parse(new TextDecoder().decode(buf));
 }
 let UKCHECKED = "";
+let NLTIDES = null;
 const AREALBL = {oostkust:"Engelse oostkust", theems:"Theems & Medway", zuidkust:"Sussex & Kent", solent:"Solent & westkust"};
 async function loadData(){
-  const [stat, st, uk] = await Promise.all([
+  const [stat, st, uk, nlt] = await Promise.all([
     fetchGz("data/static.json.gz"),
     fetch("data/strem.json", {cache:"no-cache"}).then(r=>r.json()),
     fetch("data/ukharbours.json", {cache:"no-cache"}).then(r=>r.ok?r.json():{harbours:[]}).catch(()=>({harbours:[]})),
+    fetch("data/nltides.json", {cache:"no-cache"}).then(r=>r.ok?r.json():null).catch(()=>null),
   ]);
   DATA = stat; STREM = st.strem; STREMTS = st.ts;
   UKCHECKED = uk.checked || "";
   for (const h of uk.harbours||[]){
     h.c = "UK"; h.fw = AREALBL[h.area] || "UK kust";
     DATA.objs.push(h);
+  }
+  NLTIDES = nlt;
+  for (const s of (nlt&&nlt.stations)||[]){
+    DATA.objs.push({t:"G", id:s.code, n:"Getijstation "+s.n, c:"NL", fw:"getij Rijkswaterstaat",
+      lat:s.lat, lon:s.lon, vhf:[], tel:"", st:s});
   }
 }
 
@@ -383,6 +391,7 @@ function dayAt(n, offset){
 }
 function statusFor(obj){
   if (obj.t==="H") return {cls:"mut", label:"UK kusthaven", strems:[]};
+  if (obj.t==="G") return {cls:"mut", label:"getijstation", strems:[]};
   const strems = stremsNear(obj);
   const actStrems = strems.filter(s=>s.act);          // alleen berichten die nú gelden
   const worst = actStrems.length ? Math.max(...actStrems.map(s=>sevRank(s.code))) : 0;
@@ -524,6 +533,24 @@ function telHTML(o){
   if (!t) return "";
   return `<a class="tel" href="tel:${esc(t.replace(/[^+\d]/g,""))}" title="Bel ${esc(o.tel? "de bediening" : "de beheerder")}">${esc(t)}</a>`;
 }
+function fmtNlClock(isoUtc){
+  const d = new Date(isoUtc+":00Z");
+  const p = new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Amsterdam",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(d);
+  const g = t => p.find(x=>x.type===t).value;
+  const n = amsNow();
+  const dm = g("day")+"/"+g("month");
+  const nowDm = String(n.d).padStart(2,"0")+"/"+String(n.m).padStart(2,"0");
+  const mo = dayAt(n,1);
+  const moDm = String(mo.d).padStart(2,"0")+"/"+String(mo.m).padStart(2,"0");
+  const pre = dm===nowDm ? "" : (dm===moDm ? "morgen " : dm+" ");
+  return pre+g("hour")+":"+g("minute");
+}
+function nextTideTxt(o){
+  if (o.t!=="G" || !o.st) return "";
+  const nowMs = Date.now();
+  const up = o.st.events.filter(e=> new Date(e[0]+":00Z").getTime() >= nowMs).slice(0,2);
+  return up.map(e=> (e[1]==="H"?"HW ":"LW ")+fmtNlClock(e[0])+" · "+e[2].toFixed(1).replace(".",",")+" m").join("  ·  ");
+}
 function mastVal(){ const m = parseFloat($("#mast").value); return isNaN(m)?null:m; }
 function mastIssue(o){
   const m = mastVal();
@@ -549,7 +576,7 @@ function cardHTML(o){
     ${thumbHTML(o)}
     <div class="cbody">
       <div class="row1">
-        <span class="otype">${o.t==="B"?"brug":o.t==="S"?"sluis":"haven"}</span>
+        <span class="otype">${o.t==="B"?"brug":o.t==="S"?"sluis":o.t==="G"?"getij":"haven"}</span>
         <span class="oname">${esc(o.n)}</span>
         <span class="oplace">${esc(o.c)}${o.c&&o.fw?" · ":""}${esc(o.fw)}</span>
         <button class="star ${favs.has(o.t+o.id)?"on":""}" data-fav="${o.t}${o.id}" title="Favoriet">${STARSVG}</button>
@@ -560,7 +587,7 @@ function cardHTML(o){
         ${telHTML(o)}
         ${o.t==="H"?(o.lock?'<span class="vhf">sluis</span>':"")+(o.bridge?'<span class="vhf">brug</span>':""):""}
         ${sibHint(o)}
-        <span class="hinfo">${heightsTxt(o)}</span>
+        <span class="hinfo">${o.t==="G"?esc(nextTideTxt(o)):heightsTxt(o)}</span>
       </div>
       ${mi?`<div class="mastwarn">${esc(mi)}</div>`:""}
     </div>
@@ -846,8 +873,68 @@ function openHarbourDetail(o){
   if (map){ map.setView([o.lat,o.lon], Math.max(map.getZoom(), 11), {animate:false}); highlightOnMap(o); }
   loadTideInto(o);
 }
+function openTideStationDetail(o){
+  const s = o.st;
+  const nowMs = Date.now();
+  const up = s.events.filter(e=> new Date(e[0]+":00Z").getTime() >= nowMs - 15*60000).slice(0,6);
+  const chips = up.map(e=>
+    `<span class="tchip${e[1]==="H"?" now":""}"><b>${e[1]==="H"?"HW":"LW"}</b> ${fmtNlClock(e[0])} · ${e[2].toFixed(2).replace(".",",")} m</span>`).join(" ");
+  // officiële curve uit de RWS-reeks
+  let curve = "";
+  if (s.series && s.series.length > 5){
+    const vals = s.series.map(x=>x[1]);
+    const W=560, Hc=96, PX=8, PY=12;
+    const vmin=Math.min(...vals), vmax=Math.max(...vals);
+    const X = i => PX + i/(s.series.length-1)*(W-2*PX);
+    const Y = v => Hc-PY - (v-vmin)/(vmax-vmin||1)*(Hc-2*PY);
+    const path = s.series.map((x,i)=> (i?"L":"M")+X(i).toFixed(1)+" "+Y(x[1]).toFixed(1)).join("");
+    const t0 = new Date(s.series[0][0]+":00Z").getTime();
+    const t1 = new Date(s.series[s.series.length-1][0]+":00Z").getTime();
+    const nowIdx = (nowMs-t0)/(t1-t0)*(s.series.length-1);
+    const zeroY = (0>=vmin && 0<=vmax) ? `<line x1="${PX}" y1="${Y(0).toFixed(1)}" x2="${W-PX}" y2="${Y(0).toFixed(1)}" stroke="var(--grid)" stroke-width="1" stroke-dasharray="3 4"/><text x="${PX+2}" y="${(Y(0)-3).toFixed(1)}" font-size="9" fill="var(--muted)">NAP</text>` : "";
+    curve = `<svg viewBox="0 0 ${W} ${Hc}" style="width:100%;height:auto;display:block" role="img" aria-label="Getijcurve">
+      ${zeroY}
+      <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+      ${nowIdx>=0&&nowIdx<=s.series.length-1?`<line x1="${X(nowIdx).toFixed(1)}" y1="${PY-4}" x2="${X(nowIdx).toFixed(1)}" y2="${Hc-PY+4}" stroke="var(--critical)" stroke-width="1.5"/><text x="${Math.min(X(nowIdx)+4,W-30).toFixed(1)}" y="${PY+6}" font-size="10" fill="var(--muted)">nu</text>`:""}
+    </svg>`;
+  }
+  const checked = NLTIDES&&NLTIDES.checked ? new Intl.DateTimeFormat("nl-NL",{timeZone:"Europe/Amsterdam",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}).format(new Date(NLTIDES.checked)) : "";
+  $("#panel").innerHTML = `
+    <button class="p-close" id="pclose">sluiten ✕</button>
+    <div class="p-h">${esc(o.n)} <button class="star big ${favs.has(o.t+o.id)?"on":""}" data-fav="${o.t}${o.id}" title="Favoriet">${STARSVG}</button></div>
+    <div class="p-sub">Officieel getijstation Rijkswaterstaat (${esc(s.code)})</div>
+    <div class="row2" style="margin-top:0">
+      <span class="chip mut"><span class="dot mut"></span>getijstation</span>
+      <a href="#" class="tel showOnMap">toon op kaart</a>
+    </div>
+    <div class="p-sec"><h3>Getij (astronomisch)</h3>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px">${chips||"<span class='hinfo'>geen verwachtingen beschikbaar — ververs vannacht</span>"}</div>
+      <div class="tlegend" style="margin:0 0 8px">Officiële astronomische getijverwachting Rijkswaterstaat · hoogte t.o.v. NAP · tijden NL-tijd · ververst ${esc(checked)}</div>
+      ${curve}
+      <details class="tlex">
+        <summary>Over deze getijgegevens</summary>
+        <p>Dit zijn de <b>officiële astronomische getijverwachtingen van Rijkswaterstaat</b> voor dit meetstation — dezelfde berekening als achter de Nederlandse getijtafels. Hoogtes zijn in meters ten opzichte van <b>NAP</b> (zo staan ze ook in de HP33 en op waterinfo).</p>
+        <p>Astronomisch betekent: zonder windopzet of afwaaiing. Bij stevige wind kan de werkelijke waterstand flink afwijken — kijk dan op <a href="https://waterinfo.rws.nl/" target="_blank" rel="noopener">waterinfo.rws.nl ↗</a> voor de actuele en verwachte waterstand inclusief wind.</p>
+      </details>
+    </div>
+    <div class="p-sec"><h3>Links</h3><div class="linkrow">
+      <a href="https://waterinfo.rws.nl/" target="_blank" rel="noopener">waterinfo.rws.nl ↗</a>
+      <a href="https://www.google.com/maps?q=${o.lat},${o.lon}" target="_blank" rel="noopener">kaart ↗</a>
+    </div></div>`;
+  $("#panel").classList.add("open"); $("#ovl").classList.add("open");
+  $("#pclose").onclick = closeDetail;
+  $("#panel").querySelectorAll(".showOnMap").forEach(el=> el.onclick = (e)=>{
+    e.preventDefault(); e.stopPropagation();
+    closeDetail(); $("#searchdrop").hidden = true;
+    switchView("kaart");
+    map.setView([o.lat,o.lon], Math.max(map.getZoom(), 11));
+    highlightOnMap(o);
+  });
+  if (map){ map.setView([o.lat,o.lon], Math.max(map.getZoom(), 10), {animate:false}); highlightOnMap(o); }
+}
 function openDetail(o){
   if (o.t==="H"){ openHarbourDetail(o); return; }
+  if (o.t==="G"){ openTideStationDetail(o); return; }
   const st = statusFor(o);
   const ot = DATA.ot[o.ot];
   const n = amsNow();
@@ -957,12 +1044,19 @@ let harbourLayer = null;
 function buildHarbourLayer(){
   if (harbourLayer) return;
   harbourLayer = L.layerGroup();
+  const WAVESVG = `<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M3 9c3-3.5 6 3.5 9 0s6 3.5 9 0"/><path d="M3 16c3-3.5 6 3.5 9 0s6 3.5 9 0"/></svg>`;
   for (const o of DATA.objs){
-    if (o.t!=="H") continue;
-    const icon = L.divIcon({className:"", html:`<div class="harb-pin">${ANCHORSVG}</div>`, iconSize:[22,22], iconAnchor:[11,11]});
-    L.marker([o.lat,o.lon], {icon, zIndexOffset:400})
-      .bindPopup(`<b>${esc(o.n)}</b><br>UK kusthaven · ${esc(o.fw)}<br><span class="pop-open" data-open="${o.t}${o.id}">details →</span>`)
-      .addTo(harbourLayer);
+    if (o.t==="H"){
+      const icon = L.divIcon({className:"", html:`<div class="harb-pin">${ANCHORSVG}</div>`, iconSize:[22,22], iconAnchor:[11,11]});
+      L.marker([o.lat,o.lon], {icon, zIndexOffset:400})
+        .bindPopup(`<b>${esc(o.n)}</b><br>UK kusthaven · ${esc(o.fw)}<br><span class="pop-open" data-open="${o.t}${o.id}">details →</span>`)
+        .addTo(harbourLayer);
+    } else if (o.t==="G"){
+      const icon = L.divIcon({className:"", html:`<div class="harb-pin tide">${WAVESVG}</div>`, iconSize:[22,22], iconAnchor:[11,11]});
+      L.marker([o.lat,o.lon], {icon, zIndexOffset:350})
+        .bindPopup(`<b>${esc(o.n)}</b><br>${esc(nextTideTxt(o))||"getijstation"}<br><span class="pop-open" data-open="${o.t}${o.id}">details →</span>`)
+        .addTo(harbourLayer);
+    }
   }
   harbourLayer.addTo(map);
 }
@@ -970,7 +1064,7 @@ function buildMarkers(){
   cluster.clearLayers();
   const ms = [];
   for (const o of DATA.objs){
-    if (o.t==="H") continue;
+    if (o.t==="H" || o.t==="G") continue;
     if (onlyBedien && !o.open) continue;
     const m = L.circleMarker([o.lat, o.lon], {
       radius: o.open?7:5, weight:2, color:"#ffffff", fillColor: markerColor(o), fillOpacity:0.95
