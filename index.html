@@ -867,6 +867,7 @@ function wireTideScrub(box, X, Yv, labels, vals){
 }
 function stationRow(official, refObj){
   if (!official || official.lat==null) return "";
+  if (!refObj) return "";   // op het getijstation zelf: geen dubbele stationkaart
   // zelfde layout als 'Hoort bij hetzelfde complex': klikbaar kaartje van het station
   const g = official.sid ? DATA.objs.find(x=> x.t==="G" && x.id==="U"+official.sid) : null;
   let distTxt = "";
