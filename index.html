@@ -825,7 +825,7 @@ document.addEventListener("click", e=>{
   const card = e.target.closest(".card[data-id]");
   if (card){
     const o = DATA.objs.find(x=> x.t+x.id === card.dataset.id);
-    if (o) openDetail(o);
+    if (o){ $("#searchdrop").hidden = true; openDetail(o); }
   }
   const tab = e.target.closest(".tab");
   if (tab) switchView(tab.dataset.v);
