@@ -163,7 +163,6 @@ footer a{color:var(--brand-dim);text-decoration:underline}
     <h1 class="wordmark" style="margin:0;font-size:16px">Brug<span class="amp">&amp;</span>Sluis</h1>
     <span class="h-sub" id="datastamp"></span>
     <span class="h-spacer"></span>
-    <button id="themeBtn" title="Licht/donker">licht/donker</button>
   </div>
   <div class="h-search">
     <input type="search" id="q" placeholder="Zoek brug, sluis, plaats of vaarweg…" autocomplete="off">
@@ -615,6 +614,7 @@ function openDetail(o){
     <div class="p-h">${esc(o.n)}</div>
     <div class="p-sub">${o.t==="B"?"Brug":"Sluis"}${o.c?" · "+esc(o.c):""}${o.fw?" · "+esc(o.fw):""}</div>
     <span class="chip ${st.cls}"><span class="dot ${st.cls}"></span>${esc(st.label)}${st.extra?" · "+esc(st.extra):""}</span>
+    ${mastIssue(o)?`<div class="mastwarn">${esc(mastIssue(o))}</div>`:""}
     ${sec}
     <div class="p-sec"><h3>Gegevens</h3><div class="kv">${kv.map(([k,v])=>`<span class="k">${k}</span><span>${v}</span>`).join("")}</div></div>
     <div class="p-sec"><h3>Links</h3><div class="linkrow">
@@ -745,11 +745,6 @@ $("#ovl").addEventListener("click", closeDetail);
 document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeDetail(); $("#searchdrop").hidden = true; } });
 $("#q").addEventListener("focus", updateDrop);
 window.addEventListener("resize", setHeaderH);
-$("#themeBtn").onclick = ()=>{
-  const r = document.documentElement;
-  const cur = r.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
-  r.dataset.theme = cur==="dark" ? "light" : "dark";
-};
 $("#mb-all").onclick = ()=>{ onlyBedien=false; $("#mb-all").classList.add("on"); $("#mb-bedien").classList.remove("on"); buildMarkers(); };
 $("#mb-bedien").onclick = ()=>{ onlyBedien=true; $("#mb-bedien").classList.add("on"); $("#mb-all").classList.remove("on"); buildMarkers(); };
 $("#mb-strem").onclick = ()=>{ showStrem=!showStrem; $("#mb-strem").classList.toggle("on", showStrem); buildStremLayer(); };
