@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Getijdestromen Noordzee — live (Copernicus Marine)</title>
+<link rel="stylesheet" href="assets/leaflet.min.css">
+<script src="assets/leaflet.min.js"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --muted: #898781;
+    --border: rgba(11,11,11,0.10);
+    --accent: #2a78d6;
+    --hairline: #e1e0d9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --muted: #898781;
+      --border: rgba(255,255,255,0.12);
+      --accent: #3987e5;
+      --hairline: #2c2c2a;
+    }
+  }
+  html, body { margin:0; padding:0; height:100%; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #app { display:flex; flex-direction:column; height:100%; }
+  #map { flex:1; min-height:0; }
+  header {
+    background: var(--surface-1); color: var(--text-primary);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 14px; display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center;
+    z-index: 1200; position:relative;
+  }
+  header h1 { font-size: 15px; margin:0; font-weight:650; letter-spacing:-0.01em; }
+  header .sub { font-size: 11.5px; color: var(--muted); }
+  .timebox { display:flex; align-items:center; gap:10px; flex:1; min-width:280px; }
+  .timebox button {
+    border:1px solid var(--border); background:var(--surface-1); color:var(--text-primary);
+    border-radius:8px; padding:4px 10px; font-size:13px; cursor:pointer; line-height:1.4;
+  }
+  .timebox button:hover { border-color: var(--accent); }
+  .timebox button.primary { background: var(--accent); color:#fff; border-color:transparent; min-width:44px; }
+  input[type=range] { flex:1; accent-color: var(--accent); min-width:120px; }
+  #timeLabel { font-size:13px; font-weight:600; min-width:172px; text-align:right; font-variant-numeric: tabular-nums; }
+  #status { font-size:11.5px; color:var(--text-secondary); }
+  #status.err { color:#d03b3b; font-weight:600; }
+  .panel {
+    position:absolute; z-index:1100; background:var(--surface-1); color:var(--text-primary);
+    border:1px solid var(--border); border-radius:10px; padding:10px 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.12); font-size:12px;
+  }
+  #layersPanel { top:12px; right:12px; }
+  #layersPanel label { display:flex; gap:7px; align-items:center; margin:4px 0; cursor:pointer; color:var(--text-secondary); }
+  #layersPanel label input { accent-color: var(--accent); }
+  #layersPanel .t { font-weight:650; color:var(--text-primary); margin-bottom:2px; }
+  #legend { bottom:24px; left:12px; }
+  #legend .bar { width:190px; height:10px; border-radius:5px; margin:6px 0 3px;
+    background: linear-gradient(to right,#9ec5f4,#6da7ec,#3987e5,#256abf,#184f95,#0d366b); }
+  #legend .ticks { display:flex; justify-content:space-between; font-size:10.5px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  #legend .t { font-weight:650; }
+  #legend .sub { color:var(--muted); font-size:10.5px; margin-top:2px; }
+  .leaflet-container { font: inherit; background:#dfeaf2; }
+  @media (prefers-color-scheme: dark){ .leaflet-container{ background:#0f1a24; } }
+  .leaflet-popup-content { font-size:12.5px; line-height:1.5; }
+  .leaflet-popup-content b { font-variant-numeric: tabular-nums; }
+  #currentCanvas { position:absolute; inset:0; z-index:650; pointer-events:none; }
+  .dirArrow { display:inline-block; font-size:15px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div>
+      <h1>Getijdestromen Noordzee &amp; Britse oostkust</h1>
+      <div class="sub">Copernicus Marine Service · ondergrond OpenStreetMap</div>
+    </div>
+    <div class="timebox">
+      <button id="playBtn" class="primary" title="Afspelen">▶</button>
+      <button id="nowBtn" title="Naar huidig uur">Nu</button>
+      <input type="range" id="timeSlider" min="0" max="71" step="0.04" value="0">
+      <span id="timeLabel">—</span>
+    </div>
+    <div id="status">Stromingsdata laden…</div>
+  </header>
+  <div id="map"></div>
+</div>
+
+<div id="layersPanel" class="panel">
+  <div class="t">Lagen</div>
+  <label><input type="checkbox" id="cbParticles" checked> Stroomanimatie</label>
+  <label><input type="checkbox" id="cbCmems" checked> Copernicus kleurlaag</label>
+  <label><input type="checkbox" id="cbArrows"> Copernicus pijlen</label>
+</div>
+
+<div id="legend" class="panel">
+  <div class="t">Stroomsnelheid (animatie)</div>
+  <div class="bar"></div>
+  <div class="ticks"><span>0</span><span>0,5</span><span>1</span><span>1,5</span><span>2</span><span>≥2,5 kn</span></div>
+  <div class="sub">1 kn = 1,852 km/u · klik op zee voor details</div>
+</div>
+
+<script>
+'use strict';
+/* ================= configuratie ================= */
+const GRID = { lat0: 50.0, dLat: 0.4, nLat: 28, lon0: -4.0, dLon: 0.6, nLon: 23 };
+const NHOURS = 72;
+const PLAY_HPS = 0.9;   // uren-per-seconde tijdens afspelen (vloeiend)
+const CMEMS_LAYER = 'NWSHELF_ANALYSISFORECAST_PHY_004_013/cmems_mod_nws_phy-cur_anfc_1.5km-2D_PT1H-i_202511/sea_water_velocity';
+const WMTS = 'https://wmts.marine.copernicus.eu/teroWmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0'
+  + '&LAYER=' + encodeURIComponent(CMEMS_LAYER)
+  + '&TILEMATRIXSET=EPSG:3857&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/png';
+
+/* ================= kaart ================= */
+const map = L.map('map', { center: [55.2, 2.5], zoom: 6, minZoom: 4, maxZoom: 11, zoomControl: true });
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-bijdragers · stromingen: <a href="https://marine.copernicus.eu/">Copernicus Marine Service</a> (NWS 1,5 km / SMOC via <a href="https://open-meteo.com/">Open-Meteo</a>)'
+}).addTo(map);
+
+function isoHour(unixSec) { return new Date(unixSec * 1000).toISOString().replace(/\.\d{3}Z$/, '.000Z'); }
+
+let cmemsLayer = null, arrowLayer = null;
+function makeCmemsLayer(styleStr, opacity, timeIso) {
+  return L.tileLayer(WMTS + '&STYLE=' + encodeURIComponent(styleStr) + '&time=' + encodeURIComponent(timeIso),
+    { opacity, maxNativeZoom: 9, maxZoom: 11, pane: 'tilePane' });
+}
+
+/* ================= state ================= */
+let times = null;            // Array(72) unix sec (UTC, hele uren)
+let U = null, V = null;      // Float32Array (t * nLat * nLon), km/u; NaN = land
+let seaCells = [];
+let tFloat = 0;              // fractionele tijd-index (vloeiend)
+let playing = false;
+
+const $ = id => document.getElementById(id);
+const statusEl = $('status'), slider = $('timeSlider'), timeLabel = $('timeLabel');
+
+/* ================= data laden (Open-Meteo Marine — Copernicus SMOC) ================= */
+async function loadData() {
+  statusEl.classList.remove('err');
+  statusEl.textContent = 'Stromingsdata laden…';
+  const pts = [];
+  for (let i = 0; i < GRID.nLat; i++)
+    for (let j = 0; j < GRID.nLon; j++)
+      pts.push([+(GRID.lat0 + i * GRID.dLat).toFixed(2), +(GRID.lon0 + j * GRID.dLon).toFixed(2)]);
+  const chunks = [];
+  for (let s = 0; s < pts.length; s += 161) chunks.push(pts.slice(s, s + 161));
+  const results = await Promise.all(chunks.map(ch => {
+    const url = 'https://marine-api.open-meteo.com/v1/marine'
+      + '?latitude=' + ch.map(p => p[0]).join(',')
+      + '&longitude=' + ch.map(p => p[1]).join(',')
+      + '&hourly=ocean_current_velocity,ocean_current_direction'
+      + '&forecast_days=3&cell_selection=sea&timeformat=unixtime';
+    return fetch(url).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+  }));
+  const flat = results.flat();
+  const n = GRID.nLat * GRID.nLon;
+  times = flat[0].hourly.time.slice(0, NHOURS);
+  U = new Float32Array(NHOURS * n).fill(NaN);
+  V = new Float32Array(NHOURS * n).fill(NaN);
+  seaCells = [];
+  for (let p = 0; p < n; p++) {
+    const h = flat[p].hourly, vel = h.ocean_current_velocity, dir = h.ocean_current_direction;
+    let isSea = false;
+    for (let t = 0; t < NHOURS; t++) {
+      const sp = vel[t], d = dir[t];
+      if (sp == null || d == null) continue;
+      const rad = d * Math.PI / 180;
+      U[t * n + p] = sp * Math.sin(rad);
+      V[t * n + p] = sp * Math.cos(rad);
+      isSea = true;
+    }
+    if (isSea) seaCells.push(p);
+  }
+  slider.max = String(NHOURS - 1);
+  statusEl.textContent = 'Live · voorspelling 72 uur · vloeiend interpolerend';
+}
+
+/* ================= interpolatie (ruimte + tijd) ================= */
+function sampleUVi(lat, lon, t) {   // ruimtelijk, bij heel-uur t
+  const n = GRID.nLat * GRID.nLon;
+  const fi = (lat - GRID.lat0) / GRID.dLat, fj = (lon - GRID.lon0) / GRID.dLon;
+  const i0 = Math.floor(fi), j0 = Math.floor(fj);
+  if (i0 < 0 || j0 < 0 || i0 >= GRID.nLat - 1 || j0 >= GRID.nLon - 1) return null;
+  const wi = fi - i0, wj = fj - j0;
+  let su = 0, sv = 0, sw = 0;
+  for (let di = 0; di <= 1; di++) for (let dj = 0; dj <= 1; dj++) {
+    const idx = t * n + (i0 + di) * GRID.nLon + (j0 + dj);
+    const u = U[idx];
+    if (Number.isNaN(u)) continue;
+    const w = (di ? wi : 1 - wi) * (dj ? wj : 1 - wj);
+    su += u * w; sv += V[idx] * w; sw += w;
+  }
+  if (sw < 0.25) return null;
+  return [su / sw, sv / sw];
+}
+function sampleUV(lat, lon, tf) {    // ruimtelijk + lineair in de tijd
+  const t0 = Math.floor(tf);
+  const w = tf - t0;
+  const a = sampleUVi(lat, lon, t0);
+  if (w < 1e-3 || t0 >= NHOURS - 1) return a;
+  const b = sampleUVi(lat, lon, t0 + 1);
+  if (!a) return b;
+  if (!b) return a;
+  return [a[0] * (1 - w) + b[0] * w, a[1] * (1 - w) + b[1] * w];
+}
+
+/* ================= deeltjesanimatie ================= */
+const canvas = document.createElement('canvas');
+canvas.id = 'currentCanvas';
+map.getContainer().appendChild(canvas);
+const ctx = canvas.getContext('2d');
+let particles = [], animOn = true, rafId = null, lastTs = 0;
+
+const RAMP = [[0,'#9ec5f4'],[0.93,'#6da7ec'],[1.85,'#3987e5'],[2.8,'#256abf'],[3.7,'#184f95'],[4.6,'#0d366b']];
+function speedColor(kmh) {
+  for (let k = RAMP.length - 1; k >= 0; k--) if (kmh >= RAMP[k][0]) return RAMP[k][1];
+  return RAMP[0][1];
+}
+
+function resizeCanvas() {
+  const sz = map.getSize();
+  canvas.width = sz.x * devicePixelRatio; canvas.height = sz.y * devicePixelRatio;
+  canvas.style.width = sz.x + 'px'; canvas.style.height = sz.y + 'px';
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+
+function spawnParticle(pt) {
+  if (!seaCells.length) return pt;
+  const b = map.getBounds();
+  for (let tries = 0; tries < 30; tries++) {
+    const c = seaCells[(Math.random() * seaCells.length) | 0];
+    const lat = GRID.lat0 + ((c / GRID.nLon) | 0) * GRID.dLat + (Math.random() - .5) * GRID.dLat;
+    const lon = GRID.lon0 + (c % GRID.nLon) * GRID.dLon + (Math.random() - .5) * GRID.dLon;
+    if (b.contains([lat, lon])) { pt.lat = lat; pt.lon = lon; pt.age = 30 + Math.random() * 90; return pt; }
+  }
+  const s = map.getSize();
+  const ll = map.containerPointToLatLng([Math.random() * s.x, Math.random() * s.y]);
+  pt.lat = ll.lat; pt.lon = ll.lng; pt.age = 20 + Math.random() * 60;
+  return pt;
+}
+
+function resetParticles() {
+  const z = map.getZoom();
+  const count = Math.min(3200, Math.round(350 * Math.pow(1.55, z - 4)));
+  particles = Array.from({ length: count }, () => spawnParticle({}));
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function frame(ts) {
+  rafId = requestAnimationFrame(frame);
+  const dt = lastTs ? Math.min(0.08, (ts - lastTs) / 1000) : 0;  // s, gecapt tegen sprongen
+  lastTs = ts;
+
+  // vloeiend door de tijd bewegen tijdens afspelen
+  if (playing && times) {
+    tFloat += dt * PLAY_HPS;
+    if (tFloat >= NHOURS - 1) tFloat = 0;
+    updateTimeUI();
+    updateWmtsTime();
+  }
+
+  if (!U || !animOn) return;
+  const sz = map.getSize();
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = 'rgba(0,0,0,0.055)';
+  ctx.fillRect(0, 0, sz.x, sz.y);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.lineWidth = 1.8; ctx.lineCap = 'round';
+  const speedScale = 0.0022 * Math.pow(1.35, map.getZoom() - 6);
+  for (const p of particles) {
+    if (--p.age <= 0) { spawnParticle(p); continue; }
+    const uv = sampleUV(p.lat, p.lon, tFloat);
+    if (!uv) { spawnParticle(p); continue; }
+    const [u, v] = uv;
+    const kmh = Math.hypot(u, v);
+    const dLat = v * speedScale / 1.5;
+    const dLon = u * speedScale / (1.5 * Math.cos(p.lat * Math.PI / 180));
+    const a = map.latLngToContainerPoint([p.lat, p.lon]);
+    p.lat += dLat; p.lon += dLon;
+    const b2 = map.latLngToContainerPoint([p.lat, p.lon]);
+    if (b2.x < -20 || b2.y < -20 || b2.x > sz.x + 20 || b2.y > sz.y + 20) { spawnParticle(p); continue; }
+    ctx.strokeStyle = speedColor(kmh);
+    ctx.globalAlpha = Math.min(1, 0.45 + kmh / 3.5);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b2.x, b2.y); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+map.on('resize', () => { resizeCanvas(); resetParticles(); });
+map.on('moveend zoomend', resetParticles);
+map.on('movestart zoomstart', () => ctx.clearRect(0, 0, canvas.width, canvas.height));
+resizeCanvas();
+
+/* ================= tijd & lagen ================= */
+const fmt = new Intl.DateTimeFormat('nl-NL', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+function interpUnix() {
+  if (!times) return Date.now() / 1000;
+  const t0 = Math.floor(tFloat), t1 = Math.min(NHOURS - 1, t0 + 1), w = tFloat - t0;
+  return times[t0] * (1 - w) + times[t1] * w;
+}
+function updateTimeUI() {
+  if (!times) return;
+  timeLabel.textContent = fmt.format(new Date(interpUnix() * 1000));
+  slider.value = String(tFloat);
+}
+let wmtsDebounce = null, lastWmtsHour = -1;
+function updateWmtsTime() {
+  if (!times) return;
+  const hr = Math.round(tFloat);
+  if (hr === lastWmtsHour) return;         // WMTS bestaat alleen per heel uur
+  lastWmtsHour = hr;
+  clearTimeout(wmtsDebounce);
+  wmtsDebounce = setTimeout(() => {
+    const iso = isoHour(times[hr]);
+    if (cmemsLayer) cmemsLayer.setUrl(WMTS + '&STYLE=' + encodeURIComponent('cmap:speed,vectorStyle:solid') + '&time=' + encodeURIComponent(iso));
+    if (arrowLayer) arrowLayer.setUrl(WMTS + '&STYLE=' + encodeURIComponent('cmap:speed,vectorStyle:vector') + '&time=' + encodeURIComponent(iso));
+  }, 220);
+}
+function setTimeFloat(tf) {
+  tFloat = Math.max(0, Math.min(NHOURS - 1, tf));
+  updateTimeUI(); updateWmtsTime();
+}
+slider.addEventListener('input', () => {
+  playing = false; $('playBtn').textContent = '▶';
+  setTimeFloat(+slider.value);
+});
+$('nowBtn').addEventListener('click', () => { if (times) { playing = false; $('playBtn').textContent = '▶'; setTimeFloat(nowIndex()); } });
+function nowIndex() {
+  const now = Date.now() / 1000;
+  let best = 0;
+  for (let i = 0; i < times.length; i++) if (Math.abs(times[i] - now) < Math.abs(times[best] - now)) best = i;
+  return best;
+}
+$('playBtn').addEventListener('click', () => {
+  playing = !playing;
+  $('playBtn').textContent = playing ? '❚❚' : '▶';
+});
+
+/* lagen aan/uit */
+function syncLayers() {
+  const iso = times ? isoHour(times[Math.round(tFloat)]) : isoHour(Math.floor(Date.now() / 3600000) * 3600);
+  if ($('cbCmems').checked && !cmemsLayer) cmemsLayer = makeCmemsLayer('cmap:speed,vectorStyle:solid', 0.5, iso).addTo(map);
+  if (!$('cbCmems').checked && cmemsLayer) { map.removeLayer(cmemsLayer); cmemsLayer = null; }
+  if ($('cbArrows').checked && !arrowLayer) arrowLayer = makeCmemsLayer('cmap:speed,vectorStyle:vector', 0.85, iso).addTo(map);
+  if (!$('cbArrows').checked && arrowLayer) { map.removeLayer(arrowLayer); arrowLayer = null; }
+  lastWmtsHour = Math.round(tFloat);
+  animOn = $('cbParticles').checked;
+  canvas.style.display = animOn ? 'block' : 'none';
+  if (animOn) resetParticles();
+}
+['cbParticles', 'cbCmems', 'cbArrows'].forEach(id => $(id).addEventListener('change', syncLayers));
+
+/* klik-popup */
+map.on('click', e => {
+  if (!U) return;
+  const uv = sampleUV(e.latlng.lat, e.latlng.lng, tFloat);
+  if (!uv) return;
+  const [u, v] = uv;
+  const kmh = Math.hypot(u, v), kn = kmh / 1.852, ms = kmh / 3.6;
+  const dir = (Math.atan2(u, v) * 180 / Math.PI + 360) % 360;
+  const pijl = '<span class="dirArrow" style="transform:rotate(' + dir + 'deg);display:inline-block">↑</span>';
+  L.popup().setLatLng(e.latlng).setContent(
+    '<b>' + kn.toFixed(1) + ' kn</b> (' + ms.toFixed(2) + ' m/s · ' + kmh.toFixed(1) + ' km/u)<br>'
+    + 'richting ' + Math.round(dir) + '° ' + pijl + '<br>'
+    + '<span style="color:var(--muted)">' + fmt.format(new Date(interpUnix() * 1000)) + '</span>'
+  ).openOn(map);
+});
+
+/* ================= start ================= */
+loadData().then(() => {
+  setTimeFloat(nowIndex());
+  syncLayers();
+  resetParticles();
+  requestAnimationFrame(frame);
+}).catch(err => {
+  console.error(err);
+  statusEl.classList.add('err');
+  statusEl.textContent = 'Live stromingsdata niet bereikbaar — de Copernicus-kaartlagen werken mogelijk wel.';
+  syncLayers();
+  requestAnimationFrame(frame);
+});
+setInterval(() => loadData().catch(() => {}), 6 * 3600 * 1000);
+</script>
+</body>
+</html>

@@ -245,6 +245,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
     <button class="tab on" data-v="kaart" data-i18n="tab_kaart">Kaart</button>
     <button class="tab" data-v="fav"><span data-i18n="tab_fav">Favorieten</span> <span class="cnt" id="favcnt"></span></button>
     <button class="tab" data-v="strem"><span data-i18n="tab_strem">Stremmingen</span> <span class="cnt" id="stremcnt"></span></button>
+    <button class="tab" data-v="stromen" data-i18n="tab_stromen">Stromen</button>
     <button class="tab" data-v="info">Info</button>
   </nav>
   <div id="searchdrop" hidden>
@@ -271,6 +272,10 @@ footer a{color:var(--brand-dim);text-decoration:underline}
     <div class="searchrow"><input type="search" id="stq" placeholder="Filter op vaarweg, plaats of object…"></div>
     <div class="note" id="stremnote">Actuele en aangekondigde beperkingen uit de scheepvaartberichten (FTM/NtS), ververst <span id="stremstamp"></span>. Klik voor het volledige bericht op vaarweginformatie.nl.</div>
     <div id="stremlist"></div>
+  </section>
+  <section id="v-stromen" hidden>
+    <iframe id="stromenFrame" title="Getijdestromen Noordzee" loading="lazy"
+      style="width:100%;height:calc(100vh - var(--headerh,140px));border:0;display:block"></iframe>
   </section>
   <section id="v-info" hidden>
     <div class="p-sec"><h3>Over deze site</h3>
@@ -1336,12 +1341,13 @@ function toggleLocate(){
 /* ---------- events & init ---------- */
 function switchView(v){
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on", t.dataset.v===v));
-  for (const id of ["kaart","fav","strem","info"]) $("#v-"+id).hidden = (id!==v);
-  $("#main").classList.toggle("wide", v==="kaart");
-  $("#foot").style.display = v==="kaart" ? "none" : "";
+  for (const id of ["kaart","fav","strem","stromen","info"]) $("#v-"+id).hidden = (id!==v);
+  $("#main").classList.toggle("wide", v==="kaart" || v==="stromen");
+  $("#foot").style.display = (v==="kaart" || v==="stromen") ? "none" : "";
   if (v==="fav") renderFavs();
   if (v==="strem") renderStrem();
   if (v==="kaart"){ initMap(); setTimeout(()=>map.invalidateSize(), 60); }
+  if (v==="stromen"){ const fr=$("#stromenFrame"); if (fr && !fr.src) fr.src = "stromen.html"; }
 }
 function setHeaderH(){
   document.documentElement.style.setProperty("--headerh", document.querySelector("header").offsetHeight+"px");
@@ -1400,7 +1406,7 @@ $("#mb-uk").onclick = ()=>{
 };
 
 const STATIC_EN = {
-  tab_kaart:"Map", tab_fav:"Favourites", tab_strem:"Closures",
+  tab_kaart:"Map", tab_fav:"Favourites", tab_strem:"Closures", tab_stromen:"Currents",
   mb_all:"All objects", mb_bedien:"Operable only", mb_strem:"Closures", mb_locate:"Follow me", mb_uk:"UK harbours",
 };
 function applyStaticLang(){
