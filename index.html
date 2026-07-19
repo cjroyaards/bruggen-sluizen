@@ -167,6 +167,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 .mapbtn.on{background:var(--brand);border-color:var(--brand);color:#fff}
 .strem-pin{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;line-height:1}
 .strem-pin.crit{background:var(--critical)} .strem-pin.ser{background:var(--serious)}
+.harb-pin{width:22px;height:22px;border-radius:50%;background:#122b42;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;padding:3px}
 .leaflet-popup-content{font:13px/1.45 -apple-system,system-ui,sans-serif;margin:10px 13px}
 .leaflet-popup-content b{font-size:14px}
 .pop-open{color:var(--accent);cursor:pointer;font-weight:600}
@@ -202,6 +203,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
       <button class="mapbtn" id="mb-bedien">Alleen bedienbaar</button>
       <button class="mapbtn" id="mb-strem"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 22 21H2Z"/><path d="M12 10v5"/><path d="M12 18.2v.1"/></svg>Stremmingen</button>
       <button class="mapbtn" id="mb-locate"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="2.2"/></svg>Volg mij</button>
+      <button class="mapbtn" id="mb-uk">UK havens</button>
     </div>
     <div id="map"></div>
   </section>
@@ -265,12 +267,20 @@ async function fetchGz(url){
   }
   return JSON.parse(new TextDecoder().decode(buf));
 }
+let UKCHECKED = "";
+const AREALBL = {oostkust:"Engelse oostkust", theems:"Theems & Medway", zuidkust:"Sussex & Kent", solent:"Solent & westkust"};
 async function loadData(){
-  const [stat, st] = await Promise.all([
+  const [stat, st, uk] = await Promise.all([
     fetchGz("data/static.json.gz"),
     fetch("data/strem.json", {cache:"no-cache"}).then(r=>r.json()),
+    fetch("data/ukharbours.json", {cache:"no-cache"}).then(r=>r.ok?r.json():{harbours:[]}).catch(()=>({harbours:[]})),
   ]);
   DATA = stat; STREM = st.strem; STREMTS = st.ts;
+  UKCHECKED = uk.checked || "";
+  for (const h of uk.harbours||[]){
+    h.c = "UK"; h.fw = AREALBL[h.area] || "UK kust";
+    DATA.objs.push(h);
+  }
 }
 
 /* ---------- tijd & feestdagen (Europe/Amsterdam) ---------- */
@@ -326,6 +336,7 @@ function dayAt(n, offset){
   return nn;
 }
 function statusFor(obj){
+  if (obj.t==="H") return {cls:"mut", label:"UK kusthaven", strems:[]};
   const strems = stremsNear(obj);
   const actStrems = strems.filter(s=>s.act);          // alleen berichten die nú gelden
   const worst = actStrems.length ? Math.max(...actStrems.map(s=>sevRank(s.code))) : 0;
@@ -492,7 +503,7 @@ function cardHTML(o){
     ${thumbHTML(o)}
     <div class="cbody">
       <div class="row1">
-        <span class="otype">${o.t==="B"?"brug":"sluis"}</span>
+        <span class="otype">${o.t==="B"?"brug":o.t==="S"?"sluis":"haven"}</span>
         <span class="oname">${esc(o.n)}</span>
         <span class="oplace">${esc(o.c)}${o.c&&o.fw?" · ":""}${esc(o.fw)}</span>
         <button class="star ${favs.has(o.t+o.id)?"on":""}" data-fav="${o.t}${o.id}" title="Favoriet">${STARSVG}</button>
@@ -501,6 +512,7 @@ function cardHTML(o){
         <span class="chip ${st.cls}"><span class="dot ${st.cls}"></span>${esc(st.label)}${st.extra?" · "+esc(st.extra):""}</span>
         ${o.vhf&&o.vhf.length?`<span class="vhf">VHF ${o.vhf.join(", ")}</span>`:""}
         ${telHTML(o)}
+        ${o.t==="H"?(o.lock?'<span class="vhf">sluis</span>':"")+(o.bridge?'<span class="vhf">brug</span>':""):""}
         ${sibHint(o)}
         <span class="hinfo">${heightsTxt(o)}</span>
       </div>
@@ -630,7 +642,46 @@ function scheduleTable(per, highlightToday){
   if (per[2]) html += `<div class="p-note">${esc(per[2])}</div>`;
   return html;
 }
+function openHarbourDetail(o){
+  const sec = [];
+  if (o.access) sec.push(`<div class="p-sec"><h3>Toegang &amp; getijdenvenster</h3><p style="margin:0">${esc(o.access)}</p></div>`);
+  if (o.lock) sec.push(`<div class="p-sec"><h3>Sluis</h3><p style="margin:0">${esc(o.lock)}</p></div>`);
+  if (o.bridge) sec.push(`<div class="p-sec"><h3>Brug</h3><p style="margin:0">${esc(o.bridge)}</p></div>`);
+  if (o.notes) sec.push(`<div class="p-sec"><h3>Praktisch</h3><p style="margin:0">${esc(o.notes)}</p></div>`);
+  const kv = [];
+  if (o.vhf&&o.vhf.length) kv.push(["Marifoon", "VHF "+o.vhf.join(", ")+(o.vhfName?" — "+esc(o.vhfName):"")]);
+  if (o.tel) kv.push(["Telefoon", `<a href="tel:${esc(o.tel.replace(/[^+\d]/g,""))}">${esc(o.tel)}</a>`]);
+  kv.push(["Gebied", esc(o.fw)]);
+  const links = [`<a href="${esc(o.web)}" target="_blank" rel="noopener">havenwebsite ↗</a>`];
+  if (o.notices) links.push(`<a href="${esc(o.notices)}" target="_blank" rel="noopener">notices to mariners ↗</a>`);
+  links.push(`<a href="https://www.google.com/maps?q=${o.lat},${o.lon}" target="_blank" rel="noopener">kaart ↗</a>`);
+  $("#panel").innerHTML = `
+    <button class="p-close" id="pclose">sluiten ✕</button>
+    <div class="p-h">${esc(o.n)} <button class="star big ${favs.has(o.t+o.id)?"on":""}" data-fav="${o.t}${o.id}" title="Favoriet">${STARSVG}</button></div>
+    <div class="p-sub">UK kusthaven · ${esc(o.fw)}</div>
+    <div class="row2" style="margin-top:0">
+      <span class="chip mut"><span class="dot mut"></span>UK kusthaven</span>
+      ${o.vhf&&o.vhf.length?`<span class="vhf">VHF ${o.vhf.join(", ")}</span>`:""}
+      ${telHTML(o)}
+      <a href="#" class="tel showOnMap">toon op kaart</a>
+    </div>
+    ${sec.join("")}
+    <div class="p-sec"><h3>Gegevens</h3><div class="kv">${kv.map(([k,v])=>`<span class="k">${k}</span><span>${v}</span>`).join("")}</div></div>
+    <div class="p-sec"><h3>Links</h3><div class="linkrow">${links.join("")}</div></div>
+    <div class="p-note">Gecureerde haveninfo, laatst gecontroleerd ${esc(UKCHECKED)}. Geen navigatiebron — controleer vóór vertrek altijd de actuele almanak, getijtafels en notices van de haven.</div>`;
+  $("#panel").classList.add("open"); $("#ovl").classList.add("open");
+  $("#pclose").onclick = closeDetail;
+  $("#panel").querySelectorAll(".showOnMap").forEach(el=> el.onclick = (e)=>{
+    e.preventDefault(); e.stopPropagation();
+    closeDetail(); $("#searchdrop").hidden = true;
+    switchView("kaart");
+    map.setView([o.lat,o.lon], Math.max(map.getZoom(), 13));
+    highlightOnMap(o);
+  });
+  if (map){ map.setView([o.lat,o.lon], Math.max(map.getZoom(), 11), {animate:false}); highlightOnMap(o); }
+}
 function openDetail(o){
+  if (o.t==="H"){ openHarbourDetail(o); return; }
   const st = statusFor(o);
   const ot = DATA.ot[o.ot];
   const n = amsNow();
@@ -733,11 +784,27 @@ function initMap(){
   buildMarkers();
   map.addLayer(cluster);
   buildStremLayer();
+  buildHarbourLayer();
+}
+const ANCHORSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="5.5" r="2.3"/><path d="M12 8v12"/><path d="M5 13c0 4.5 3 7 7 7s7-2.5 7-7"/><path d="M8.5 11.5h7"/></svg>`;
+let harbourLayer = null;
+function buildHarbourLayer(){
+  if (harbourLayer) return;
+  harbourLayer = L.layerGroup();
+  for (const o of DATA.objs){
+    if (o.t!=="H") continue;
+    const icon = L.divIcon({className:"", html:`<div class="harb-pin">${ANCHORSVG}</div>`, iconSize:[22,22], iconAnchor:[11,11]});
+    L.marker([o.lat,o.lon], {icon, zIndexOffset:400})
+      .bindPopup(`<b>${esc(o.n)}</b><br>UK kusthaven · ${esc(o.fw)}<br><span class="pop-open" data-open="${o.t}${o.id}">details →</span>`)
+      .addTo(harbourLayer);
+  }
+  harbourLayer.addTo(map);
 }
 function buildMarkers(){
   cluster.clearLayers();
   const ms = [];
   for (const o of DATA.objs){
+    if (o.t==="H") continue;
     if (onlyBedien && !o.open) continue;
     const m = L.circleMarker([o.lat, o.lon], {
       radius: o.open?7:5, weight:2, color:"#ffffff", fillColor: markerColor(o), fillOpacity:0.95
@@ -838,6 +905,13 @@ $("#mb-all").onclick = ()=>{ onlyBedien=false; $("#mb-all").classList.add("on");
 $("#mb-bedien").onclick = ()=>{ onlyBedien=true; $("#mb-bedien").classList.add("on"); $("#mb-all").classList.remove("on"); buildMarkers(); };
 $("#mb-strem").onclick = ()=>{ showStrem=!showStrem; $("#mb-strem").classList.toggle("on", showStrem); buildStremLayer(); };
 $("#mb-locate").onclick = toggleLocate;
+let ukView = false;
+$("#mb-uk").onclick = ()=>{
+  ukView = !ukView;
+  $("#mb-uk").classList.toggle("on", ukView);
+  if (ukView) map.fitBounds([[50.45,-2.7],[52.75,1.9]]);
+  else map.setView([52.2,5.3], 8);
+};
 
 let deb;
 loadData().then(()=>{
@@ -848,7 +922,7 @@ loadData().then(()=>{
   $("#stremstamp").textContent = fmt(STREMTS);
   $("#stremstamp2").textContent = fmt(STREMTS);
   document.querySelectorAll(".snapdate").forEach(el=>el.textContent = "generatie "+DATA.gen);
-  $("#objcount").textContent = DATA.objs.filter(o=>o.t==="B").length+" bruggen · "+DATA.objs.filter(o=>o.t==="S").length+" sluizen · "+STREM.length+" actuele berichten";
+  $("#objcount").textContent = DATA.objs.filter(o=>o.t==="B").length+" bruggen · "+DATA.objs.filter(o=>o.t==="S").length+" sluizen · "+DATA.objs.filter(o=>o.t==="H").length+" UK-kusthavens · "+STREM.length+" actuele berichten";
   const m = readStore("bs_mast", null);
   if (m!=null) $("#mast").value = m;
   $("#q").addEventListener("input", ()=>{ clearTimeout(deb); deb=setTimeout(()=>{ renderResults(); updateDrop(); },120); });
