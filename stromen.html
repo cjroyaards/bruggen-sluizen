@@ -95,6 +95,7 @@
 <div id="layersPanel" class="panel">
   <div class="t">Lagen</div>
   <label><input type="checkbox" id="cbArrows" checked> Stroompijlen (vloeiend)</label>
+  <label><input type="checkbox" id="cbWmts"> Copernicus pijlen (scherp)</label>
   <label><input type="checkbox" id="cbParticles"> Deeltjesanimatie</label>
   <label><input type="checkbox" id="cbCmems"> Copernicus kleurlaag</label>
 </div>
@@ -126,7 +127,7 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 function isoHour(unixSec) { return new Date(unixSec * 1000).toISOString().replace(/\.\d{3}Z$/, '.000Z'); }
 
-let cmemsLayer = null;
+let cmemsLayer = null, arrowLayer = null;
 function makeCmemsLayer(styleStr, opacity, timeIso) {
   return L.tileLayer(WMTS + '&STYLE=' + encodeURIComponent(styleStr) + '&time=' + encodeURIComponent(timeIso),
     { opacity, maxNativeZoom: 9, maxZoom: 11, pane: 'tilePane' });
@@ -136,6 +137,7 @@ function makeCmemsLayer(styleStr, opacity, timeIso) {
 let times = null;            // Array(72) unix sec (UTC, hele uren)
 let U = null, V = null;      // Float32Array (t * nLat * nLon), km/u; NaN = land
 let seaCells = [];
+let seaMask = null;          // Uint8Array(nLat*nLon): 1 = zeecel, 0 = land/geen data
 let tFloat = 0;              // fractionele tijd-index (vloeiend)
 let playing = false;
 
@@ -189,6 +191,7 @@ async function loadData() {
   U = new Float32Array(NHOURS * n).fill(NaN);
   V = new Float32Array(NHOURS * n).fill(NaN);
   seaCells = [];
+  seaMask = new Uint8Array(n);
   let okChunks = 0;
   defs.forEach((d, ci) => {
     const resp = responses[ci];
@@ -206,7 +209,7 @@ async function loadData() {
         V[t * n + p] = sp * Math.cos(rad);
         isSea = true;
       }
-      if (isSea) seaCells.push(p);
+      if (isSea) { seaCells.push(p); seaMask[p] = 1; }
     }
   });
   slider.max = String(NHOURS - 1);
@@ -286,6 +289,17 @@ function resetParticles() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
+/* pijl alleen waar de héle rastercel zee is (geen land-bleed langs de kust) */
+function sampleUVarrow(lat, lon, tf) {
+  if (!seaMask) return null;
+  const fi = (lat - GRID.lat0) / GRID.dLat, fj = (lon - GRID.lon0) / GRID.dLon;
+  const i0 = Math.floor(fi), j0 = Math.floor(fj);
+  if (i0 < 0 || j0 < 0 || i0 >= GRID.nLat - 1 || j0 >= GRID.nLon - 1) return null;
+  for (let di = 0; di <= 1; di++) for (let dj = 0; dj <= 1; dj++)
+    if (!seaMask[(i0 + di) * GRID.nLon + (j0 + dj)]) return null;   // een hoek is land → geen pijl
+  return sampleUV(lat, lon, tf);
+}
+
 /* vloeiende stroompijlen — getekend uit het (in de tijd geïnterpoleerde) veld */
 function drawArrows() {
   const sz = map.getSize();
@@ -295,7 +309,7 @@ function drawArrows() {
   for (let x = step * 0.6; x < sz.x; x += step) {
     for (let y = step * 0.6; y < sz.y; y += step) {
       const ll = map.containerPointToLatLng([x, y]);
-      const uv = sampleUV(ll.lat, ll.lng, tFloat);
+      const uv = sampleUVarrow(ll.lat, ll.lng, tFloat);
       if (!uv) continue;
       const u = uv[0], v = uv[1], kmh = Math.hypot(u, v);
       if (kmh < 0.05) continue;
@@ -390,6 +404,7 @@ function updateWmtsTime() {
   wmtsDebounce = setTimeout(() => {
     const iso = isoHour(times[hr]);
     if (cmemsLayer) cmemsLayer.setUrl(WMTS + '&STYLE=' + encodeURIComponent('cmap:speed,vectorStyle:solid') + '&time=' + encodeURIComponent(iso));
+    if (arrowLayer) arrowLayer.setUrl(WMTS + '&STYLE=' + encodeURIComponent('cmap:speed,vectorStyle:vector') + '&time=' + encodeURIComponent(iso));
   }, 220);
 }
 function setTimeFloat(tf) {
@@ -417,13 +432,15 @@ function syncLayers() {
   const iso = times ? isoHour(times[Math.round(tFloat)]) : isoHour(Math.floor(Date.now() / 3600000) * 3600);
   if ($('cbCmems').checked && !cmemsLayer) cmemsLayer = makeCmemsLayer('cmap:speed,vectorStyle:solid', 0.5, iso).addTo(map);
   if (!$('cbCmems').checked && cmemsLayer) { map.removeLayer(cmemsLayer); cmemsLayer = null; }
+  if ($('cbWmts').checked && !arrowLayer) arrowLayer = makeCmemsLayer('cmap:speed,vectorStyle:vector', 0.9, iso).addTo(map);
+  if (!$('cbWmts').checked && arrowLayer) { map.removeLayer(arrowLayer); arrowLayer = null; }
   lastWmtsHour = Math.round(tFloat);
   particlesOn = $('cbParticles').checked;
   arrowsOn = $('cbArrows').checked;
   canvas.style.display = (particlesOn || arrowsOn) ? 'block' : 'none';
   if (particlesOn) resetParticles();
 }
-['cbParticles', 'cbCmems', 'cbArrows'].forEach(id => $(id).addEventListener('change', syncLayers));
+['cbParticles', 'cbCmems', 'cbArrows', 'cbWmts'].forEach(id => $(id).addEventListener('change', syncLayers));
 
 /* klik-popup */
 map.on('click', e => {
