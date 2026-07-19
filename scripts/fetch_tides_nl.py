@@ -130,6 +130,16 @@ def extremes(pts):
 
 
 def main():
+    # versheidscheck: max 1x per ~20 uur echt verversen (script draait ook in de uurlijkse run)
+    path = os.path.join(OUT, "nltides.json")
+    if "--force" not in sys.argv and os.path.exists(path):
+        try:
+            prev = json.load(open(path))
+            if time.time() * 1000 - prev.get("checked", 0) < 20 * 3600 * 1000 and prev.get("stations"):
+                print("nltides.json is vers — overgeslagen")
+                return
+        except Exception:  # noqa: BLE001
+            pass
     xy = catalog_xy()
     out = []
     for code, name, lat, lon in STATIONS:

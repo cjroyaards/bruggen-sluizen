@@ -43,6 +43,16 @@ def main():
     if not KEY:
         print("ADMIRALTY_KEY niet gezet — officiële getijdata overgeslagen.")
         return
+    # versheidscheck: max 1x per ~20 uur echt verversen (script draait ook in de uurlijkse run)
+    path = os.path.join(OUT, "uktides.json")
+    if "--force" not in sys.argv and os.path.exists(path):
+        try:
+            prev = json.load(open(path))
+            if time.time() * 1000 - prev.get("checked", 0) < 20 * 3600 * 1000 and prev.get("byId"):
+                print("uktides.json is vers — overgeslagen")
+                return
+        except Exception:  # noqa: BLE001
+            pass
     harbours = json.load(open(os.path.join(OUT, "ukharbours.json")))["harbours"]
 
     st = get(f"{BASE}/Stations")
