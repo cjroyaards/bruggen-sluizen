@@ -642,8 +642,87 @@ function scheduleTable(per, highlightToday){
   if (per[2]) html += `<div class="p-note">${esc(per[2])}</div>`;
   return html;
 }
+/* ---------- getijden (Open-Meteo, live) ---------- */
+const tideCache = new Map();
+async function fetchTide(o){
+  const key = o.t+o.id;
+  if (tideCache.has(key)) return tideCache.get(key);
+  const u = `https://marine-api.open-meteo.com/v1/marine?latitude=${o.lat}&longitude=${o.lon}&hourly=sea_level_height_msl&forecast_days=3&timezone=Europe%2FLondon`;
+  const d = await (await fetch(u)).json();
+  tideCache.set(key, d);
+  return d;
+}
+function ukNowParts(){
+  const p = new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/London",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(new Date());
+  const g = t => p.find(x=>x.type===t).value;
+  return {date:`${g("year")}-${g("month")}-${g("day")}`, h:+g("hour"), m:+g("minute")};
+}
+function fmtTideTime(iso, offMin, todayDate){
+  const [dpart, tpart] = iso.split("T");
+  const [H,M] = tpart.split(":").map(Number);
+  const base = Date.UTC(2000,0,1,H,M) + offMin*60000;
+  const d2 = new Date(base);
+  let dayShift = Math.floor((H*60+M+offMin)/1440);
+  const day = new Date(dpart+"T12:00:00Z"); day.setUTCDate(day.getUTCDate()+dayShift);
+  const dstr = day.toISOString().slice(0,10);
+  const hhmm = String(d2.getUTCHours()).padStart(2,"0")+":"+String(d2.getUTCMinutes()).padStart(2,"0");
+  if (dstr===todayDate) return hhmm;
+  const morgen = new Date(todayDate+"T12:00:00Z"); morgen.setUTCDate(morgen.getUTCDate()+1);
+  return (dstr===morgen.toISOString().slice(0,10) ? "morgen " : dstr.slice(8,10)+"/"+dstr.slice(5,7)+" ") + hhmm;
+}
+async function loadTideInto(o){
+  const box = document.getElementById("tidebox");
+  if (!box) return;
+  try{
+    const d = await fetchTide(o);
+    const times = d.hourly.time, vals = d.hourly.sea_level_height_msl;
+    if (!times || !vals || !vals.some(v=>v!=null)) throw new Error("leeg");
+    const now = ukNowParts();
+    const startIdx = times.findIndex(t=>t.startsWith(now.date));
+    const nowPos = (startIdx<0?0:startIdx) + now.h + now.m/60;
+    // extremen met parabolische interpolatie
+    const ext = [];
+    for (let i=1;i<vals.length-1;i++){
+      const a=vals[i-1], b=vals[i], c=vals[i+1];
+      if (a==null||b==null||c==null) continue;
+      const isMax = b>=a && b>c, isMin = b<=a && b<c;
+      if (!isMax && !isMin) continue;
+      const den = a-2*b+c;
+      const off = den!==0 ? Math.max(-0.5, Math.min(0.5, 0.5*(a-c)/den)) : 0;
+      const v = b - 0.25*(a-c)*off;
+      ext.push({i, pos:i+off, v, hw:isMax});
+    }
+    const upcoming = ext.filter(e=>e.pos>=nowPos).slice(0,4);
+    const chips = upcoming.map(e=>
+      `<span class="tchip${e.hw?" now":""}"><b>${e.hw?"HW":"LW"}</b> ${fmtTideTime(times[e.i], Math.round((e.pos-e.i)*60), now.date)} · ${e.v.toFixed(1).replace(".",",")} m</span>`
+    ).join(" ");
+    // curve
+    const W=560, Hc=96, PX=8, PY=12;
+    const vmin=Math.min(...vals.filter(v=>v!=null)), vmax=Math.max(...vals.filter(v=>v!=null));
+    const X = p => PX + p/(vals.length-1)*(W-2*PX);
+    const Y = v => Hc-PY - (v-vmin)/(vmax-vmin||1)*(Hc-2*PY);
+    let path="";
+    vals.forEach((v,i)=>{ if(v==null) return; path += (path?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1); });
+    const dots = ext.map(e=>`<circle cx="${X(e.pos).toFixed(1)}" cy="${Y(e.v).toFixed(1)}" r="3.5" fill="${e.hw?"var(--accent)":"var(--muted)"}"/>`).join("");
+    const dayTicks = times.map((t,i)=> t.endsWith("T00:00") && i>0 ? `<line x1="${X(i)}" y1="${PY}" x2="${X(i)}" y2="${Hc-PY}" stroke="var(--grid)" stroke-width="1"/>` : "").join("");
+    box.classList.remove("p-note");
+    box.innerHTML = `
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">${chips||"<span class='hinfo'>geen extremen gevonden</span>"}</div>
+      <svg viewBox="0 0 ${W} ${Hc}" style="width:100%;height:auto;display:block" role="img" aria-label="Getijcurve komende 3 dagen">
+        ${dayTicks}
+        <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        ${dots}
+        <line x1="${X(nowPos).toFixed(1)}" y1="${PY-4}" x2="${X(nowPos).toFixed(1)}" y2="${Hc-PY+4}" stroke="var(--critical)" stroke-width="1.5"/>
+        <text x="${Math.min(X(nowPos)+4, W-30).toFixed(1)}" y="${PY+6}" font-size="10" fill="var(--muted)">nu</text>
+      </svg>
+      <div class="tlegend">Komende 3 dagen · tijden UK-lokaal · hoogte t.o.v. gemiddeld zeeniveau (MSL) · bron Open-Meteo/ECMWF — indicatief, geen officiële getijtafel.</div>`;
+  } catch(e){
+    box.textContent = "Getijverwachting kon niet worden geladen.";
+  }
+}
 function openHarbourDetail(o){
   const sec = [];
+  sec.push(`<div class="p-sec"><h3>Getij (verwachting)</h3><div id="tidebox" class="p-note" style="margin-top:0">Getijverwachting laden…</div></div>`);
   if (o.access) sec.push(`<div class="p-sec"><h3>Toegang &amp; getijdenvenster</h3><p style="margin:0">${esc(o.access)}</p></div>`);
   if (o.lock) sec.push(`<div class="p-sec"><h3>Sluis</h3><p style="margin:0">${esc(o.lock)}</p></div>`);
   if (o.bridge) sec.push(`<div class="p-sec"><h3>Brug</h3><p style="margin:0">${esc(o.bridge)}</p></div>`);
@@ -679,6 +758,7 @@ function openHarbourDetail(o){
     highlightOnMap(o);
   });
   if (map){ map.setView([o.lat,o.lon], Math.max(map.getZoom(), 11), {animate:false}); highlightOnMap(o); }
+  loadTideInto(o);
 }
 function openDetail(o){
   if (o.t==="H"){ openHarbourDetail(o); return; }
