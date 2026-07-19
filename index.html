@@ -726,7 +726,7 @@ function fetchUkTides(){
   return ukTidesPromise;
 }
 function fmtUkClock(isoUtc){
-  const d = new Date(isoUtc+":00Z");
+  const d = typeof isoUtc==="number" ? new Date(isoUtc) : new Date(isoUtc+":00Z");
   const p = new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/London",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(d);
   const g = t => p.find(x=>x.type===t).value;
   const now = ukNowParts();
@@ -807,12 +807,71 @@ function wireTideScrub(box, X, Yv, labels, vals){
     svg.addEventListener("pointercancel", up, {once:true});
   });
 }
+function renderOfficialTide(box, official){
+  const nowMs = Date.now();
+  const evs = official.events
+    .map(e=>({t:new Date(e[0]+":00Z").getTime(), typ:e[1], v:e[2]}))
+    .sort((a,b)=>a.t-b.t);
+  const up = evs.filter(e=> e.t >= nowMs - 15*60000).slice(0,4);
+  const chips = up.map(e=>
+    `<span class="tchip${e.typ==="H"?" now":""}"><b>${e.typ==="H"?"HW":"LW"}</b> ${fmtUkClock(e.t)} · ${e.v.toFixed(1).replace(".",",")} m</span>`).join(" ");
+  // curve: cosinusverloop tussen de officiële kenteringen, venster vanaf de laatste kentering vóór nu
+  let si = evs.findIndex(e=> e.t >= nowMs) - 1;
+  if (si < 0) si = 0;
+  const endT = nowMs + 3*86400000;
+  const seg = evs.slice(si).filter(e=> e.t <= endT + 8*3600000);
+  const samples = [];
+  for (let i=0; i<seg.length-1; i++){
+    const a=seg[i], b=seg[i+1];
+    const n = Math.max(6, Math.round((b.t-a.t)/(20*60000)));
+    for (let k=0; k<n; k++){
+      const t = a.t + (b.t-a.t)*k/n;
+      const v = (a.v+b.v)/2 + (a.v-b.v)/2*Math.cos(Math.PI*k/n);
+      samples.push({t, v});
+    }
+  }
+  if (seg.length) samples.push({t:seg[seg.length-1].t, v:seg[seg.length-1].v});
+  if (samples.length < 8){ box.textContent = "Onvoldoende getijdata."; return; }
+  const W=560, Hc=96, PX=8, PY=12;
+  const t0=samples[0].t, t1=samples[samples.length-1].t;
+  const vmin=Math.min(...samples.map(s=>s.v)), vmax=Math.max(...samples.map(s=>s.v));
+  const X = t => PX + (t-t0)/(t1-t0||1)*(W-2*PX);
+  const Y = v => Hc-PY - (v-vmin)/(vmax-vmin||1)*(Hc-2*PY);
+  const path = samples.map((s,i)=> (i?"L":"M")+X(s.t).toFixed(1)+" "+Y(s.v).toFixed(1)).join("");
+  const dots = seg.filter(e=>e.t>=t0&&e.t<=t1).map(e=>`<circle cx="${X(e.t).toFixed(1)}" cy="${Y(e.v).toFixed(1)}" r="3.5" fill="${e.typ==="H"?"var(--accent)":"var(--muted)"}"/>`).join("");
+  const nowX = (nowMs>=t0&&nowMs<=t1) ? X(nowMs) : null;
+  box.classList.remove("p-note");
+  box.innerHTML = `
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px">${chips||"<span class='hinfo'>geen komende kenteringen in de data</span>"}</div>
+    <div class="tlegend" style="margin:0 0 8px">Officiële Admiralty-voorspelling, station ${esc(official.station)} · hoogte boven kaartnul (LAT) · tijden UK-lokaal</div>
+    <svg class="tidecurve" viewBox="0 0 ${W} ${Hc}" style="width:100%;height:auto;display:block" role="img" aria-label="Getijcurve uit officiële kenteringen">
+      <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+      ${dots}
+      ${nowX!=null?`<line x1="${nowX.toFixed(1)}" y1="${PY-4}" x2="${nowX.toFixed(1)}" y2="${Hc-PY+4}" stroke="var(--critical)" stroke-width="1.5"/><text x="${Math.min(nowX+4,W-30).toFixed(1)}" y="${PY+6}" font-size="10" fill="var(--muted)">nu</text>`:""}
+    </svg>
+    <div class="tlegend">Curve berekend uit dezelfde officiële kenteringen als hierboven · sleep of tik voor tijd en hoogte</div>
+    <details class="tlex">
+      <summary>Over deze getijgegevens</summary>
+      <p>De HW/LW-tijden en -hoogtes zijn de <b>officiële Admiralty-voorspellingen</b> van de UK Hydrographic Office (station ${esc(official.station)}) — dezelfde bron als de getijtafels in je almanak, met hoogtes boven <b>kaartnul (LAT)</b>. Ze worden dagelijks ververst en beslaan 7 dagen vooruit.</p>
+      <p>De curve loopt exact door die officiële HW/LW-punten; de tussenliggende waarden zijn een vloeiende benadering (cosinusverloop). In gebieden met een afwijkend getijverloop — zoals dubbel hoogwater in de Solent — is het werkelijke verloop tussen de kenteringen grilliger dan deze curve.</p>
+      <p>Let wel: getijvoorspellingen zijn astronomisch — opzet of afwaaiing door wind en luchtdruk zit er niet in. Controleer bij extreme weersomstandigheden de actuele berichten van de haven.</p>
+    </details>`;
+  const sx=[], sy=[], slbl=[], sval=[];
+  for (const s of samples){ sx.push(X(s.t)); sy.push(Y(s.v)); slbl.push(fmtUkClock(s.t)); sval.push(s.v); }
+  wireTideScrub(box, sx, sy, slbl, sval);
+}
 async function loadTideInto(o){
   const box = document.getElementById("tidebox");
   if (!box) return;
   try{
-    const [d, uktides] = await Promise.all([fetchTide(o), fetchUkTides()]);
+    const uktides = await fetchUkTides();
     const official = uktides && uktides.byId && uktides.byId[o.t+o.id];
+    if (official && official.events && official.events.length > 3
+        && new Date(official.events[official.events.length-1][0]+":00Z").getTime() > Date.now() + 6*3600000){
+      renderOfficialTide(box, official);
+      return;
+    }
+    const d = await fetchTide(o);
     const times = d.hourly.time, vals = d.hourly.sea_level_height_msl;
     if (!times || !vals || !vals.some(v=>v!=null)) throw new Error("leeg");
     const now = ukNowParts();
