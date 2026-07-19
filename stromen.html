@@ -143,6 +143,27 @@ const $ = id => document.getElementById(id);
 const statusEl = $('status'), slider = $('timeSlider'), timeLabel = $('timeLabel');
 
 /* ================= data laden (Open-Meteo Marine — Copernicus SMOC) ================= */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const CHUNK = 100;   // punten per verzoek (kleiner = betrouwbaarder)
+
+async function fetchChunk(ch, attempt = 0) {
+  const url = 'https://marine-api.open-meteo.com/v1/marine'
+    + '?latitude=' + ch.map(p => p[0]).join(',')
+    + '&longitude=' + ch.map(p => p[1]).join(',')
+    + '&hourly=ocean_current_velocity,ocean_current_direction'
+    + '&forecast_days=3&cell_selection=sea&timeformat=unixtime';
+  try {
+    const r = await fetch(url, { cache: 'no-store' });
+    if ((r.status === 429 || r.status >= 500) && attempt < 4) { await sleep(700 * (attempt + 1)); return fetchChunk(ch, attempt + 1); }
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    return Array.isArray(j) ? j : [j];
+  } catch (e) {
+    if (attempt < 3) { await sleep(600 * (attempt + 1)); return fetchChunk(ch, attempt + 1); }
+    return null;   // deze chunk geven we op; de rest gaat door
+  }
+}
+
 async function loadData() {
   statusEl.classList.remove('err');
   statusEl.textContent = 'Stromingsdata laden…';
@@ -150,37 +171,48 @@ async function loadData() {
   for (let i = 0; i < GRID.nLat; i++)
     for (let j = 0; j < GRID.nLon; j++)
       pts.push([+(GRID.lat0 + i * GRID.dLat).toFixed(2), +(GRID.lon0 + j * GRID.dLon).toFixed(2)]);
-  const chunks = [];
-  for (let s = 0; s < pts.length; s += 161) chunks.push(pts.slice(s, s + 161));
-  const results = await Promise.all(chunks.map(ch => {
-    const url = 'https://marine-api.open-meteo.com/v1/marine'
-      + '?latitude=' + ch.map(p => p[0]).join(',')
-      + '&longitude=' + ch.map(p => p[1]).join(',')
-      + '&hourly=ocean_current_velocity,ocean_current_direction'
-      + '&forecast_days=3&cell_selection=sea&timeformat=unixtime';
-    return fetch(url).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
-  }));
-  const flat = results.flat();
+  const defs = [];
+  for (let s = 0; s < pts.length; s += CHUNK) defs.push({ start: s, pts: pts.slice(s, s + CHUNK) });
+
+  // hooguit 2 verzoeken tegelijk (voorkomt burst-limieten)
+  const responses = new Array(defs.length).fill(null);
+  for (let s = 0; s < defs.length; s += 2) {
+    const batch = defs.slice(s, s + 2);
+    const rs = await Promise.all(batch.map(d => fetchChunk(d.pts)));
+    rs.forEach((r, i) => { responses[s + i] = r; });
+  }
+
+  const okResp = responses.find(Boolean);
+  if (!okResp) throw new Error('geen enkel datablok geladen');
   const n = GRID.nLat * GRID.nLon;
-  times = flat[0].hourly.time.slice(0, NHOURS);
+  times = okResp[0].hourly.time.slice(0, NHOURS);
   U = new Float32Array(NHOURS * n).fill(NaN);
   V = new Float32Array(NHOURS * n).fill(NaN);
   seaCells = [];
-  for (let p = 0; p < n; p++) {
-    const h = flat[p].hourly, vel = h.ocean_current_velocity, dir = h.ocean_current_direction;
-    let isSea = false;
-    for (let t = 0; t < NHOURS; t++) {
-      const sp = vel[t], d = dir[t];
-      if (sp == null || d == null) continue;
-      const rad = d * Math.PI / 180;
-      U[t * n + p] = sp * Math.sin(rad);
-      V[t * n + p] = sp * Math.cos(rad);
-      isSea = true;
+  let okChunks = 0;
+  defs.forEach((d, ci) => {
+    const resp = responses[ci];
+    if (!resp) return;
+    okChunks++;
+    for (let k = 0; k < d.pts.length && k < resp.length; k++) {
+      const p = d.start + k;
+      const h = resp[k].hourly, vel = h.ocean_current_velocity, dir = h.ocean_current_direction;
+      let isSea = false;
+      for (let t = 0; t < NHOURS; t++) {
+        const sp = vel[t], dd = dir[t];
+        if (sp == null || dd == null) continue;
+        const rad = dd * Math.PI / 180;
+        U[t * n + p] = sp * Math.sin(rad);
+        V[t * n + p] = sp * Math.cos(rad);
+        isSea = true;
+      }
+      if (isSea) seaCells.push(p);
     }
-    if (isSea) seaCells.push(p);
-  }
+  });
   slider.max = String(NHOURS - 1);
-  statusEl.textContent = 'Live · voorspelling 72 uur · vloeiend interpolerend';
+  statusEl.textContent = okChunks === defs.length
+    ? 'Live · voorspelling 72 uur · vloeiend interpolerend'
+    : 'Live · deels geladen (' + okChunks + '/' + defs.length + ') — ververst zo automatisch';
 }
 
 /* ================= interpolatie (ruimte + tijd) ================= */
@@ -410,19 +442,23 @@ map.on('click', e => {
 });
 
 /* ================= start ================= */
-loadData().then(() => {
+let started = false;
+function afterLoad() {
   setTimeFloat(nowIndex());
-  syncLayers();
-  resetParticles();
-  requestAnimationFrame(frame);
-}).catch(err => {
-  console.error(err);
-  statusEl.classList.add('err');
-  statusEl.textContent = 'Live stromingsdata niet bereikbaar — de Copernicus-kaartlagen werken mogelijk wel.';
-  syncLayers();
-  requestAnimationFrame(frame);
-});
-setInterval(() => loadData().catch(() => {}), 6 * 3600 * 1000);
+  if (!started) { started = true; syncLayers(); requestAnimationFrame(frame); }
+  else syncLayers();
+}
+function tryLoad(retryMs) {
+  loadData().then(afterLoad).catch(err => {
+    console.error(err);
+    statusEl.classList.add('err');
+    statusEl.textContent = 'Stromingsdata even niet bereikbaar — nieuwe poging over ' + Math.round(retryMs / 1000) + 's…';
+    if (!started) { started = true; syncLayers(); requestAnimationFrame(frame); }
+    setTimeout(() => tryLoad(Math.min(retryMs * 2, 300000)), retryMs);
+  });
+}
+tryLoad(15000);
+setInterval(() => { loadData().then(() => { statusEl.classList.remove('err'); }).catch(() => {}); }, 6 * 3600 * 1000);
 </script>
 </body>
 </html>

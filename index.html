@@ -1347,7 +1347,7 @@ function switchView(v){
   if (v==="fav") renderFavs();
   if (v==="strem") renderStrem();
   if (v==="kaart"){ initMap(); setTimeout(()=>map.invalidateSize(), 60); }
-  if (v==="stromen"){ const fr=$("#stromenFrame"); if (fr && !fr.src) fr.src = "stromen.html"; }
+  if (v==="stromen"){ const fr=$("#stromenFrame"); if (fr && !fr.src) fr.src = "stromen.html?v=3"; }
 }
 function setHeaderH(){
   document.documentElement.style.setProperty("--headerh", document.querySelector("header").offsetHeight+"px");
