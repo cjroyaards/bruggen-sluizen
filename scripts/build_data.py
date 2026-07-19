@@ -42,6 +42,35 @@ def fetch_type(gen, t):
             return out
 
 
+# Grove polygoon van Nederland (lon, lat) — filtert Duitse (Wezer/Mittellandkanal)
+# en Belgische (Gent, Antwerpen, Kempen) objecten uit de FIS-data.
+NL_POLY = [
+    (3.00, 51.60), (3.30, 51.32), (3.36, 51.22), (3.43, 51.235), (3.52, 51.20),
+    (3.64, 51.275), (3.75, 51.205), (3.88, 51.205), (4.05, 51.24), (4.20, 51.33),
+    (4.30, 51.355), (4.45, 51.365), (4.55, 51.40), (4.85, 51.395), (5.12, 51.42),
+    (5.24, 51.295), (5.45, 51.265), (5.57, 51.17), (5.62, 50.99), (5.63, 50.83),
+    (5.73, 50.73), (6.03, 50.73), (6.10, 50.93), (6.03, 51.10), (6.20, 51.23),
+    (6.24, 51.40), (6.10, 51.62), (6.00, 51.75), (6.18, 51.85), (6.45, 51.85),
+    (6.75, 51.90), (6.85, 52.13), (7.10, 52.28), (7.07, 52.40), (6.77, 52.55),
+    (6.83, 52.65), (7.06, 52.86), (7.20, 53.00), (7.23, 53.20), (7.22, 53.24),
+    (6.95, 53.35), (6.95, 53.55), (7.10, 53.62), (6.00, 53.60), (4.60, 53.35),
+    (3.60, 52.60), (3.00, 52.20),
+]
+
+
+def in_nl(lat, lon):
+    inside = False
+    n = len(NL_POLY)
+    for i in range(n):
+        x1, y1 = NL_POLY[i]
+        x2, y2 = NL_POLY[(i + 1) % n]
+        if (y1 > lat) != (y2 > lat):
+            xcross = x1 + (lat - y1) / (y2 - y1) * (x2 - x1)
+            if lon < xcross:
+                inside = not inside
+    return inside
+
+
 def pt(geom):
     if not geom:
         return None
@@ -103,9 +132,13 @@ def build_full():
     otmap = {o["Id"]: compact_ot(o) for o in raw["operatingtimes"]}
 
     objs = []
+    dropped = 0
     for b in raw["bridge"]:
         p = pt(b.get("Geometry"))
         if not p:
+            continue
+        if not in_nl(p[0], p[1]):
+            dropped += 1
             continue
         oo = opens.get(b["Id"], [])
         fixed_h = [x.get("ClearanceHeightClosed") or x.get("HeightClosed")
@@ -137,6 +170,9 @@ def build_full():
         p = pt(l.get("Geometry"))
         if not p:
             continue
+        if not in_nl(p[0], p[1]):
+            dropped += 1
+            continue
         cs = chambers.get(l["Id"], [])
         ln = [c.get("Length") for c in cs if c.get("Length")] + ([l["Length"]] if l.get("Length") else [])
         wd = [c.get("Width") for c in cs if c.get("Width")] + ([l["Width"]] if l.get("Width") else [])
@@ -162,6 +198,7 @@ def build_full():
     used = {o["ot"] for o in objs if o.get("ot")}
     otmap = {k: v for k, v in otmap.items() if k in used}
 
+    print(f"buitenlandse objecten weggefilterd: {dropped}")
     data = {"gen": gen, "objs": objs, "ot": otmap}
     blob = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode()
     with open(os.path.join(OUT, "static.json.gz"), "wb") as f:

@@ -601,10 +601,13 @@ function fmtNlClock(isoUtc){
   return pre+g("hour")+":"+g("minute");
 }
 function nextTideTxt(o){
-  if (o.t!=="G" || !o.st) return "";
+  if (o.t!=="G") return "";
   const nowMs = Date.now();
-  const up = o.st.events.filter(e=> new Date(e[0]+":00Z").getTime() >= nowMs).slice(0,2);
-  return up.map(e=> (e[1]==="H"?"HW ":"LW ")+fmtNlClock(e[0])+" · "+e[2].toFixed(1).replace(".",",")+" m").join("  ·  ");
+  const src = o.st ? o.st.events : (o.uk ? o.uk.events : null);
+  if (!src) return "";
+  const clk = o.st ? fmtNlClock : fmtUkClock;
+  const up = src.filter(e=> new Date(e[0]+":00Z").getTime() >= nowMs).slice(0,2);
+  return up.map(e=> (e[1]==="H"?"HW ":"LW ")+clk(e[0])+" · "+e[2].toFixed(1).replace(".",",")+" m").join("  ·  ");
 }
 function mastVal(){ const m = parseFloat($("#mast").value); return isNaN(m)?null:m; }
 function mastIssue(o){
@@ -864,16 +867,20 @@ function wireTideScrub(box, X, Yv, labels, vals){
 }
 function stationRow(official, refObj){
   if (!official || official.lat==null) return "";
-  const stn = {lat: official.lat, lon: official.lon};
+  // zelfde layout als 'Hoort bij hetzelfde complex': klikbaar kaartje van het station
+  const g = official.sid ? DATA.objs.find(x=> x.t==="G" && x.id==="U"+official.sid) : null;
   let distTxt = "";
-  if (refObj && refObj.lat && Math.abs(refObj.lat-stn.lat)+Math.abs(refObj.lon-stn.lon) > 0.0005){
-    const dkm = dist2(refObj.lat, refObj.lon, stn.lat, stn.lon)/1000;
-    distTxt = "<br>"+dkm.toFixed(1).replace(".",",")+" "+T("km van deze locatie");
+  if (refObj && refObj.lat){
+    const dkm = dist2(refObj.lat, refObj.lon, official.lat, official.lon)/1000;
+    if (dkm > 0.05) distTxt = " · "+dkm.toFixed(1).replace(".",",")+" "+T("km van deze locatie");
   }
-  return `<div style="display:flex;gap:10px;align-items:center;margin-top:10px">
-    ${thumbHTML(stn)}
-    <div class="hinfo">${T("Getijstation")} <b>${esc(official.station)}</b>${distTxt}</div>
-  </div>`;
+  const note = `<div class="note" style="margin-top:0">${LANG==="en"?"This prediction comes from this station":"Deze voorspelling komt van dit getijstation"}${distTxt}:</div>`;
+  if (g) return `<div class="p-sec" style="margin-top:14px"><h3>${T("Getijstation")}</h3>${note}${cardHTML(g)}</div>`;
+  return `<div class="p-sec" style="margin-top:14px"><h3>${T("Getijstation")}</h3>${note}
+    <div style="display:flex;gap:10px;align-items:center">
+      ${thumbHTML({lat:official.lat, lon:official.lon})}
+      <div class="hinfo"><b>${esc(official.station)}</b></div>
+    </div></div>`;
 }
 function renderOfficialTide(box, official, refObj){
   const nowMs = Date.now();
