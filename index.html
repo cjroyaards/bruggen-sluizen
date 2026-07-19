@@ -144,6 +144,9 @@ a.tel:hover{border-color:var(--accent);text-decoration:none}
 .tchip.now{background:var(--tchip-now);box-shadow:inset 0 0 0 1px var(--good)}
 .tchip.next{box-shadow:inset 0 0 0 1px var(--accent)}
 .tlegend{color:var(--muted);font-size:12px;margin-top:6px}
+details.tlex{margin-top:4px;font-size:12.5px}
+details.tlex summary{cursor:pointer;color:var(--accent);font-weight:550}
+details.tlex p{color:var(--ink2);margin:6px 0 0}
 .longwins{font-size:14px;color:var(--ink);padding-top:2px}
 .kv{display:grid;grid-template-columns:150px 1fr;gap:4px 12px;font-size:14px}
 .kv .k{color:var(--muted)}
@@ -758,7 +761,13 @@ async function loadTideInto(o){
         <line x1="${X(nowPos).toFixed(1)}" y1="${PY-4}" x2="${X(nowPos).toFixed(1)}" y2="${Hc-PY+4}" stroke="var(--critical)" stroke-width="1.5"/>
         <text x="${Math.min(X(nowPos)+4, W-30).toFixed(1)}" y="${PY+6}" font-size="10" fill="var(--muted)">nu</text>
       </svg>
-      <div class="tlegend">Komende 3 dagen · tijden UK-lokaal · hoogte t.o.v. gemiddeld zeeniveau (MSL) · bron Open-Meteo/ECMWF — indicatief, geen officiële getijtafel.</div>`;
+      <div class="tlegend">Komende 3 dagen · tijden UK-lokaal · bron Open-Meteo/ECMWF</div>
+      <details class="tlex">
+        <summary>Waarom is dit geen officiële getijtafel?</summary>
+        <p>Deze verwachting komt uit een wereldwijd getijde-/oceaanmodel (ECMWF, via Open-Meteo), berekend voor het modelpunt op zee dat het dichtst bij deze haven ligt — niet uit de officiële getijtafels van de UK Hydrographic Office voor deze specifieke haven.</p>
+        <p>Waar je op moet letten: <b>1.</b> De hoogtes zijn ten opzichte van <b>gemiddeld zeeniveau (MSL)</b>, terwijl zeekaarten en havengidsen rekenen vanaf <b>kaartnul (LAT)</b> — je kunt deze getallen dus niet zomaar optellen bij kaartdieptes of drempeldieptes. <b>2.</b> In riviermondingen en ondiepe havens kunnen werkelijke tijden en hoogtes merkbaar afwijken van het model. <b>3.</b> Opzet of afwaaiing door wind en luchtdruk zit maar gedeeltelijk in de berekening.</p>
+        <p>Gebruik dit blok om snel het getijritme en het eerstvolgende HW/LW te zien. Voor de echte passageplanning (drempels, HW±-vensters) gebruik je de officiële getijtafels uit je almanak of van de haven zelf.</p>
+      </details>`;
   } catch(e){
     box.textContent = "Getijverwachting kon niet worden geladen.";
   }
@@ -1015,7 +1024,12 @@ document.addEventListener("click", e=>{
   const card = e.target.closest(".card[data-id]");
   if (card){
     const o = DATA.objs.find(x=> x.t+x.id === card.dataset.id);
-    if (o){ $("#searchdrop").hidden = true; openDetail(o); }
+    if (o){
+      $("#searchdrop").hidden = true;
+      switchView("kaart");           // lijst (favorieten/zoek) weg, kaart eronder op het object
+      openDetail(o);
+    }
+    return;
   }
   const tab = e.target.closest(".tab");
   if (tab) switchView(tab.dataset.v);
