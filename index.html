@@ -339,7 +339,6 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
-<script src="currents.js?v=3"></script>
 <script>
 "use strict";
 let DATA = null, STREM = [], STREMTS = null;
@@ -1324,7 +1323,14 @@ function curFmtLabel(tf){
   return `${dstr} · ${hhmm(ms,"UTC")} UTC/GMT · ${hhmm(ms,"Europe/Amsterdam")} ${abbr}`;
 }
 function initCurrents(){
-  if (curInited || !window.Currents) return;
+  if (curInited) return;
+  if (!window.Currents){   // laad currents.js vers (cache-buster) bij eerste kaartweergave
+    const s = document.createElement("script");
+    s.src = "currents.js?t=" + Date.now();
+    s.onload = initCurrents;
+    document.head.appendChild(s);
+    return;
+  }
   curInited = true;
   Currents.init(map);
   Currents.onStatus(s => { $("#lay-status").textContent = s || ""; });
@@ -1340,7 +1346,12 @@ function initCurrents(){
     refreshBar();
   }
   ["lay-arrows","lay-own","lay-particles","lay-color"].forEach(id => $("#"+id).addEventListener("change", applyLayers));
-  $("#mb-lagen").addEventListener("click", e => { e.stopPropagation(); $("#lagenmenu").hidden = !$("#lagenmenu").hidden; });
+  $("#mb-lagen").addEventListener("click", e => {
+    e.stopPropagation();
+    const opening = $("#lagenmenu").hidden;
+    $("#lagenmenu").hidden = !opening;
+    if (opening && !Currents.anyOn()){ $("#lay-arrows").checked = true; applyLayers(); }  // meteen Copernicus-pijlen + tijdbalk
+  });
   document.addEventListener("click", e => { if (!e.target.closest("#lagenmenu") && !e.target.closest("#mb-lagen")) $("#lagenmenu").hidden = true; });
   $("#cur-slider").addEventListener("input", ()=>{ Currents.setPlaying(false); Currents.setTime(+$("#cur-slider").value); $("#cur-play").textContent="▶"; });
   $("#cur-now").addEventListener("click", ()=>{ Currents.setPlaying(false); Currents.setTime(Currents.nowIndex()); $("#cur-play").textContent="▶"; });
