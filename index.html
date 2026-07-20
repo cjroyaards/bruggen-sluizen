@@ -75,6 +75,7 @@ header{position:sticky;top:0;z-index:1001;background:var(--brand);color:var(--br
 .hbtn .ic{width:16px;height:16px}
 /* ingetogen zoekbalk met rechte hoeken */
 .h-search{display:flex;gap:6px;padding:0 16px 8px;align-items:stretch;max-width:620px}
+.h-search[hidden]{display:none}
 .h-search input[type=search]{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:7px 11px;font-size:16px;color:var(--brand-ink);outline:none;min-width:0}
 .h-search input[type=search]::placeholder{color:var(--brand-dim)}
 .h-search input[type=search]:focus{border-color:#6fa8dc;background:rgba(255,255,255,.11)}
@@ -187,8 +188,8 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 #curbar{position:absolute;z-index:1000;bottom:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--grid);border-radius:11px;box-shadow:0 2px 12px rgba(5,10,16,.2);padding:6px 11px;max-width:calc(100% - 24px)}
 #curbar button{border:1px solid var(--grid);background:var(--surface);color:var(--ink);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:13px}
 #curbar #cur-play{background:var(--accent);color:#fff;border-color:transparent;min-width:40px}
-#curbar input[type=range]{accent-color:var(--accent);width:min(46vw,320px)}
-#cur-label{font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;min-width:150px;text-align:right;color:var(--ink)}
+#curbar input[type=range]{accent-color:var(--accent);width:min(40vw,280px)}
+#cur-label{font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;min-width:210px;text-align:right;color:var(--ink)}
 @media (max-width:600px){ #cur-label{min-width:0;font-size:11.5px} #curbar input[type=range]{width:40vw} }
 .strem-pin{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;line-height:1}
 .strem-pin.crit{background:var(--critical)} .strem-pin.ser{background:var(--serious)}
@@ -282,7 +283,8 @@ footer a{color:var(--brand-dim);text-decoration:underline}
         <button class="mapbtn" id="mb-lagen"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5Z"/><path d="M3 13l9 5 9-5"/></svg><span data-i18n="mb_lagen">Stromen</span> ▾</button>
         <div id="lagenmenu" class="dropmenu" hidden>
           <div class="dm-t" data-i18n="dm_title">Getijdestroom (Copernicus)</div>
-          <label><input type="checkbox" id="lay-arrows"> <span data-i18n="dm_arrows">Stroompijlen</span></label>
+          <label><input type="checkbox" id="lay-arrows"> <span data-i18n="dm_arrows">Copernicus pijlen (scherp)</span></label>
+          <label><input type="checkbox" id="lay-own"> <span data-i18n="dm_own">Eigen pijlen (vloeiend)</span></label>
           <label><input type="checkbox" id="lay-particles"> <span data-i18n="dm_particles">Deeltjesanimatie</span></label>
           <label><input type="checkbox" id="lay-color"> <span data-i18n="dm_color">Kleurlaag (snelheid)</span></label>
           <div class="dm-note" id="lay-status"></div>
@@ -334,7 +336,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
-<script src="currents.js?v=1"></script>
+<script src="currents.js?v=2"></script>
 <script>
 "use strict";
 let DATA = null, STREM = [], STREMTS = null;
@@ -1299,12 +1301,22 @@ function initMap(){
 
 /* ---------- getijdestroom-lagen (currents.js) ---------- */
 let curInited = false;
+function amsOffsetMin(ms){
+  const d = new Date(ms);
+  const s = new Intl.DateTimeFormat("en-US",{timeZone:"Europe/Amsterdam",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).format(d);
+  const [dt,tm] = s.split(", "); const [mo,da,yr] = dt.split("/").map(Number); const [hh,mm,ss] = tm.split(":").map(Number);
+  return Math.round((Date.UTC(yr,mo-1,da,hh,mm,ss) - Math.floor(ms/1000)*1000)/60000);
+}
 function curFmtLabel(tf){
   const times = window.Currents && Currents.getTimes && Currents.getTimes();
   if (!times) return "—";
   const t0=Math.floor(tf), t1=Math.min(Currents.NHOURS-1,t0+1), w=tf-t0;
   const ms = (times[t0]*(1-w)+times[t1]*w)*1000;
-  return new Intl.DateTimeFormat(LANG==="en"?"en-GB":"nl-NL",{timeZone:"Europe/Amsterdam",weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}).format(new Date(ms));
+  const utc = new Intl.DateTimeFormat(LANG==="en"?"en-GB":"nl-NL",{timeZone:"UTC",weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}).format(new Date(ms));
+  const off = amsOffsetMin(ms), dst = off===120;
+  const tag = LANG==="en" ? (dst?"summer time":"winter time") : (dst?"zomertijd":"wintertijd");
+  const loc = "NL "+(off>=0?"+":"")+(off/60);
+  return `${utc} UTC · ${loc} (${tag})`;
 }
 function initCurrents(){
   if (curInited || !window.Currents) return;
@@ -1319,10 +1331,10 @@ function initCurrents(){
     if (on){ $("#cur-slider").value = String(Currents.getTFloat()); $("#cur-label").textContent = curFmtLabel(Currents.getTFloat()); }
   }
   function applyLayers(){
-    Currents.setLayers({ arrows:$("#lay-arrows").checked, particles:$("#lay-particles").checked, color:$("#lay-color").checked });
+    Currents.setLayers({ arrows:$("#lay-arrows").checked, own:$("#lay-own").checked, particles:$("#lay-particles").checked, color:$("#lay-color").checked });
     refreshBar();
   }
-  ["lay-arrows","lay-particles","lay-color"].forEach(id => $("#"+id).addEventListener("change", applyLayers));
+  ["lay-arrows","lay-own","lay-particles","lay-color"].forEach(id => $("#"+id).addEventListener("change", applyLayers));
   $("#mb-lagen").addEventListener("click", e => { e.stopPropagation(); $("#lagenmenu").hidden = !$("#lagenmenu").hidden; });
   document.addEventListener("click", e => { if (!e.target.closest("#lagenmenu") && !e.target.closest("#mb-lagen")) $("#lagenmenu").hidden = true; });
   $("#cur-slider").addEventListener("input", ()=>{ Currents.setPlaying(false); Currents.setTime(+$("#cur-slider").value); $("#cur-play").textContent="▶"; });
@@ -1471,7 +1483,7 @@ $("#mb-uk").onclick = ()=>{
 const STATIC_EN = {
   tab_kaart:"Map", tab_fav:"Favourites", tab_strem:"Closures",
   mb_all:"All objects", mb_bedien:"Operable only", mb_strem:"Closures", mb_locate:"Follow me", mb_uk:"UK harbours",
-  mb_lagen:"Currents", dm_title:"Tidal current (Copernicus)", dm_arrows:"Current arrows", dm_particles:"Particle animation", dm_color:"Colour layer (speed)", cur_now:"Now",
+  mb_lagen:"Currents", dm_title:"Tidal current (Copernicus)", dm_arrows:"Copernicus arrows (sharp)", dm_own:"Own arrows (smooth)", dm_particles:"Particle animation", dm_color:"Colour layer (speed)", cur_now:"Now",
 };
 function applyStaticLang(){
   document.querySelectorAll(".langbtn").forEach(b=> b.classList.toggle("on", b.dataset.lang===LANG));

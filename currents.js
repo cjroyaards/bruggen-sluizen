@@ -16,7 +16,7 @@
   let canvas = null, ctx = null, particles = [], rafId = 0, lastTs = 0;
   let arrowFade = null, colorFade = null, lastWmtsHour = -1;
   let maskLayer = null, maskData = null, maskW = 0, maskH = 0, maskT = null;
-  let want = { arrows: false, particles: false, color: false };
+  let want = { arrows: false, particles: false, color: false, own: false };
   let onTimeChange = null, statusCb = null;
 
   const isoHour = s => new Date(s * 1000).toISOString().replace(/\.\d{3}Z$/, '.000Z');
@@ -122,6 +122,36 @@
     if (!a) return b; if (!b) return a; return [a[0] * (1 - w) + b[0] * w, a[1] * (1 - w) + b[1] * w];
   }
   function isSeaAt(lat, lon) { if (!seaMask) return true; const i = Math.round((lat - GRID.lat0) / GRID.dLat), j = Math.round((lon - GRID.lon0) / GRID.dLon); if (i < 0 || j < 0 || i >= GRID.nLat || j >= GRID.nLon) return false; return seaMask[i * GRID.nLon + j] === 1; }
+  function sampleUVarrow(lat, lon, tf) {
+    if (!seaMask) return null;
+    const fi = (lat - GRID.lat0) / GRID.dLat, fj = (lon - GRID.lon0) / GRID.dLon, i0 = Math.floor(fi), j0 = Math.floor(fj);
+    if (i0 < 0 || j0 < 0 || i0 >= GRID.nLat - 1 || j0 >= GRID.nLon - 1) return null;
+    for (let di = 0; di <= 1; di++) for (let dj = 0; dj <= 1; dj++) if (!seaMask[(i0 + di) * GRID.nLon + (j0 + dj)]) return null;
+    return sampleUV(lat, lon, tf);
+  }
+  /* eigen vloeiende pijlen — uit het (in de tijd geïnterpoleerde) veld, land-gemaskeerd */
+  function drawArrows() {
+    const sz = map.getSize(), step = 44;
+    ctx.lineWidth = 1.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.globalAlpha = 1;
+    for (let x = step * 0.6; x < sz.x; x += step) {
+      for (let y = step * 0.6; y < sz.y; y += step) {
+        if (maskData) { const mx = x | 0, my = y | 0; if (mx < 0 || my < 0 || mx >= maskW || my >= maskH || maskData[(my * maskW + mx) * 4 + 3] <= 25) continue; }
+        const ll = map.containerPointToLatLng([x, y]);
+        const uv = maskData ? sampleUV(ll.lat, ll.lng, tFloat) : sampleUVarrow(ll.lat, ll.lng, tFloat);
+        if (!uv) continue;
+        const u = uv[0], v = uv[1], kmh = Math.hypot(u, v); if (kmh < 0.05) continue;
+        const dx = u, dy = -v, m = Math.hypot(dx, dy) || 1, ux = dx / m, uy = dy / m;
+        const len = Math.min(step * 0.5, 7 + kmh * 4.2);
+        const hx = x + ux * len * 0.5, hy = y + uy * len * 0.5, tx = x - ux * len * 0.5, ty = y - uy * len * 0.5;
+        const ah = Math.min(5.5, len * 0.42), ang = Math.atan2(uy, ux);
+        ctx.strokeStyle = speedColor(kmh);
+        ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy);
+        ctx.lineTo(hx - ah * Math.cos(ang - 0.45), hy - ah * Math.sin(ang - 0.45));
+        ctx.moveTo(hx, hy); ctx.lineTo(hx - ah * Math.cos(ang + 0.45), hy - ah * Math.sin(ang + 0.45));
+        ctx.stroke();
+      }
+    }
+  }
 
   /* ---- deeltjes ---- */
   function resizeCanvas() { const sz = map.getSize(); canvas.width = sz.x * devicePixelRatio; canvas.height = sz.y * devicePixelRatio; canvas.style.width = sz.x + 'px'; canvas.style.height = sz.y + 'px'; ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); }
@@ -136,25 +166,30 @@
     rafId = requestAnimationFrame(frame);
     const dt = lastTs ? Math.min(0.08, (ts - lastTs) / 1000) : 0; lastTs = ts;
     if (playing && times) { tFloat += dt * PLAY_HPS; if (tFloat >= NHOURS - 1) tFloat = 0; updateWmtsTime(); if (onTimeChange) onTimeChange(tFloat); }
-    if (!canvas || !want.particles || !U) { if (canvas && !want.particles) {} return; }
+    if (!canvas || (!want.particles && !want.own) || !U) return;
     const sz = map.getSize();
-    ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = 'rgba(0,0,0,0.040)'; ctx.fillRect(0, 0, sz.x, sz.y);
-    ctx.globalCompositeOperation = 'source-over'; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
-    const speedScale = 0.00060 * Math.pow(1.18, map.getZoom() - 6);
-    for (const p of particles) {
-      if (--p.age <= 0) { spawnParticle(p); continue; }
-      const uv = sampleUV(p.lat, p.lon, tFloat); if (!uv) { spawnParticle(p); continue; }
-      const u = uv[0], v = uv[1], kmh = Math.hypot(u, v);
-      const nLat = p.lat + v * speedScale / 1.5, nLon = p.lon + u * speedScale / (1.5 * Math.cos(p.lat * Math.PI / 180));
-      const a = map.latLngToContainerPoint([p.lat, p.lon]), b2 = map.latLngToContainerPoint([nLat, nLon]);
-      if (b2.x < -20 || b2.y < -20 || b2.x > sz.x + 20 || b2.y > sz.y + 20) { spawnParticle(p); continue; }
-      let onLand; if (maskData) { const mx = b2.x | 0, my = b2.y | 0; onLand = mx < 0 || my < 0 || mx >= maskW || my >= maskH || maskData[(my * maskW + mx) * 4 + 3] <= 25; } else onLand = !isSeaAt(nLat, nLon);
-      if (onLand) { spawnParticle(p); continue; }
-      p.lat = nLat; p.lon = nLon;
-      ctx.strokeStyle = speedColor(kmh); ctx.globalAlpha = Math.min(0.95, 0.4 + kmh / 4);
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b2.x, b2.y); ctx.stroke();
+    if (want.particles) {
+      ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = 'rgba(0,0,0,0.040)'; ctx.fillRect(0, 0, sz.x, sz.y);
+      ctx.globalCompositeOperation = 'source-over'; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+      const speedScale = 0.00060 * Math.pow(1.18, map.getZoom() - 6);
+      for (const p of particles) {
+        if (--p.age <= 0) { spawnParticle(p); continue; }
+        const uv = sampleUV(p.lat, p.lon, tFloat); if (!uv) { spawnParticle(p); continue; }
+        const u = uv[0], v = uv[1], kmh = Math.hypot(u, v);
+        const nLat = p.lat + v * speedScale / 1.5, nLon = p.lon + u * speedScale / (1.5 * Math.cos(p.lat * Math.PI / 180));
+        const a = map.latLngToContainerPoint([p.lat, p.lon]), b2 = map.latLngToContainerPoint([nLat, nLon]);
+        if (b2.x < -20 || b2.y < -20 || b2.x > sz.x + 20 || b2.y > sz.y + 20) { spawnParticle(p); continue; }
+        let onLand; if (maskData) { const mx = b2.x | 0, my = b2.y | 0; onLand = mx < 0 || my < 0 || mx >= maskW || my >= maskH || maskData[(my * maskW + mx) * 4 + 3] <= 25; } else onLand = !isSeaAt(nLat, nLon);
+        if (onLand) { spawnParticle(p); continue; }
+        p.lat = nLat; p.lon = nLon;
+        ctx.strokeStyle = speedColor(kmh); ctx.globalAlpha = Math.min(0.95, 0.4 + kmh / 4);
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b2.x, b2.y); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.clearRect(0, 0, sz.x, sz.y);
     }
-    ctx.globalAlpha = 1;
+    if (want.own) drawArrows();
   }
 
   /* ---- tijd ---- */
@@ -169,9 +204,11 @@
     arrowFade.setOn(want.arrows); if (want.arrows && arrowFade.visibleHour < 0) arrowFade.show(hr);
     colorFade.setOn(want.color); if (want.color && colorFade.visibleHour < 0) colorFade.show(hr);
     lastWmtsHour = hr;
-    ensureMask(want.particles); if (want.particles) scheduleMaskRedraw();
-    if (canvas) canvas.style.display = want.particles ? 'block' : 'none';
-    if (want.particles) { if (!loaded) loadData(); resetParticles(); }
+    const canvasOn = want.particles || want.own;
+    ensureMask(canvasOn); if (canvasOn) scheduleMaskRedraw();
+    if (canvas) canvas.style.display = canvasOn ? 'block' : 'none';
+    if (canvasOn && !loaded) loadData();
+    if (want.particles) resetParticles();
   }
 
   const API = {
@@ -190,7 +227,7 @@
       return API;
     },
     setLayers(w) { want = Object.assign({}, want, w); sync(); },
-    anyOn() { return want.arrows || want.particles || want.color; },
+    anyOn() { return want.arrows || want.particles || want.color || want.own; },
     setTime(tf) { playing = false; setTimeFloat(tf); if (onTimeChange) onTimeChange(tFloat); },
     setPlaying(v) { playing = v; },
     isPlaying() { return playing; },
