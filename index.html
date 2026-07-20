@@ -1349,8 +1349,22 @@ function initMap(){
 /* ---------- globale tijdzone (NL / UTC / UK) ---------- */
 const TZ_MODES = ["nl","utc","uk"];
 const TZ_ZONE = { nl:"Europe/Amsterdam", utc:"UTC", uk:"Europe/London" };
+function detectTZ(){   // eerste keer: kies zone op basis van de klok van het apparaat
+  try {
+    const z = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    if (z==="Europe/London") return "uk";
+    if (z==="UTC" || z==="Etc/UTC") return "utc";
+    const now = Date.now(), dev = -new Date().getTimezoneOffset();
+    if (dev === zoneOffMin(now,"Europe/Amsterdam")) return "nl";   // zelfde offset als NL → CET/CEST
+    if (dev === zoneOffMin(now,"Europe/London"))   return "uk";   // zelfde offset als UK → GMT/BST
+    return "utc";
+  } catch(_){ return "nl"; }
+}
 let TZ = "nl";
-try { const s = JSON.parse(localStorage.getItem("bs_tz")||'""'); if (TZ_MODES.includes(s)) TZ = s; } catch(_){}
+try {
+  const s = JSON.parse(localStorage.getItem("bs_tz")||'""');
+  TZ = TZ_MODES.includes(s) ? s : detectTZ();   // opgeslagen keuze wint; anders auto-detectie
+} catch(_){ TZ = detectTZ(); }
 let panelRefresh = null;   // her-render de open detail/getij-sectie na tijdzonewissel
 function zoneOffMin(ms, zone){
   const s = new Intl.DateTimeFormat("en-US",{timeZone:zone,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).format(new Date(ms));
