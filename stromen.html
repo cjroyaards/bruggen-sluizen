@@ -127,55 +127,90 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 function isoHour(unixSec) { return new Date(unixSec * 1000).toISOString().replace(/\.\d{3}Z$/, '.000Z'); }
 
-let cmemsLayer = null;
-function makeCmemsLayer(styleStr, opacity, timeIso) {
+function makeCmemsLayer(styleStr, opacity, timeIso, extra) {
   return L.tileLayer(WMTS + '&STYLE=' + encodeURIComponent(styleStr) + '&time=' + encodeURIComponent(timeIso),
-    { opacity, maxNativeZoom: 9, maxZoom: 11, pane: 'tilePane' });
+    Object.assign({ opacity, maxNativeZoom: 9, maxZoom: 11, pane: 'tilePane' }, extra || {}));
 }
 
-/* ---- Copernicus pijlen: crossfade tussen uren + tegel-cache + voorladen ---- */
-const arrowLayers = new Map();     // uur-index -> tileLayer (opacity gecachet in DOM)
-let arrowVisibleHour = -1, arrowFadeRAF = 0, arrowsWmtsOn = false;
-const ARROW_OPACITY = 0.92;
-function arrowLayerFor(hr) {
-  if (arrowLayers.has(hr)) return arrowLayers.get(hr);
-  const lyr = makeCmemsLayer('cmap:speed,vectorStyle:vector', 0, isoHour(times[hr])).addTo(map);
-  lyr.setOpacity(0);
-  arrowLayers.set(hr, lyr);
-  if (arrowLayers.size > 8) {                       // cache begrenzen: verste ongebruikte weg
-    let far = -1, fd = -1;
-    for (const h of arrowLayers.keys()) {
-      if (h === arrowVisibleHour || Math.abs(h - arrowVisibleHour) <= 1) continue;
-      const d = Math.abs(h - arrowVisibleHour);
-      if (d > fd) { fd = d; far = h; }
+/* ---- generieke crossfade-manager voor een WMTS-laag (pijlen én kleurlaag) ---- */
+function makeFadeManager(style, maxOpacity) {
+  const layers = new Map();        // uur -> tileLayer
+  let visibleHour = -1, fadeRAF = 0, on = false;
+  function layerFor(hr) {
+    if (layers.has(hr)) return layers.get(hr);
+    const lyr = makeCmemsLayer(style, 0, isoHour(times[hr])).addTo(map);
+    lyr.setOpacity(0);
+    layers.set(hr, lyr);
+    if (layers.size > 8) {                          // cache: verste ongebruikte laag weg
+      let far = -1, fd = -1;
+      for (const h of layers.keys()) {
+        if (h === visibleHour || Math.abs(h - visibleHour) <= 1) continue;
+        const d = Math.abs(h - visibleHour);
+        if (d > fd) { fd = d; far = h; }
+      }
+      if (far >= 0) { map.removeLayer(layers.get(far)); layers.delete(far); }
     }
-    if (far >= 0) { map.removeLayer(arrowLayers.get(far)); arrowLayers.delete(far); }
+    return lyr;
   }
-  return lyr;
-}
-function showArrowHour(hr) {
-  if (!times || !arrowsWmtsOn) return;
-  const target = arrowLayerFor(hr);
-  const prev = arrowLayers.get(arrowVisibleHour);
-  if (target === prev) return;
-  arrowVisibleHour = hr;
-  arrowLayerFor(Math.min(NHOURS - 1, hr + 1));       // volgend uur alvast laden (vloeiende sprong)
-  arrowLayers.forEach(l => { if (l !== target && l !== prev) l.setOpacity(0); });
-  cancelAnimationFrame(arrowFadeRAF);
-  const t0 = performance.now(), dur = 380;
-  const of = target.options.opacity || 0, pf = prev ? (prev.options.opacity || 0) : 0;
-  const step = now => {
-    const k = Math.min(1, (now - t0) / dur);
-    target.setOpacity(of + (ARROW_OPACITY - of) * k);
-    if (prev && prev !== target) prev.setOpacity(pf * (1 - k));
-    if (k < 1) arrowFadeRAF = requestAnimationFrame(step);
+  function show(hr) {
+    if (!times || !on) return;
+    const target = layerFor(hr), prev = layers.get(visibleHour);
+    if (target === prev) return;
+    visibleHour = hr;
+    layerFor(Math.min(NHOURS - 1, hr + 1));          // volgend uur voorladen
+    layers.forEach(l => { if (l !== target && l !== prev) l.setOpacity(0); });
+    cancelAnimationFrame(fadeRAF);
+    const t0 = performance.now(), dur = 380;
+    const of = target.options.opacity || 0, pf = prev ? (prev.options.opacity || 0) : 0;
+    const step = now => {
+      const k = Math.min(1, (now - t0) / dur);
+      target.setOpacity(of + (maxOpacity - of) * k);
+      if (prev && prev !== target) prev.setOpacity(pf * (1 - k));
+      if (k < 1) fadeRAF = requestAnimationFrame(step);
+    };
+    fadeRAF = requestAnimationFrame(step);
+  }
+  function clear() { cancelAnimationFrame(fadeRAF); layers.forEach(l => map.removeLayer(l)); layers.clear(); visibleHour = -1; }
+  return {
+    show, clear,
+    setOn(v) { on = v; if (!v) clear(); },
+    get on() { return on; },
+    get visibleHour() { return visibleHour; }
   };
-  arrowFadeRAF = requestAnimationFrame(step);
 }
-function clearArrowLayers() {
-  cancelAnimationFrame(arrowFadeRAF);
-  arrowLayers.forEach(l => map.removeLayer(l));
-  arrowLayers.clear(); arrowVisibleHour = -1;
+let arrowFade = null, colorFade = null;   // aangemaakt zodra `times` bestaat
+
+/* ---- kustlijnmasker uit de Copernicus kleurlaag (1,5 km): transparant = land ---- */
+let maskLayer = null, maskData = null, maskW = 0, maskH = 0, maskRedrawT = null;
+const maskCanvas = document.createElement('canvas');
+const mctx = maskCanvas.getContext('2d', { willReadFrequently: true });
+function ensureMask(want) {
+  if (want && !maskLayer && times) {
+    maskLayer = makeCmemsLayer('cmap:speed,vectorStyle:solid', 0, isoHour(times[Math.round(tFloat)]),
+      { crossOrigin: 'anonymous', className: 'maskhide' });
+    maskLayer.addTo(map);
+    maskLayer.on('load', scheduleMaskRedraw);
+  } else if (!want && maskLayer) {
+    map.removeLayer(maskLayer); maskLayer = null; maskData = null;
+  }
+}
+function scheduleMaskRedraw() { clearTimeout(maskRedrawT); maskRedrawT = setTimeout(redrawMask, 60); }
+function redrawMask() {
+  if (!maskLayer) return;
+  const sz = map.getSize();
+  if (maskCanvas.width !== sz.x || maskCanvas.height !== sz.y) { maskCanvas.width = sz.x; maskCanvas.height = sz.y; }
+  mctx.clearRect(0, 0, sz.x, sz.y);
+  const z = map.getZoom(), tiles = maskLayer._tiles || {};
+  for (const k in tiles) {
+    const t = tiles[k];
+    if (!t || !t.el || !t.el.complete || t.el.naturalWidth === 0 || !t.coords) continue;
+    const nw = map.unproject(L.point(t.coords.x * 256, t.coords.y * 256), t.coords.z);
+    const p = map.latLngToContainerPoint(nw);
+    const scale = 256 * Math.pow(2, z - t.coords.z);
+    try { mctx.drawImage(t.el, p.x, p.y, scale, scale); } catch (e) {}
+  }
+  try { maskData = mctx.getImageData(0, 0, sz.x, sz.y).data; maskW = sz.x; maskH = sz.y; }
+  catch (e) { maskData = null; }
 }
 
 /* ================= state ================= */
@@ -413,11 +448,15 @@ function frame(ts) {
       const kmh = Math.hypot(u, v);
       const nLat = p.lat + v * speedScale / 1.5;
       const nLon = p.lon + u * speedScale / (1.5 * Math.cos(p.lat * Math.PI / 180));
-      if (!isSeaAt(nLat, nLon)) { spawnParticle(p); continue; }   // volg de kustlijn: niet het land op
       const a = map.latLngToContainerPoint([p.lat, p.lon]);
-      p.lat = nLat; p.lon = nLon;
-      const b2 = map.latLngToContainerPoint([p.lat, p.lon]);
+      const b2 = map.latLngToContainerPoint([nLat, nLon]);
       if (b2.x < -20 || b2.y < -20 || b2.x > sz.x + 20 || b2.y > sz.y + 20) { spawnParticle(p); continue; }
+      // kustlijn volgen: land = transparant in de Copernicus kleurlaag (val terug op grid-masker)
+      let onLand;
+      if (maskData) { const mx = b2.x | 0, my = b2.y | 0; onLand = mx < 0 || my < 0 || mx >= maskW || my >= maskH || maskData[(my * maskW + mx) * 4 + 3] <= 25; }
+      else onLand = !isSeaAt(nLat, nLon);
+      if (onLand) { spawnParticle(p); continue; }
+      p.lat = nLat; p.lon = nLon;
       ctx.strokeStyle = speedColor(kmh);
       ctx.globalAlpha = Math.min(0.95, 0.4 + kmh / 4);
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b2.x, b2.y); ctx.stroke();
@@ -430,8 +469,8 @@ function frame(ts) {
   if (arrowsOn) drawArrows();
 }
 
-map.on('resize', () => { resizeCanvas(); resetParticles(); });
-map.on('moveend zoomend', resetParticles);
+map.on('resize', () => { resizeCanvas(); resetParticles(); scheduleMaskRedraw(); });
+map.on('moveend zoomend', () => { resetParticles(); scheduleMaskRedraw(); });
 map.on('movestart zoomstart', () => ctx.clearRect(0, 0, canvas.width, canvas.height));
 resizeCanvas();
 
@@ -447,19 +486,14 @@ function updateTimeUI() {
   timeLabel.textContent = fmt.format(new Date(interpUnix() * 1000));
   slider.value = String(tFloat);
 }
-let wmtsDebounce = null, lastWmtsHour = -1;
+let lastWmtsHour = -1;
 function updateWmtsTime() {
   if (!times) return;
   const hr = Math.round(tFloat);
   if (hr === lastWmtsHour) return;         // WMTS bestaat alleen per heel uur
   lastWmtsHour = hr;
-  if (cmemsLayer) {
-    clearTimeout(wmtsDebounce);
-    wmtsDebounce = setTimeout(() => {
-      if (cmemsLayer) cmemsLayer.setUrl(WMTS + '&STYLE=' + encodeURIComponent('cmap:speed,vectorStyle:solid') + '&time=' + encodeURIComponent(isoHour(times[hr])));
-    }, 220);
-  }
-  if (arrowsWmtsOn) showArrowHour(hr);     // pijlen: zachte crossfade
+  if (arrowFade && arrowFade.on) arrowFade.show(hr);   // pijlen: zachte crossfade
+  if (colorFade && colorFade.on) colorFade.show(hr);   // kleurlaag: zachte crossfade
 }
 function setTimeFloat(tf) {
   tFloat = Math.max(0, Math.min(NHOURS - 1, tf));
@@ -483,15 +517,17 @@ $('playBtn').addEventListener('click', () => {
 
 /* lagen aan/uit */
 function syncLayers() {
-  const iso = times ? isoHour(times[Math.round(tFloat)]) : isoHour(Math.floor(Date.now() / 3600000) * 3600);
-  if ($('cbCmems').checked && !cmemsLayer) cmemsLayer = makeCmemsLayer('cmap:speed,vectorStyle:solid', 0.5, iso).addTo(map);
-  if (!$('cbCmems').checked && cmemsLayer) { map.removeLayer(cmemsLayer); cmemsLayer = null; }
-  arrowsWmtsOn = $('cbWmts').checked;
-  if (arrowsWmtsOn) { if (times && arrowVisibleHour < 0) showArrowHour(Math.round(tFloat)); }
-  else clearArrowLayers();
-  lastWmtsHour = Math.round(tFloat);
+  if (!arrowFade) return;                 // managers klaar zodra `times` bestaat (via start)
+  const hr = Math.round(tFloat);
+  arrowFade.setOn($('cbWmts').checked);
+  if (arrowFade.on && arrowFade.visibleHour < 0) arrowFade.show(hr);
+  colorFade.setOn($('cbCmems').checked);
+  if (colorFade.on && colorFade.visibleHour < 0) colorFade.show(hr);
+  lastWmtsHour = hr;
   particlesOn = $('cbParticles').checked;
   arrowsOn = $('cbArrows').checked;
+  ensureMask(particlesOn);                // kustlijnmasker (kleurlaag) alleen laden bij deeltjes
+  if (particlesOn) scheduleMaskRedraw();
   canvas.style.display = (particlesOn || arrowsOn) ? 'block' : 'none';
   if (particlesOn) resetParticles();
 }
@@ -520,6 +556,8 @@ function defaultTimes() {            // 72 hele uren vanaf nu, zodat UI + Copern
 }
 // interface + Copernicus-pijlen draaien onafhankelijk van de (zwaardere) grid-data
 times = defaultTimes();
+arrowFade = makeFadeManager('cmap:speed,vectorStyle:vector', 0.92);
+colorFade = makeFadeManager('cmap:speed,vectorStyle:solid', 0.55);
 setTimeFloat(nowIndex());
 syncLayers();
 requestAnimationFrame(frame);
