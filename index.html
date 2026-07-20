@@ -217,6 +217,9 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 .strem-pin.crit{background:var(--critical)} .strem-pin.ser{background:var(--serious)}
 .harb-pin{width:22px;height:22px;border-radius:50%;background:#122b42;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;padding:3px}
 .harb-pin.tide{background:#0e6e6e}
+.vts-lbl{background:rgba(255,255,255,.82);border:1px solid var(--grid);border-radius:5px;padding:0 5px;font-size:11px;font-weight:750;color:#0d366b;box-shadow:none;white-space:nowrap}
+.vts-lbl::before{display:none}
+.leaflet-tooltip.vts-lbl{margin:0}
 .mk{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
 .mk i{display:block;border-radius:50%;border:2px solid #fff;box-shadow:0 0 3px rgba(0,0,0,.5)}
 .leaflet-popup-content{font:13px/1.45 -apple-system,system-ui,sans-serif;margin:10px 13px}
@@ -314,6 +317,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
       <button class="mapbtn" id="mb-strem"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 22 21H2Z"/><path d="M12 10v5"/><path d="M12 18.2v.1"/></svg><span data-i18n="mb_strem">Stremmingen</span></button>
       <button class="mapbtn" id="mb-locate"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="2.2"/></svg><span data-i18n="mb_locate">Volg mij</span></button>
       <button class="mapbtn" id="mb-uk" data-i18n="mb_uk">Kusthavens</button>
+      <button class="mapbtn" id="mb-vts"><svg class="ic" viewBox="0 0 24 24"><path d="M12 8v13"/><path d="M8.5 21h7"/><path d="M7.8 7.8a6 6 0 0 1 8.4 0"/><path d="M5.2 5.2a9.6 9.6 0 0 1 13.6 0"/><circle cx="12" cy="8" r="1.4"/></svg><span data-i18n="mb_vts">VTS</span></button>
       <div class="dropwrap">
         <button class="mapbtn" id="mb-lagen"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5Z"/><path d="M3 13l9 5 9-5"/></svg><span data-i18n="mb_lagen">Stromen</span> ▾</button>
         <div id="lagenmenu" class="dropmenu" hidden>
@@ -1523,6 +1527,66 @@ function openCurrentDetail(lat, lon){
   $("#pclose").onclick = closeDetail;
 }
 const ANCHORSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="5.5" r="2.3"/><path d="M12 8v12"/><path d="M5 13c0 4.5 3 7 7 7s7-2.5 7-7"/><path d="M8.5 11.5h7"/></svg>`;
+/* ---------- VTS / marifoonsectoren (indicatief, bron: Contact met de kust — Zeilen) ---------- */
+const VTS = [
+  { ch:"69", name:"TC Zeebrugge", col:"#2e8b57", tel:"+32 88 798 0700",
+    info:"Verkeerscentrale Zeebrugge (Schelde-coördinatiecentrum). Blokgebied: grote vaart meldplicht, pleziervaart uitluisterplicht. Reageer op een oproep en meld bij mist voor een positiecheck.",
+    poly:[[51.30,2.50],[51.74,2.98],[51.58,3.36],[51.15,3.30],[51.08,2.82]] },
+  { ch:"14", name:"Centrale Vlissingen — Westerschelde", col:"#e07b39", tel:"+31 88 798 0700",
+    info:"De Westerschelde op: meld je op VHF 14 (Centrale Vlissingen). Let goed op de bewegingen van de zeevaart en blijf dicht onder de wal.",
+    poly:[[51.37,3.30],[51.55,3.52],[51.47,3.78],[51.29,3.60]] },
+  { ch:"64", name:"TC Steenbank / Vlissingen", col:"#3987e5", tel:"+31 88 798 0700",
+    info:"Zeegebied vóór de Scheldemonding (Schelde-coördinatiecentrum). Als je de geul in wilt of bijzondere manoeuvres uitvoert: even melden.",
+    poly:[[51.55,2.88],[52.06,3.14],[51.90,3.66],[51.49,3.46]] },
+  { ch:"02", name:"Sector Maas (blokgebied 'Maas Pilot')", col:"#3987e5", tel:"",
+    info:"Normaal blokgebied vóór de Maasmond. Pleziervaart hoeft zich niet te melden; luister uit en reageer op een oproep.",
+    poly:[[51.88,3.44],[52.22,3.64],[52.10,4.06],[51.83,3.90]] },
+  { ch:"03", name:"Sector Maasmond / Hoek van Holland", col:"#e07b39", tel:"+31 10 252 2801",
+    info:"VTS Hoek van Holland. Bij oversteken van de Maasmond verplicht melden bij boei MN1 (vanaf noord) of MV (vanaf zuid) met naam schip, vaarrichting en positie. Oploopsuggestie: niet opkruisend oversteken.",
+    poly:[[51.95,3.90],[52.05,3.97],[52.02,4.14],[51.94,4.09]] },
+  { ch:"21", name:"VC Scheveningen", col:"#2e8b57", tel:"+31 70 352 7721",
+    info:"Verplicht melden bij aankomst en vertrek van Scheveningen haven — krappe, onoverzichtelijke haven met beroepsvaart. Op de onjuiste manier zeil hijsen in de haven mag niet.",
+    poly:[[52.06,4.20],[52.13,4.24],[52.11,4.31],[52.05,4.27]] },
+  { ch:"61", name:"Haven IJmuiden", col:"#3987e5", tel:"+31 20 523 4600",
+    info:"Aankomst vanaf het noorden en de geul over: aanroepen op VHF 61 is aan te raden. Vanaf zuid kun je gewoon naar binnen. In de geul niet zeilen. Aanloop grote schepen: VHF 07.",
+    poly:[[52.43,4.47],[52.51,4.53],[52.48,4.65],[52.41,4.58]] },
+  { ch:"62", name:"VC Den Helder", col:"#e07b39", tel:"+31 223 542 300",
+    info:"Aanmelden op VHF 62, zeker als je gelabeld staat op de radar. Vermijd onnodige gesprekken op kanaal 16 of 62 en schakel snel over naar een werkkanaal.",
+    poly:[[52.87,4.65],[53.06,4.72],[53.02,4.93],[52.85,4.87]] },
+];
+const VTS_NOTE = "Indicatieve VTS-/marifoonsectoren op basis van ‘Contact met de kust’ (Zeilen, 2024). Grenzen bij benadering — controleer de exacte begrenzing op de zeekaart. Nood/oproep Kustwacht: VHF 16 · DSC 70. Meldpost Ouddorp (VHF 87) is sinds 2024 gesloten; Slijkgat via Goereesluis VHF 20.";
+const VTS_NOTE_EN = "Indicative VTS/marine-radio sectors based on ‘Contact met de kust’ (Zeilen, 2024). Boundaries are approximate — check the exact limits on the chart. Distress/calling Coastguard: VHF 16 · DSC 70. The Ouddorp report post (VHF 87) closed in 2024; Slijkgat via Goereesluis VHF 20.";
+function polyCenter(poly){ let la=0,lo=0; for(const p of poly){la+=p[0];lo+=p[1];} return [la/poly.length, lo/poly.length]; }
+let vtsLayer = null;
+function buildVtsLayer(){
+  vtsLayer = L.layerGroup();
+  for (const s of VTS){
+    const pg = L.polygon(s.poly, {color:s.col, weight:1.5, opacity:.85, fillColor:s.col, fillOpacity:.14, pane:"overlayPane"});
+    const html = `<div style="font:13px/1.5 system-ui,sans-serif;max-width:250px">
+      <b>VHF ${s.ch}</b> — ${esc(s.name)}<br>
+      <span style="color:var(--muted)">${esc(s.info)}</span>${s.tel?`<br><a href="tel:${s.tel.replace(/[^+\\d]/g,"")}" style="color:var(--accent);font-weight:600">${esc(s.tel)}</a>`:""}
+      <br><span style="color:var(--muted);font-size:11px">${LANG==="en"?"Indicative — see chart for exact limits.":"Indicatief — zie zeekaart voor exacte grenzen."}</span>
+    </div>`;
+    pg.bindPopup(html, {maxWidth:270});
+    pg.addTo(vtsLayer);
+    L.tooltip({permanent:true, direction:"center", className:"vts-lbl", opacity:1})
+      .setLatLng(polyCenter(s.poly)).setContent("VHF "+s.ch).addTo(vtsLayer);
+  }
+}
+let vtsView = false, vtsNoteShown = false;
+function toggleVts(){
+  vtsView = !vtsView;
+  $("#mb-vts").classList.toggle("on", vtsView);
+  if (vtsView){
+    if (!vtsLayer) buildVtsLayer();
+    vtsLayer.addTo(map);
+    if (!vtsNoteShown){
+      vtsNoteShown = true;
+      L.popup({maxWidth:300}).setLatLng(map.getCenter())
+        .setContent(`<div style="font:12px/1.5 system-ui,sans-serif;color:var(--muted)">${esc(LANG==="en"?VTS_NOTE_EN:VTS_NOTE)}</div>`).openOn(map);
+    }
+  } else if (vtsLayer){ map.removeLayer(vtsLayer); }
+}
 function harbLabel(o){ return o.c==="BE" ? T("Belgische kusthaven") : T("UK kusthaven"); }
 let harbourLayer = null;
 function buildHarbourLayer(){
@@ -1664,10 +1728,11 @@ $("#mb-uk").onclick = ()=>{
   if (ukView) map.fitBounds([[50.45,-2.7],[52.75,1.9]]);
   else map.setView([52.2,5.3], 8);
 };
+$("#mb-vts").onclick = toggleVts;
 
 const STATIC_EN = {
   tab_kaart:"Map", tab_fav:"Favourites", tab_strem:"Closures",
-  mb_all:"All objects", mb_bedien:"Operable only", mb_strem:"Closures", mb_locate:"Follow me", mb_uk:"Coastal harbours",
+  mb_all:"All objects", mb_bedien:"Operable only", mb_strem:"Closures", mb_locate:"Follow me", mb_uk:"Coastal harbours", mb_vts:"VTS",
   mb_lagen:"Currents", dm_title:"Tidal current (Copernicus)", dm_arrows:"Copernicus arrows (sharp)", dm_own:"Own arrows (smooth)", dm_particles:"Particle animation", dm_color:"Colour layer (speed)", cur_now:"Now",
 };
 function applyStaticLang(){
