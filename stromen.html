@@ -233,7 +233,7 @@ async function fetchChunk(ch, attempt = 0) {
     + '?latitude=' + ch.map(p => p[0]).join(',')
     + '&longitude=' + ch.map(p => p[1]).join(',')
     + '&hourly=ocean_current_velocity,ocean_current_direction'
-    + '&forecast_days=3&cell_selection=sea&timeformat=unixtime';
+    + '&forecast_days=3&cell_selection=sea&timeformat=unixtime&timezone=GMT';
   try {
     const r = await fetch(url, { cache: 'no-store' });
     if ((r.status === 429 || r.status >= 500) && attempt < 4) { await sleep(700 * (attempt + 1)); return fetchChunk(ch, attempt + 1); }
@@ -550,9 +550,9 @@ map.on('click', e => {
 });
 
 /* ================= start ================= */
-function defaultTimes() {            // 72 hele uren vanaf nu, zodat UI + Copernicus-pijlen meteen werken
-  const h0 = Math.floor(Date.now() / 3600000) * 3600;
-  return Array.from({ length: NHOURS }, (_, i) => h0 + i * 3600);
+function defaultTimes() {            // 72 hele uren vanaf middernacht UTC — zelfde as als de Open-Meteo-grid
+  const midnight = Math.floor(Date.now() / 86400000) * 86400;
+  return Array.from({ length: NHOURS }, (_, i) => midnight + i * 3600);
 }
 // interface + Copernicus-pijlen draaien onafhankelijk van de (zwaardere) grid-data
 times = defaultTimes();
