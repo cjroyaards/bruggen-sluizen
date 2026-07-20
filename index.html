@@ -173,6 +173,18 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 .mapbar{position:absolute;z-index:1000;top:12px;left:54px;display:flex;gap:6px;flex-wrap:wrap}
 .mapbtn{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--grid);border-radius:8px;padding:6px 12px;font-size:13px;font-weight:550;color:var(--ink2);cursor:pointer;box-shadow:0 1px 5px rgba(0,0,0,.14)}
 .mapbtn.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.dropwrap{position:relative}
+.dropmenu{position:absolute;top:calc(100% + 5px);left:0;z-index:1002;background:var(--surface);border:1px solid var(--grid);border-radius:10px;box-shadow:0 6px 22px rgba(5,10,16,.22);padding:9px 11px;min-width:186px}
+.dropmenu .dm-t{font-weight:650;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.dropmenu label{display:flex;gap:8px;align-items:center;padding:5px 2px;font-size:13.5px;color:var(--ink);cursor:pointer}
+.dropmenu label input{accent-color:var(--accent);width:16px;height:16px}
+.dropmenu .dm-note{font-size:11.5px;color:var(--muted);margin-top:5px;min-height:0}
+#curbar{position:absolute;z-index:1000;bottom:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--grid);border-radius:11px;box-shadow:0 2px 12px rgba(5,10,16,.2);padding:6px 11px;max-width:calc(100% - 24px)}
+#curbar button{border:1px solid var(--grid);background:var(--surface);color:var(--ink);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:13px}
+#curbar #cur-play{background:var(--accent);color:#fff;border-color:transparent;min-width:40px}
+#curbar input[type=range]{accent-color:var(--accent);width:min(46vw,320px)}
+#cur-label{font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;min-width:150px;text-align:right;color:var(--ink)}
+@media (max-width:600px){ #cur-label{min-width:0;font-size:11.5px} #curbar input[type=range]{width:40vw} }
 .strem-pin{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;line-height:1}
 .strem-pin.crit{background:var(--critical)} .strem-pin.ser{background:var(--serious)}
 .harb-pin{width:22px;height:22px;border-radius:50%;background:#122b42;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;padding:3px}
@@ -245,7 +257,6 @@ footer a{color:var(--brand-dim);text-decoration:underline}
     <button class="tab on" data-v="kaart" data-i18n="tab_kaart">Kaart</button>
     <button class="tab" data-v="fav"><span data-i18n="tab_fav">Favorieten</span> <span class="cnt" id="favcnt"></span></button>
     <button class="tab" data-v="strem"><span data-i18n="tab_strem">Stremmingen</span> <span class="cnt" id="stremcnt"></span></button>
-    <button class="tab" data-v="stromen" data-i18n="tab_stromen">Stromen</button>
     <button class="tab" data-v="info">Info</button>
   </nav>
   <div id="searchdrop" hidden>
@@ -261,6 +272,22 @@ footer a{color:var(--brand-dim);text-decoration:underline}
       <button class="mapbtn" id="mb-strem"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 22 21H2Z"/><path d="M12 10v5"/><path d="M12 18.2v.1"/></svg><span data-i18n="mb_strem">Stremmingen</span></button>
       <button class="mapbtn" id="mb-locate"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="2.2"/></svg><span data-i18n="mb_locate">Volg mij</span></button>
       <button class="mapbtn" id="mb-uk" data-i18n="mb_uk">UK havens</button>
+      <div class="dropwrap">
+        <button class="mapbtn" id="mb-lagen"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5Z"/><path d="M3 13l9 5 9-5"/></svg><span data-i18n="mb_lagen">Stromen</span> ▾</button>
+        <div id="lagenmenu" class="dropmenu" hidden>
+          <div class="dm-t" data-i18n="dm_title">Getijdestroom (Copernicus)</div>
+          <label><input type="checkbox" id="lay-arrows"> <span data-i18n="dm_arrows">Stroompijlen</span></label>
+          <label><input type="checkbox" id="lay-particles"> <span data-i18n="dm_particles">Deeltjesanimatie</span></label>
+          <label><input type="checkbox" id="lay-color"> <span data-i18n="dm_color">Kleurlaag (snelheid)</span></label>
+          <div class="dm-note" id="lay-status"></div>
+        </div>
+      </div>
+    </div>
+    <div id="curbar" hidden>
+      <button id="cur-play" title="Afspelen">▶</button>
+      <button id="cur-now" data-i18n="cur_now">Nu</button>
+      <input type="range" id="cur-slider" min="0" max="71" step="0.04" value="0">
+      <span id="cur-label">—</span>
     </div>
     <div id="map"></div>
   </section>
@@ -272,10 +299,6 @@ footer a{color:var(--brand-dim);text-decoration:underline}
     <div class="searchrow"><input type="search" id="stq" placeholder="Filter op vaarweg, plaats of object…"></div>
     <div class="note" id="stremnote">Actuele en aangekondigde beperkingen uit de scheepvaartberichten (FTM/NtS), ververst <span id="stremstamp"></span>. Klik voor het volledige bericht op vaarweginformatie.nl.</div>
     <div id="stremlist"></div>
-  </section>
-  <section id="v-stromen" hidden>
-    <iframe id="stromenFrame" title="Getijdestromen Noordzee" loading="lazy"
-      style="width:100%;height:calc(100vh - var(--headerh,140px));border:0;display:block"></iframe>
   </section>
   <section id="v-info" hidden>
     <div class="p-sec"><h3>Over deze site</h3>
@@ -305,6 +328,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
+<script src="currents.js?v=1"></script>
 <script>
 "use strict";
 let DATA = null, STREM = [], STREMTS = null;
@@ -1264,6 +1288,40 @@ function initMap(){
   map.addLayer(cluster);
   buildStremLayer();
   buildHarbourLayer();
+  initCurrents();
+}
+
+/* ---------- getijdestroom-lagen (currents.js) ---------- */
+let curInited = false;
+function curFmtLabel(tf){
+  const times = window.Currents && Currents.getTimes && Currents.getTimes();
+  if (!times) return "—";
+  const t0=Math.floor(tf), t1=Math.min(Currents.NHOURS-1,t0+1), w=tf-t0;
+  const ms = (times[t0]*(1-w)+times[t1]*w)*1000;
+  return new Intl.DateTimeFormat(LANG==="en"?"en-GB":"nl-NL",{timeZone:"Europe/Amsterdam",weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}).format(new Date(ms));
+}
+function initCurrents(){
+  if (curInited || !window.Currents) return;
+  curInited = true;
+  Currents.init(map);
+  Currents.onStatus(s => { $("#lay-status").textContent = s || ""; });
+  Currents.onTime(tf => { $("#cur-slider").value = String(tf); $("#cur-label").textContent = curFmtLabel(tf); $("#cur-play").textContent = Currents.isPlaying()?"❚❚":"▶"; });
+  function refreshBar(){
+    const on = Currents.anyOn();
+    $("#curbar").hidden = !on;
+    $("#mb-lagen").classList.toggle("on", on);
+    if (on){ $("#cur-slider").value = String(Currents.getTFloat()); $("#cur-label").textContent = curFmtLabel(Currents.getTFloat()); }
+  }
+  function applyLayers(){
+    Currents.setLayers({ arrows:$("#lay-arrows").checked, particles:$("#lay-particles").checked, color:$("#lay-color").checked });
+    refreshBar();
+  }
+  ["lay-arrows","lay-particles","lay-color"].forEach(id => $("#"+id).addEventListener("change", applyLayers));
+  $("#mb-lagen").addEventListener("click", e => { e.stopPropagation(); $("#lagenmenu").hidden = !$("#lagenmenu").hidden; });
+  document.addEventListener("click", e => { if (!e.target.closest("#lagenmenu") && !e.target.closest("#mb-lagen")) $("#lagenmenu").hidden = true; });
+  $("#cur-slider").addEventListener("input", ()=>{ Currents.setPlaying(false); Currents.setTime(+$("#cur-slider").value); $("#cur-play").textContent="▶"; });
+  $("#cur-now").addEventListener("click", ()=>{ Currents.setPlaying(false); Currents.setTime(Currents.nowIndex()); $("#cur-play").textContent="▶"; });
+  $("#cur-play").addEventListener("click", ()=>{ Currents.setPlaying(!Currents.isPlaying()); $("#cur-play").textContent = Currents.isPlaying()?"❚❚":"▶"; });
 }
 const ANCHORSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="5.5" r="2.3"/><path d="M12 8v12"/><path d="M5 13c0 4.5 3 7 7 7s7-2.5 7-7"/><path d="M8.5 11.5h7"/></svg>`;
 let harbourLayer = null;
@@ -1341,13 +1399,12 @@ function toggleLocate(){
 /* ---------- events & init ---------- */
 function switchView(v){
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on", t.dataset.v===v));
-  for (const id of ["kaart","fav","strem","stromen","info"]) $("#v-"+id).hidden = (id!==v);
-  $("#main").classList.toggle("wide", v==="kaart" || v==="stromen");
-  $("#foot").style.display = (v==="kaart" || v==="stromen") ? "none" : "";
+  for (const id of ["kaart","fav","strem","info"]) $("#v-"+id).hidden = (id!==v);
+  $("#main").classList.toggle("wide", v==="kaart");
+  $("#foot").style.display = (v==="kaart") ? "none" : "";
   if (v==="fav") renderFavs();
   if (v==="strem") renderStrem();
   if (v==="kaart"){ initMap(); setTimeout(()=>map.invalidateSize(), 60); }
-  if (v==="stromen"){ const fr=$("#stromenFrame"); if (fr && !fr.src) fr.src = "stromen.html?t=" + Date.now(); }
 }
 function setHeaderH(){
   document.documentElement.style.setProperty("--headerh", document.querySelector("header").offsetHeight+"px");
@@ -1406,8 +1463,9 @@ $("#mb-uk").onclick = ()=>{
 };
 
 const STATIC_EN = {
-  tab_kaart:"Map", tab_fav:"Favourites", tab_strem:"Closures", tab_stromen:"Currents",
+  tab_kaart:"Map", tab_fav:"Favourites", tab_strem:"Closures",
   mb_all:"All objects", mb_bedien:"Operable only", mb_strem:"Closures", mb_locate:"Follow me", mb_uk:"UK harbours",
+  mb_lagen:"Currents", dm_title:"Tidal current (Copernicus)", dm_arrows:"Current arrows", dm_particles:"Particle animation", dm_color:"Colour layer (speed)", cur_now:"Now",
 };
 function applyStaticLang(){
   document.querySelectorAll(".langbtn").forEach(b=> b.classList.toggle("on", b.dataset.lang===LANG));
