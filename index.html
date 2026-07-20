@@ -344,16 +344,48 @@ footer a{color:var(--brand-dim);text-decoration:underline}
   </section>
   <section id="v-info" hidden>
     <div class="p-sec"><h3>Over deze site</h3>
-      <p>Bedieningstijden van alle bedienbare bruggen en sluizen in Nederland, met doorvaarthoogtes, marifoonkanalen, telefoonnummers en actuele scheepvaartberichten — op één plek, doorzoekbaar en op de kaart.</p>
+      <p>Eén plek voor bedieningstijden van bruggen en sluizen, actuele scheepvaartberichten, getij en getijstroom — doorzoekbaar en op de kaart, gemaakt voor onderweg op het water. Geen officiële bron, wel snel en overzichtelijk.</p>
+    </div>
+
+    <div class="p-sec"><h3>Wat je hier ziet</h3>
       <div class="kv">
-        <span class="k">Bron statisch</span><span>Rijkswaterstaat — Fairway Information Services (vaarweginformatie.nl), dagelijks ververst</span>
-        <span class="k">Bron actueel</span><span>Scheepvaartberichten (NtS/FTM) via vaarweginformatie.nl, elk uur ververst</span>
+        <span class="k">Bruggen &amp; sluizen</span><span>Bedieningstijden per periode van het jaar, doorvaarthoogte, marifoonkanaal en telefoonnummer, en of een object bedienbaar of vast is.</span>
+        <span class="k">Scheepvaartberichten</span><span>Actuele en aangekondigde stremmingen en beperkingen, met doorklik naar het volledige bericht op vaarweginformatie.nl.</span>
+        <span class="k">Masthoogte-check</span><span>Vul je masthoogte in (vergrootglas → mast); vaste bruggen die te laag zijn krijgen dan een waarschuwing.</span>
+        <span class="k">Getij NL &amp; UK</span><span>Hoog- en laagwatertijden en -hoogtes plus een getijcurve, voor Nederlandse en Britse getijstations.</span>
+        <span class="k">UK-kusthavens</span><span>48 geselecteerde havens langs de Engelse kust met toegang en getijdenvenster.</span>
+        <span class="k">Getijstroom Noordzee</span><span>Stroomrichting en -snelheid als pijlen, kleurlaag en deeltjesanimatie, met een tijdlijn tot 72 uur vooruit en klik-op-zee voor richting/snelheid op een punt.</span>
+        <span class="k">Handig</span><span>Favorieten (☆), zoeken op naam/plaats/vaarweg, en een tijdzoneknop (NL / UTC-GMT / UK) die alle tijden meteen omzet.</span>
+      </div>
+    </div>
+
+    <div class="p-sec"><h3>Hoe actueel het is</h3>
+      <p>De site ververst zichzelf automatisch via een geplande taak — je hoeft niets te doen. De cadans verschilt per soort gegeven:</p>
+      <div class="kv">
+        <span class="k">Bedieningstijden &amp; objecten</span><span>Elke nacht opnieuw opgebouwd uit de bron (volledige dataset, dagelijks).</span>
+        <span class="k">Scheepvaartberichten</span><span>Elk uur ververst, zodat stremmingen snel doorkomen.</span>
+        <span class="k">Getij NL</span><span>Dagelijks ververst; astronomische voorspelling die meerdere dagen vooruit rekent.</span>
+        <span class="k">Getij UK</span><span>Dagelijks ververst; officiële voorspelling, 7 dagen vooruit.</span>
+        <span class="k">Getijstroom</span><span>Live opgehaald in je browser zodra je de laag aanzet; modelverwachting per uur, tot 72 uur vooruit.</span>
         <span class="k">Dataset</span><span class="snapdate"></span>
         <span class="k">Berichten</span><span id="stremstamp2"></span>
         <span class="k">Objecten</span><span id="objcount"></span>
       </div>
+      <p style="color:var(--muted);font-size:12.5px">Let op: getij- en stroomvoorspellingen zijn <b>astronomisch</b> — opzet of afwaaiing door wind en luchtdruk zit er niet in. Bij hard weer kunnen werkelijke tijden en hoogtes afwijken.</p>
+    </div>
+
+    <div class="p-sec"><h3>Waar de gegevens vandaan komen</h3>
+      <div class="kv">
+        <span class="k">Bruggen, sluizen &amp; berichten</span><span>Rijkswaterstaat — Fairway Information Services (vaarweginformatie.nl): de objectgegevens en de scheepvaartberichten (NtS/FTM).</span>
+        <span class="k">Getij Nederland</span><span>Rijkswaterstaat WaterWebservices (waterinfo) — astronomische voorspelling, hoogtes t.o.v. <b>NAP</b>.</span>
+        <span class="k">Getij Verenigd Koninkrijk</span><span>UK Hydrographic Office — Admiralty-voorspellingen, hoogtes boven <b>kaartnul (LAT)</b>.</span>
+        <span class="k">Getijstroom</span><span>Copernicus Marine Service (NWShelf-model, ~1,5 km) voor de pijlen en kleurlaag; het stroomveld voor eigen pijlen/deeltjes via Open-Meteo (zelfde Copernicus-model).</span>
+        <span class="k">Getijcurve UK-havens</span><span>Waar geen officieel Admiralty-station is: modelcurve van Open-Meteo/ECMWF (t.o.v. gemiddeld zeeniveau) — alleen om het ritme te zien.</span>
+        <span class="k">Kaartondergrond</span><span>© OpenStreetMap-bijdragers.</span>
+      </div>
+      <p style="color:var(--muted);font-size:12.5px">Hoogtes uit verschillende bronnen hebben verschillende nulvlakken (NAP, kaartnul/LAT, gemiddeld zeeniveau) en zijn niet zomaar met elkaar of met kaartdieptes te verrekenen.</p>
       <p style="color:var(--muted);font-size:12.5px">Status-legenda: <span class="chip good"><span class="dot good"></span>bediening nu</span> <span class="chip warn"><span class="dot warn"></span>let op / gesloten</span> <span class="chip ser"><span class="dot ser"></span>beperking</span> <span class="chip crit"><span class="dot crit"></span>gestremd / geen bediening</span> <span class="chip mut"><span class="dot mut"></span>vast object</span></p>
-      <p style="color:var(--muted);font-size:12.5px">Geen officiële bron — controleer bij twijfel het bericht via de link, of roep de brug/sluis op via marifoon of telefoon. Kaart: © OpenStreetMap-bijdragers.</p>
+      <p style="color:var(--muted);font-size:12.5px"><b>Geen officiële bron</b> — controleer bij twijfel het bericht via de link, of roep de brug/sluis op via marifoon of telefoon.</p>
     </div>
     <div class="p-sec"><h3>Als app op je telefoon</h3>
       <p>Zet deze site als app op je beginscherm — met eigen icoon, zonder browserbalk, altijd één tik van de bedieningstijden af.</p>
@@ -1625,15 +1657,48 @@ function applyStaticLang(){
   const inf = $("#v-info");
   if (inf) inf.innerHTML = `
     <div class="p-sec"><h3 style="color:var(--ink)">About this site</h3>
-      <p>Operating times of every operated bridge and lock in the Netherlands, with clearance heights, VHF channels, phone numbers and live closure notices — plus 48 curated UK coastal harbours and official tide predictions for both countries.</p>
+      <p>One place for bridge and lock operating times, live notices to skippers, tides and tidal currents — searchable and on the map, made for use while you're on the water. Not an official source, but fast and clear.</p>
+    </div>
+
+    <div class="p-sec"><h3 style="color:var(--ink)">What you see here</h3>
       <div class="kv">
-        <span class="k">Static source</span><span>Rijkswaterstaat — Fairway Information Services (vaarweginformatie.nl), refreshed daily</span>
-        <span class="k">Live source</span><span>Notices to skippers (NtS/FTM) via vaarweginformatie.nl, refreshed hourly</span>
-        <span class="k">Tides NL</span><span>Rijkswaterstaat astronomical predictions (NAP)</span>
-        <span class="k">Tides UK</span><span>UKHO Admiralty predictions (above chart datum, LAT)</span>
+        <span class="k">Bridges &amp; locks</span><span>Operating times per season, clearance height, VHF channel and phone number, and whether an object is operated or fixed.</span>
+        <span class="k">Notices to skippers</span><span>Current and announced closures and restrictions, with a link through to the full notice on vaarweginformatie.nl.</span>
+        <span class="k">Mast-height check</span><span>Enter your mast height (magnifier → mast); fixed bridges that are too low then get a warning.</span>
+        <span class="k">Tides NL &amp; UK</span><span>High- and low-water times and heights plus a tide curve, for Dutch and British tide stations.</span>
+        <span class="k">UK coastal harbours</span><span>48 curated harbours along the English coast with access and tidal window.</span>
+        <span class="k">North Sea currents</span><span>Current direction and speed as arrows, colour layer and particle animation, with a timeline up to 72 h ahead and tap-the-sea for direction/speed at a point.</span>
+        <span class="k">Handy</span><span>Favourites (☆), search by name/place/waterway, and a time-zone button (NL / UTC-GMT / UK) that converts all times instantly.</span>
+      </div>
+    </div>
+
+    <div class="p-sec"><h3 style="color:var(--ink)">How current it is</h3>
+      <p>The site refreshes itself automatically on a schedule — nothing for you to do. The cadence differs per data type:</p>
+      <div class="kv">
+        <span class="k">Operating times &amp; objects</span><span>Rebuilt from source every night (full dataset, daily).</span>
+        <span class="k">Notices to skippers</span><span>Refreshed hourly, so closures come through quickly.</span>
+        <span class="k">Tides NL</span><span>Refreshed daily; astronomical prediction computed several days ahead.</span>
+        <span class="k">Tides UK</span><span>Refreshed daily; official prediction, 7 days ahead.</span>
+        <span class="k">Tidal current</span><span>Fetched live in your browser when you enable the layer; hourly model forecast, up to 72 h ahead.</span>
+        <span class="k">Dataset</span><span class="snapdate"></span>
+        <span class="k">Notices</span><span id="stremstamp2"></span>
         <span class="k">Objects</span><span id="objcount"></span>
       </div>
-      <p style="color:var(--muted);font-size:12.5px">Not an official source — when in doubt check the notice via its link, or call the bridge/lock on VHF or phone. Dutch data descriptions remain in Dutch. Map: © OpenStreetMap contributors.</p>
+      <p style="color:var(--muted);font-size:12.5px">Note: tide and current predictions are <b>astronomical</b> — surge from wind and air pressure is not included. In heavy weather actual times and heights can differ.</p>
+    </div>
+
+    <div class="p-sec"><h3 style="color:var(--ink)">Where the data comes from</h3>
+      <div class="kv">
+        <span class="k">Bridges, locks &amp; notices</span><span>Rijkswaterstaat — Fairway Information Services (vaarweginformatie.nl): the object data and the notices to skippers (NtS/FTM). Dutch descriptions stay in Dutch.</span>
+        <span class="k">Tides Netherlands</span><span>Rijkswaterstaat WaterWebservices (waterinfo) — astronomical prediction, heights relative to <b>NAP</b>.</span>
+        <span class="k">Tides United Kingdom</span><span>UK Hydrographic Office — Admiralty predictions, heights above <b>chart datum (LAT)</b>.</span>
+        <span class="k">Tidal current</span><span>Copernicus Marine Service (NWShelf model, ~1.5 km) for the arrows and colour layer; the current field for own arrows/particles via Open-Meteo (same Copernicus model).</span>
+        <span class="k">Tide curve, UK harbours</span><span>Where there is no official Admiralty station: model curve from Open-Meteo/ECMWF (rel. to mean sea level) — only to show the rhythm.</span>
+        <span class="k">Base map</span><span>© OpenStreetMap contributors.</span>
+      </div>
+      <p style="color:var(--muted);font-size:12.5px">Heights from different sources use different datums (NAP, chart datum/LAT, mean sea level) and cannot simply be combined with each other or with charted depths.</p>
+      <p style="color:var(--muted);font-size:12.5px">Status legend: <span class="chip good"><span class="dot good"></span>operating now</span> <span class="chip warn"><span class="dot warn"></span>caution / closed</span> <span class="chip ser"><span class="dot ser"></span>restriction</span> <span class="chip crit"><span class="dot crit"></span>blocked / no operation</span> <span class="chip mut"><span class="dot mut"></span>fixed object</span></p>
+      <p style="color:var(--muted);font-size:12.5px"><b>Not an official source</b> — when in doubt check the notice via its link, or call the bridge/lock on VHF or phone.</p>
     </div>
     <div class="p-sec"><h3 style="color:var(--ink)">As an app on your phone</h3>
       <p>Add this site to your home screen — own icon, no browser bar.</p>
@@ -1683,7 +1748,13 @@ loadData().then(()=>{
   const ss1 = $("#stremstamp"); if (ss1) ss1.textContent = fmt(STREMTS);
   const ss2 = $("#stremstamp2"); if (ss2) ss2.textContent = fmt(STREMTS);
   document.querySelectorAll(".snapdate").forEach(el=>el.textContent = "generatie "+DATA.gen);
-  const oc = $("#objcount"); if (oc) oc.textContent = DATA.objs.filter(o=>o.t==="B").length+" bruggen · "+DATA.objs.filter(o=>o.t==="S").length+" sluizen · "+DATA.objs.filter(o=>o.t==="H").length+" UK-kusthavens · "+STREM.length+" actuele berichten";
+  const oc = $("#objcount");
+  if (oc){
+    const nB=DATA.objs.filter(o=>o.t==="B").length, nS=DATA.objs.filter(o=>o.t==="S").length, nH=DATA.objs.filter(o=>o.t==="H").length;
+    oc.textContent = LANG==="en"
+      ? `${nB} bridges · ${nS} locks · ${nH} UK harbours · ${STREM.length} live notices`
+      : `${nB} bruggen · ${nS} sluizen · ${nH} UK-kusthavens · ${STREM.length} actuele berichten`;
+  }
   const m = readStore("bs_mast", null);
   if (m!=null) $("#mast").value = m;
   $("#q").addEventListener("input", ()=>{ clearTimeout(deb); deb=setTimeout(()=>{ renderResults(); updateDrop(); },120); });
