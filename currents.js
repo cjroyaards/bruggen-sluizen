@@ -156,6 +156,8 @@
 
   /* ---- deeltjes ---- */
   function resizeCanvas() { const sz = map.getSize(); canvas.width = sz.x * devicePixelRatio; canvas.height = sz.y * devicePixelRatio; canvas.style.width = sz.x + 'px'; canvas.style.height = sz.y + 'px'; ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); }
+  // canvas tekent in container-coördinaten; plaats hem op het layer-punt van container[0,0] zodat hij met de kaart meebeweegt
+  function reposition() { if (canvas && map) L.DomUtil.setPosition(canvas, map.containerPointToLayerPoint([0, 0])); }
   function spawnParticle(pt) {
     const b = map.getBounds();
     if (seaCells.length) for (let tries = 0; tries < 30; tries++) { const c = seaCells[(Math.random() * seaCells.length) | 0]; const lat = GRID.lat0 + ((c / GRID.nLon) | 0) * GRID.dLat + (Math.random() - .5) * GRID.dLat; const lon = GRID.lon0 + (c % GRID.nLon) * GRID.dLon + (Math.random() - .5) * GRID.dLon; if (b.contains([lat, lon]) && isSeaAt(lat, lon)) { pt.lat = lat; pt.lon = lon; pt.age = 60 + Math.random() * 140; return pt; } }
@@ -227,16 +229,20 @@
   const API = {
     init(m) {
       if (map) return API; map = m;
+      // eigen pane: boven de tegels (z 200) en Copernicus-lagen (overlay 400), onder de markers (600)
+      map.createPane('curPane');
+      const pane = map.getPane('curPane');
+      pane.style.zIndex = 450; pane.style.pointerEvents = 'none';
       canvas = document.createElement('canvas');
-      canvas.style.cssText = 'position:absolute;inset:0;z-index:350;pointer-events:none;display:none';
-      map.getContainer().appendChild(canvas); ctx = canvas.getContext('2d');
+      canvas.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none;display:none';
+      pane.appendChild(canvas); ctx = canvas.getContext('2d');
       times = defaultTimes();
       arrowFade = makeFadeManager('cmap:speed,vectorStyle:vector', 0.92);
       colorFade = makeFadeManager('cmap:speed,vectorStyle:solid', 0.55);
-      map.on('resize', () => { resizeCanvas(); resetParticles(); scheduleMaskRedraw(); });
-      map.on('moveend zoomend', () => { resetParticles(); scheduleMaskRedraw(); });
+      map.on('resize', () => { resizeCanvas(); reposition(); resetParticles(); scheduleMaskRedraw(); });
+      map.on('moveend zoomend', () => { reposition(); resetParticles(); scheduleMaskRedraw(); });
       map.on('movestart zoomstart', () => ctx && ctx.clearRect(0, 0, canvas.width, canvas.height));
-      resizeCanvas(); setTimeFloat(nowIndex()); requestAnimationFrame(frame);
+      resizeCanvas(); reposition(); setTimeFloat(nowIndex()); requestAnimationFrame(frame);
       return API;
     },
     setLayers(w) { const wasP = want.particles; want = Object.assign({}, want, w); if (want.particles && !wasP) playing = true; sync(); if (onTimeChange) onTimeChange(tFloat); },
