@@ -74,8 +74,9 @@ header{position:sticky;top:0;z-index:1001;background:var(--brand);color:var(--br
 .hbtn.on{color:var(--brand-ink);border-color:#6fa8dc;background:rgba(255,255,255,.08)}
 .hbtn .ic{width:16px;height:16px}
 /* ingetogen zoekbalk met rechte hoeken */
-.h-search{display:flex;gap:6px;padding:0 16px 8px;align-items:stretch;max-width:620px}
+.h-search{display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 8px;align-items:stretch;max-width:620px}
 .h-search[hidden]{display:none}
+.h-hint{flex-basis:100%;color:var(--brand-dim);font-size:11.5px;padding:2px 1px 0}
 .h-search input[type=search]{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:7px 11px;font-size:16px;color:var(--brand-ink);outline:none;min-width:0}
 .h-search input[type=search]::placeholder{color:var(--brand-dim)}
 .h-search input[type=search]:focus{border-color:#6fa8dc;background:rgba(255,255,255,.11)}
@@ -259,6 +260,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
   <div class="h-search" id="hsearch" hidden>
     <input type="search" id="q" placeholder="Zoek brug, sluis, plaats of vaarweg…" autocomplete="off">
     <label class="mastbox" title="Doorvaarthoogte-waarschuwing">mast <input type="number" id="mast" step="0.1" min="0" placeholder="–"> m</label>
+    <div class="h-hint" id="masthint">Vul je masthoogte in — vaste bruggen die te laag zijn krijgen dan een waarschuwing.</div>
   </div>
   <nav class="tabs">
     <button class="tab on" data-v="kaart" data-i18n="tab_kaart">Kaart</button>
@@ -336,7 +338,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
-<script src="currents.js?v=2"></script>
+<script src="currents.js?v=3"></script>
 <script>
 "use strict";
 let DATA = null, STREM = [], STREMTS = null;
@@ -1307,16 +1309,18 @@ function amsOffsetMin(ms){
   const [dt,tm] = s.split(", "); const [mo,da,yr] = dt.split("/").map(Number); const [hh,mm,ss] = tm.split(":").map(Number);
   return Math.round((Date.UTC(yr,mo-1,da,hh,mm,ss) - Math.floor(ms/1000)*1000)/60000);
 }
-function curFmtLabel(tf){
+function curMs(tf){
   const times = window.Currents && Currents.getTimes && Currents.getTimes();
-  if (!times) return "—";
+  if (!times) return null;
   const t0=Math.floor(tf), t1=Math.min(Currents.NHOURS-1,t0+1), w=tf-t0;
-  const ms = (times[t0]*(1-w)+times[t1]*w)*1000;
-  const utc = new Intl.DateTimeFormat(LANG==="en"?"en-GB":"nl-NL",{timeZone:"UTC",weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}).format(new Date(ms));
-  const off = amsOffsetMin(ms), dst = off===120;
-  const tag = LANG==="en" ? (dst?"summer time":"winter time") : (dst?"zomertijd":"wintertijd");
-  const loc = "NL "+(off>=0?"+":"")+(off/60);
-  return `${utc} UTC · ${loc} (${tag})`;
+  return (times[t0]*(1-w)+times[t1]*w)*1000;
+}
+function hhmm(ms, tz){ return new Intl.DateTimeFormat("en-GB",{timeZone:tz,hour:"2-digit",minute:"2-digit",hour12:false}).format(new Date(ms)); }
+function curFmtLabel(tf){
+  const ms = curMs(tf); if (ms==null) return "—";
+  const dstr = new Intl.DateTimeFormat(LANG==="en"?"en-GB":"nl-NL",{timeZone:"UTC",weekday:"short",day:"numeric",month:"short"}).format(new Date(ms));
+  const abbr = amsOffsetMin(ms)===120 ? "CEST" : "CET";
+  return `${dstr} · ${hhmm(ms,"UTC")} UTC/GMT · ${hhmm(ms,"Europe/Amsterdam")} ${abbr}`;
 }
 function initCurrents(){
   if (curInited || !window.Currents) return;
@@ -1340,6 +1344,61 @@ function initCurrents(){
   $("#cur-slider").addEventListener("input", ()=>{ Currents.setPlaying(false); Currents.setTime(+$("#cur-slider").value); $("#cur-play").textContent="▶"; });
   $("#cur-now").addEventListener("click", ()=>{ Currents.setPlaying(false); Currents.setTime(Currents.nowIndex()); $("#cur-play").textContent="▶"; });
   $("#cur-play").addEventListener("click", ()=>{ Currents.setPlaying(!Currents.isPlaying()); $("#cur-play").textContent = Currents.isPlaying()?"❚❚":"▶"; });
+  // klik op zee → stroom-info (met doorklik naar detailpaneel)
+  map.on("click", e=>{
+    if (!Currents.anyOn()) return;
+    const info = Currents.pointNow(e.latlng.lat, e.latlng.lng);
+    if (!info){ if (!Currents.isLoaded()){ L.popup().setLatLng(e.latlng).setContent(LANG==="en"?"Loading current data…":"Stroomdata laden…").openOn(map); } return; }
+    const card = curDirCardinal(info.dirTo);
+    const html = `<div style="font:13px/1.5 system-ui,sans-serif">
+      <b>${info.kn.toFixed(1)} kn</b> · ${card.abbr} (${Math.round(info.dirTo)}°) <span style="display:inline-block;transform:rotate(${info.dirTo}deg)">↑</span><br>
+      <span style="color:var(--muted)">${LANG==="en"?"current now — ":"stroom nu — "}${curFmtLabel(Currents.getTFloat()).split(" · ").slice(1).join(" · ")}</span><br>
+      <a href="#" class="curDetail" data-lat="${e.latlng.lat}" data-lon="${e.latlng.lng}" style="color:var(--accent);font-weight:600">${LANG==="en"?"details →":"details →"}</a>
+    </div>`;
+    L.popup({maxWidth:260}).setLatLng(e.latlng).setContent(html).openOn(map);
+  });
+  document.addEventListener("click", e=>{
+    const d = e.target.closest(".curDetail");
+    if (d){ e.preventDefault(); map.closePopup(); openCurrentDetail(+d.dataset.lat, +d.dataset.lon); }
+  });
+}
+function curDirCardinal(deg){
+  const nlAbbr=["N","NO","O","ZO","Z","ZW","W","NW"], enAbbr=["N","NE","E","SE","S","SW","W","NW"];
+  const nlWord=["noorden","noordoosten","oosten","zuidoosten","zuiden","zuidwesten","westen","noordwesten"];
+  const enWord=["north","north-east","east","south-east","south","south-west","west","north-west"];
+  const i = Math.round(deg/45)%8;
+  return { abbr:(LANG==="en"?enAbbr:nlAbbr)[i], word:(LANG==="en"?enWord:nlWord)[i] };
+}
+function openCurrentDetail(lat, lon){
+  const now = Currents.pointNow(lat, lon);
+  const series = Currents.pointSeries(lat, lon);
+  const times = Currents.getTimes();
+  const T = k => LANG==="en" ? k.en : k.nl;
+  const card = now ? curDirCardinal(now.dirTo) : null;
+  let rows = "";
+  if (series && times){
+    const nowIdx = Math.round(Currents.getTFloat());
+    for (let i=nowIdx; i<Math.min(nowIdx+13, series.length); i++){
+      const s = series[i]; if (!s) continue;
+      const ms = times[i]*1000, c = curDirCardinal(s.dirTo);
+      rows += `<tr${i===nowIdx?' style="font-weight:650"':''}><td>${hhmm(ms,"UTC")}</td><td>${hhmm(ms,"Europe/Amsterdam")}</td><td>${(s.kmh/1.852).toFixed(1)} kn</td><td>${c.abbr} ${Math.round(s.dirTo)}°</td></tr>`;
+    }
+  }
+  const abbr = now ? (amsOffsetMin(curMs(Currents.getTFloat()))===120?"CEST":"CET") : "";
+  $("#panel").innerHTML = `
+    <button class="p-close" id="pclose">${T({nl:"sluiten ✕",en:"close ✕"})}</button>
+    <div class="p-h">${T({nl:"Getijstroom",en:"Tidal current"})}</div>
+    <div class="p-sub">${lat.toFixed(4)}, ${lon.toFixed(4)}</div>
+    ${now ? `<div class="p-sec" style="margin-top:6px"><h3>${T({nl:"Nu",en:"Now"})}</h3>
+      <p style="margin:0;font-size:15px"><b>${now.kn.toFixed(1)} knopen</b> (${now.ms.toFixed(2)} m/s · ${now.kmh.toFixed(1)} km/u)<br>
+      ${T({nl:"stroomt naar het",en:"flowing towards the"})} <b>${card.word}</b> (${Math.round(now.dirTo)}°) <span style="display:inline-block;transform:rotate(${now.dirTo}deg)">↑</span></p>
+      <div class="tlegend" style="margin-top:6px">${curFmtLabel(Currents.getTFloat())}</div></div>`
+      : `<div class="p-note">${T({nl:"Geen stroomdata op dit punt (land of buiten het model).",en:"No current data here (land or outside the model)."})}</div>`}
+    ${rows ? `<div class="p-sec"><h3>${T({nl:"Verwachting (12 uur)",en:"Forecast (12 h)"})}</h3>
+      <table class="times" style="font-size:13px"><tr style="color:var(--muted)"><td>UTC</td><td>${abbr}</td><td>${T({nl:"snelheid",en:"speed"})}</td><td>${T({nl:"richting",en:"dir"})}</td></tr>${rows}</table></div>` : ""}
+    <div class="p-note">${T({nl:"Astronomische getijstroom (Copernicus). Wind kan de werkelijke stroom beïnvloeden.",en:"Astronomical tidal current (Copernicus). Wind can affect the actual current."})}</div>`;
+  $("#panel").classList.add("open"); $("#ovl").classList.add("open");
+  $("#pclose").onclick = closeDetail;
 }
 const ANCHORSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="5.5" r="2.3"/><path d="M12 8v12"/><path d="M5 13c0 4.5 3 7 7 7s7-2.5 7-7"/><path d="M8.5 11.5h7"/></svg>`;
 let harbourLayer = null;
@@ -1519,6 +1578,7 @@ function applyStaticLang(){
     </div>`;
   const mb = document.querySelector(".h-search .mastbox");
   if (mb) mb.childNodes[0].textContent = "mast ";
+  const mh = $("#masthint"); if (mh) mh.textContent = "Enter your mast height — fixed bridges that are too low get a warning.";
   $("#loading") && ($("#loading").textContent = "Loading data…");
   $("#stq") && ($("#stq").placeholder = "Filter by waterway, place or object…");
   const foot = $("#foot");

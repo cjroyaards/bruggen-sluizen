@@ -105,6 +105,7 @@
     defs.forEach((d, ci) => { const resp = responses[ci]; if (!resp) return; for (let k = 0; k < d.pts.length && k < resp.length; k++) { const p = d.start + k; const h = resp[k].hourly, vel = h.ocean_current_velocity, dir = h.ocean_current_direction; let isSea = false; for (let t = 0; t < NHOURS; t++) { const sp = vel[t], dd = dir[t]; if (sp == null || dd == null) continue; const rad = dd * Math.PI / 180; U[t * n + p] = sp * Math.sin(rad); V[t * n + p] = sp * Math.cos(rad); isSea = true; } if (isSea) { seaCells.push(p); seaMask[p] = 1; } } });
     loaded = true; loading = false; if (statusCb) statusCb('');
     setTimeFloat(nowIndex()); if (onTimeChange) onTimeChange(tFloat);
+    if (want.particles) resetParticles();   // nu pas echte zeecellen → deeltjes met coördinaten
   }
 
   /* ---- interpolatie ---- */
@@ -156,8 +157,8 @@
   /* ---- deeltjes ---- */
   function resizeCanvas() { const sz = map.getSize(); canvas.width = sz.x * devicePixelRatio; canvas.height = sz.y * devicePixelRatio; canvas.style.width = sz.x + 'px'; canvas.style.height = sz.y + 'px'; ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); }
   function spawnParticle(pt) {
-    if (!seaCells.length) return pt; const b = map.getBounds();
-    for (let tries = 0; tries < 30; tries++) { const c = seaCells[(Math.random() * seaCells.length) | 0]; const lat = GRID.lat0 + ((c / GRID.nLon) | 0) * GRID.dLat + (Math.random() - .5) * GRID.dLat; const lon = GRID.lon0 + (c % GRID.nLon) * GRID.dLon + (Math.random() - .5) * GRID.dLon; if (b.contains([lat, lon]) && isSeaAt(lat, lon)) { pt.lat = lat; pt.lon = lon; pt.age = 60 + Math.random() * 140; return pt; } }
+    const b = map.getBounds();
+    if (seaCells.length) for (let tries = 0; tries < 30; tries++) { const c = seaCells[(Math.random() * seaCells.length) | 0]; const lat = GRID.lat0 + ((c / GRID.nLon) | 0) * GRID.dLat + (Math.random() - .5) * GRID.dLat; const lon = GRID.lon0 + (c % GRID.nLon) * GRID.dLon + (Math.random() - .5) * GRID.dLon; if (b.contains([lat, lon]) && isSeaAt(lat, lon)) { pt.lat = lat; pt.lon = lon; pt.age = 60 + Math.random() * 140; return pt; } }
     const s = map.getSize(), ll = map.containerPointToLatLng([Math.random() * s.x, Math.random() * s.y]); pt.lat = ll.lat; pt.lon = ll.lng; pt.age = 20 + Math.random() * 60; return pt;
   }
   function resetParticles() { if (!canvas) return; const z = map.getZoom(); const count = Math.min(2600, Math.round(280 * Math.pow(1.5, z - 5))); particles = Array.from({ length: count }, () => spawnParticle({})); ctx.clearRect(0, 0, canvas.width, canvas.height); }
@@ -168,7 +169,7 @@
     if (playing && times) { tFloat += dt * PLAY_HPS; if (tFloat >= NHOURS - 1) tFloat = 0; updateWmtsTime(); if (onTimeChange) onTimeChange(tFloat); }
     if (!canvas || (!want.particles && !want.own) || !U) return;
     const sz = map.getSize();
-    if (want.particles) {
+    if (want.particles && playing) {
       ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = 'rgba(0,0,0,0.040)'; ctx.fillRect(0, 0, sz.x, sz.y);
       ctx.globalCompositeOperation = 'source-over'; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
       const speedScale = 0.00060 * Math.pow(1.18, map.getZoom() - 6);
@@ -186,10 +187,22 @@
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b2.x, b2.y); ctx.stroke();
       }
       ctx.globalAlpha = 1;
-    } else {
-      ctx.clearRect(0, 0, sz.x, sz.y);
+    } else if (!want.particles) {
+      ctx.clearRect(0, 0, sz.x, sz.y);   // eigen-pijlen-modus: schoon canvas
     }
+    // (want.particles && !playing → canvas bevroren; pauze stopt de beweging zichtbaar)
     if (want.own) drawArrows();
+  }
+  /* stroom op een punt (nu / per uur) voor de klik-info */
+  function pointInfo(lat, lon, tf) {
+    const uv = sampleUV(lat, lon, tf); if (!uv) return null;
+    const u = uv[0], v = uv[1], kmh = Math.hypot(u, v);
+    return { kmh, kn: kmh / 1.852, ms: kmh / 3.6, dirTo: (Math.atan2(u, v) * 180 / Math.PI + 360) % 360 };
+  }
+  function pointSeries(lat, lon) {
+    const out = [];
+    for (let t = 0; t < NHOURS; t++) { const uv = sampleUVi(lat, lon, t); out.push(uv ? { kmh: Math.hypot(uv[0], uv[1]), dirTo: (Math.atan2(uv[0], uv[1]) * 180 / Math.PI + 360) % 360 } : null); }
+    return out;
   }
 
   /* ---- tijd ---- */
@@ -207,7 +220,7 @@
     const canvasOn = want.particles || want.own;
     ensureMask(canvasOn); if (canvasOn) scheduleMaskRedraw();
     if (canvas) canvas.style.display = canvasOn ? 'block' : 'none';
-    if (canvasOn && !loaded) loadData();
+    if ((want.arrows || want.color || canvasOn) && !loaded) loadData();   // grid ook laden voor klik-info
     if (want.particles) resetParticles();
   }
 
@@ -226,8 +239,11 @@
       resizeCanvas(); setTimeFloat(nowIndex()); requestAnimationFrame(frame);
       return API;
     },
-    setLayers(w) { want = Object.assign({}, want, w); sync(); },
+    setLayers(w) { const wasP = want.particles; want = Object.assign({}, want, w); if (want.particles && !wasP) playing = true; sync(); if (onTimeChange) onTimeChange(tFloat); },
     anyOn() { return want.arrows || want.particles || want.color || want.own; },
+    pointNow(lat, lon) { return U ? pointInfo(lat, lon, tFloat) : null; },
+    pointSeries(lat, lon) { return U ? pointSeries(lat, lon) : null; },
+    isLoaded() { return loaded; },
     setTime(tf) { playing = false; setTimeFloat(tf); if (onTimeChange) onTimeChange(tFloat); },
     setPlaying(v) { playing = v; },
     isPlaying() { return playing; },
