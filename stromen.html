@@ -94,9 +94,9 @@
 
 <div id="layersPanel" class="panel">
   <div class="t">Lagen</div>
-  <label><input type="checkbox" id="cbArrows" checked> Stroompijlen (vloeiend)</label>
-  <label><input type="checkbox" id="cbWmts"> Copernicus pijlen (scherp)</label>
-  <label><input type="checkbox" id="cbParticles"> Deeltjesanimatie</label>
+  <label><input type="checkbox" id="cbWmts" checked> Copernicus pijlen</label>
+  <label><input type="checkbox" id="cbParticles"> Deeltjesanimatie (rustig)</label>
+  <label><input type="checkbox" id="cbArrows"> Eigen pijlen (vloeiend)</label>
   <label><input type="checkbox" id="cbCmems"> Copernicus kleurlaag</label>
 </div>
 
@@ -127,10 +127,55 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 function isoHour(unixSec) { return new Date(unixSec * 1000).toISOString().replace(/\.\d{3}Z$/, '.000Z'); }
 
-let cmemsLayer = null, arrowLayer = null;
+let cmemsLayer = null;
 function makeCmemsLayer(styleStr, opacity, timeIso) {
   return L.tileLayer(WMTS + '&STYLE=' + encodeURIComponent(styleStr) + '&time=' + encodeURIComponent(timeIso),
     { opacity, maxNativeZoom: 9, maxZoom: 11, pane: 'tilePane' });
+}
+
+/* ---- Copernicus pijlen: crossfade tussen uren + tegel-cache + voorladen ---- */
+const arrowLayers = new Map();     // uur-index -> tileLayer (opacity gecachet in DOM)
+let arrowVisibleHour = -1, arrowFadeRAF = 0, arrowsWmtsOn = false;
+const ARROW_OPACITY = 0.92;
+function arrowLayerFor(hr) {
+  if (arrowLayers.has(hr)) return arrowLayers.get(hr);
+  const lyr = makeCmemsLayer('cmap:speed,vectorStyle:vector', 0, isoHour(times[hr])).addTo(map);
+  lyr.setOpacity(0);
+  arrowLayers.set(hr, lyr);
+  if (arrowLayers.size > 8) {                       // cache begrenzen: verste ongebruikte weg
+    let far = -1, fd = -1;
+    for (const h of arrowLayers.keys()) {
+      if (h === arrowVisibleHour || Math.abs(h - arrowVisibleHour) <= 1) continue;
+      const d = Math.abs(h - arrowVisibleHour);
+      if (d > fd) { fd = d; far = h; }
+    }
+    if (far >= 0) { map.removeLayer(arrowLayers.get(far)); arrowLayers.delete(far); }
+  }
+  return lyr;
+}
+function showArrowHour(hr) {
+  if (!times || !arrowsWmtsOn) return;
+  const target = arrowLayerFor(hr);
+  const prev = arrowLayers.get(arrowVisibleHour);
+  if (target === prev) return;
+  arrowVisibleHour = hr;
+  arrowLayerFor(Math.min(NHOURS - 1, hr + 1));       // volgend uur alvast laden (vloeiende sprong)
+  arrowLayers.forEach(l => { if (l !== target && l !== prev) l.setOpacity(0); });
+  cancelAnimationFrame(arrowFadeRAF);
+  const t0 = performance.now(), dur = 380;
+  const of = target.options.opacity || 0, pf = prev ? (prev.options.opacity || 0) : 0;
+  const step = now => {
+    const k = Math.min(1, (now - t0) / dur);
+    target.setOpacity(of + (ARROW_OPACITY - of) * k);
+    if (prev && prev !== target) prev.setOpacity(pf * (1 - k));
+    if (k < 1) arrowFadeRAF = requestAnimationFrame(step);
+  };
+  arrowFadeRAF = requestAnimationFrame(step);
+}
+function clearArrowLayers() {
+  cancelAnimationFrame(arrowFadeRAF);
+  arrowLayers.forEach(l => map.removeLayer(l));
+  arrowLayers.clear(); arrowVisibleHour = -1;
 }
 
 /* ================= state ================= */
@@ -236,6 +281,12 @@ function sampleUVi(lat, lon, t) {   // ruimtelijk, bij heel-uur t
   if (sw < 0.25) return null;
   return [su / sw, sv / sw];
 }
+function isSeaAt(lat, lon) {          // ligt de dichtstbijzijnde rastercel in zee?
+  if (!seaMask) return true;
+  const i = Math.round((lat - GRID.lat0) / GRID.dLat), j = Math.round((lon - GRID.lon0) / GRID.dLon);
+  if (i < 0 || j < 0 || i >= GRID.nLat || j >= GRID.nLon) return false;
+  return seaMask[i * GRID.nLon + j] === 1;
+}
 function sampleUV(lat, lon, tf) {    // ruimtelijk + lineair in de tijd
   const t0 = Math.floor(tf);
   const w = tf - t0;
@@ -274,7 +325,7 @@ function spawnParticle(pt) {
     const c = seaCells[(Math.random() * seaCells.length) | 0];
     const lat = GRID.lat0 + ((c / GRID.nLon) | 0) * GRID.dLat + (Math.random() - .5) * GRID.dLat;
     const lon = GRID.lon0 + (c % GRID.nLon) * GRID.dLon + (Math.random() - .5) * GRID.dLon;
-    if (b.contains([lat, lon])) { pt.lat = lat; pt.lon = lon; pt.age = 30 + Math.random() * 90; return pt; }
+    if (b.contains([lat, lon]) && isSeaAt(lat, lon)) { pt.lat = lat; pt.lon = lon; pt.age = 60 + Math.random() * 140; return pt; }
   }
   const s = map.getSize();
   const ll = map.containerPointToLatLng([Math.random() * s.x, Math.random() * s.y]);
@@ -348,25 +399,27 @@ function frame(ts) {
 
   if (particlesOn) {
     ctx.globalCompositeOperation = 'destination-out';
-    ctx.fillStyle = 'rgba(0,0,0,0.055)';
+    ctx.fillStyle = 'rgba(0,0,0,0.040)';   // langere sporen (rustige stroomlijnen)
     ctx.fillRect(0, 0, sz.x, sz.y);
     ctx.globalCompositeOperation = 'source-over';
-    ctx.lineWidth = 1.8; ctx.lineCap = 'round';
-    const speedScale = 0.0022 * Math.pow(1.35, map.getZoom() - 6);
+    ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+    // getij, geen wind → rustig tempo; nauwelijks opschalen bij inzoomen
+    const speedScale = 0.00060 * Math.pow(1.18, map.getZoom() - 6);
     for (const p of particles) {
       if (--p.age <= 0) { spawnParticle(p); continue; }
       const uv = sampleUV(p.lat, p.lon, tFloat);
       if (!uv) { spawnParticle(p); continue; }
       const [u, v] = uv;
       const kmh = Math.hypot(u, v);
-      const dLat = v * speedScale / 1.5;
-      const dLon = u * speedScale / (1.5 * Math.cos(p.lat * Math.PI / 180));
+      const nLat = p.lat + v * speedScale / 1.5;
+      const nLon = p.lon + u * speedScale / (1.5 * Math.cos(p.lat * Math.PI / 180));
+      if (!isSeaAt(nLat, nLon)) { spawnParticle(p); continue; }   // volg de kustlijn: niet het land op
       const a = map.latLngToContainerPoint([p.lat, p.lon]);
-      p.lat += dLat; p.lon += dLon;
+      p.lat = nLat; p.lon = nLon;
       const b2 = map.latLngToContainerPoint([p.lat, p.lon]);
       if (b2.x < -20 || b2.y < -20 || b2.x > sz.x + 20 || b2.y > sz.y + 20) { spawnParticle(p); continue; }
       ctx.strokeStyle = speedColor(kmh);
-      ctx.globalAlpha = Math.min(1, 0.45 + kmh / 3.5);
+      ctx.globalAlpha = Math.min(0.95, 0.4 + kmh / 4);
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b2.x, b2.y); ctx.stroke();
     }
     ctx.globalAlpha = 1;
@@ -400,12 +453,13 @@ function updateWmtsTime() {
   const hr = Math.round(tFloat);
   if (hr === lastWmtsHour) return;         // WMTS bestaat alleen per heel uur
   lastWmtsHour = hr;
-  clearTimeout(wmtsDebounce);
-  wmtsDebounce = setTimeout(() => {
-    const iso = isoHour(times[hr]);
-    if (cmemsLayer) cmemsLayer.setUrl(WMTS + '&STYLE=' + encodeURIComponent('cmap:speed,vectorStyle:solid') + '&time=' + encodeURIComponent(iso));
-    if (arrowLayer) arrowLayer.setUrl(WMTS + '&STYLE=' + encodeURIComponent('cmap:speed,vectorStyle:vector') + '&time=' + encodeURIComponent(iso));
-  }, 220);
+  if (cmemsLayer) {
+    clearTimeout(wmtsDebounce);
+    wmtsDebounce = setTimeout(() => {
+      if (cmemsLayer) cmemsLayer.setUrl(WMTS + '&STYLE=' + encodeURIComponent('cmap:speed,vectorStyle:solid') + '&time=' + encodeURIComponent(isoHour(times[hr])));
+    }, 220);
+  }
+  if (arrowsWmtsOn) showArrowHour(hr);     // pijlen: zachte crossfade
 }
 function setTimeFloat(tf) {
   tFloat = Math.max(0, Math.min(NHOURS - 1, tf));
@@ -432,8 +486,9 @@ function syncLayers() {
   const iso = times ? isoHour(times[Math.round(tFloat)]) : isoHour(Math.floor(Date.now() / 3600000) * 3600);
   if ($('cbCmems').checked && !cmemsLayer) cmemsLayer = makeCmemsLayer('cmap:speed,vectorStyle:solid', 0.5, iso).addTo(map);
   if (!$('cbCmems').checked && cmemsLayer) { map.removeLayer(cmemsLayer); cmemsLayer = null; }
-  if ($('cbWmts').checked && !arrowLayer) arrowLayer = makeCmemsLayer('cmap:speed,vectorStyle:vector', 0.9, iso).addTo(map);
-  if (!$('cbWmts').checked && arrowLayer) { map.removeLayer(arrowLayer); arrowLayer = null; }
+  arrowsWmtsOn = $('cbWmts').checked;
+  if (arrowsWmtsOn) { if (times && arrowVisibleHour < 0) showArrowHour(Math.round(tFloat)); }
+  else clearArrowLayers();
   lastWmtsHour = Math.round(tFloat);
   particlesOn = $('cbParticles').checked;
   arrowsOn = $('cbArrows').checked;
@@ -459,22 +514,30 @@ map.on('click', e => {
 });
 
 /* ================= start ================= */
-let started = false;
-function afterLoad() {
+function defaultTimes() {            // 72 hele uren vanaf nu, zodat UI + Copernicus-pijlen meteen werken
+  const h0 = Math.floor(Date.now() / 3600000) * 3600;
+  return Array.from({ length: NHOURS }, (_, i) => h0 + i * 3600);
+}
+// interface + Copernicus-pijlen draaien onafhankelijk van de (zwaardere) grid-data
+times = defaultTimes();
+setTimeFloat(nowIndex());
+syncLayers();
+requestAnimationFrame(frame);
+statusEl.textContent = 'Copernicus-pijlen live · deeltjesdata laden…';
+
+function afterLoad() {               // grid geladen → deeltjes/eigen pijlen kunnen erbij
   setTimeFloat(nowIndex());
-  if (!started) { started = true; syncLayers(); requestAnimationFrame(frame); }
-  else syncLayers();
+  syncLayers();
 }
 function tryLoad(retryMs) {
   loadData().then(afterLoad).catch(err => {
     console.error(err);
     statusEl.classList.add('err');
-    statusEl.textContent = 'Stromingsdata even niet bereikbaar — nieuwe poging over ' + Math.round(retryMs / 1000) + 's…';
-    if (!started) { started = true; syncLayers(); requestAnimationFrame(frame); }
+    statusEl.textContent = 'Deeltjesdata even niet bereikbaar — Copernicus-pijlen werken wel · nieuwe poging over ' + Math.round(retryMs / 1000) + 's…';
     setTimeout(() => tryLoad(Math.min(retryMs * 2, 300000)), retryMs);
   });
 }
-tryLoad(15000);
+tryLoad(12000);
 setInterval(() => { loadData().then(() => { statusEl.classList.remove('err'); }).catch(() => {}); }, 6 * 3600 * 1000);
 </script>
 </body>
