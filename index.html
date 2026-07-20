@@ -72,6 +72,7 @@ header{position:sticky;top:0;z-index:1001;background:var(--brand);color:var(--br
 .tab .cnt{color:var(--brand-dim);font-size:11.5px;font-variant-numeric:tabular-nums}
 /* vergrootglas-knop */
 .hbtn{background:none;border:1px solid rgba(255,255,255,.22);border-radius:6px;padding:4px 7px;color:var(--brand-dim);cursor:pointer;line-height:0}
+.hbtn.tz{line-height:1.3;font-size:12px;font-weight:650;letter-spacing:.03em;font-variant-numeric:tabular-nums;min-width:44px;text-align:center}
 .hbtn:hover{color:var(--brand-ink);border-color:rgba(255,255,255,.4)}
 .hbtn.on{color:var(--brand-ink);border-color:#6fa8dc;background:rgba(255,255,255,.08)}
 .hbtn .ic{width:16px;height:16px}
@@ -193,13 +194,28 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 #curbar[hidden]{display:none}
 #curbar button{border:1px solid var(--grid);background:var(--surface);color:var(--ink);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:13px}
 #curbar #cur-play{background:var(--accent);color:#fff;border-color:transparent;min-width:40px}
-#curbar input[type=range]{accent-color:var(--accent);width:min(40vw,280px)}
+#curbar .step{min-width:34px;font-weight:650;font-variant-numeric:tabular-nums}
+#curbar input[type=range]{-webkit-appearance:none;appearance:none;width:min(40vw,280px);height:6px;border-radius:3px;background:var(--grid);outline:none;margin:0}
+#curbar input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer}
+#curbar input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer}
+@media (pointer:coarse){
+  #curbar input[type=range]{height:8px}
+  #curbar input[type=range]::-webkit-slider-thumb{width:30px;height:30px}
+  #curbar input[type=range]::-moz-range-thumb{width:30px;height:30px}
+  #curbar .step{padding:8px 11px;font-size:14px}
+}
 #cur-label{font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;min-width:210px;text-align:right;color:var(--ink)}
-@media (max-width:600px){ #cur-label{min-width:0;font-size:11.5px} #curbar input[type=range]{width:40vw} }
+@media (max-width:600px){
+  #curbar{flex-wrap:wrap;justify-content:center;gap:7px 8px}
+  #cur-label{min-width:0;font-size:13px;flex-basis:100%;text-align:center;order:5}
+  #curbar input[type=range]{width:44vw}
+}
 .strem-pin{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;line-height:1}
 .strem-pin.crit{background:var(--critical)} .strem-pin.ser{background:var(--serious)}
 .harb-pin{width:22px;height:22px;border-radius:50%;background:#122b42;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;padding:3px}
 .harb-pin.tide{background:#0e6e6e}
+.mk{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+.mk i{display:block;border-radius:50%;border:2px solid #fff;box-shadow:0 0 3px rgba(0,0,0,.5)}
 .leaflet-popup-content{font:13px/1.45 -apple-system,system-ui,sans-serif;margin:10px 13px}
 .leaflet-popup-content b{font-size:14px}
 .pop-open{color:var(--accent);cursor:pointer;font-weight:600}
@@ -246,6 +262,15 @@ footer a{color:var(--brand-dim);text-decoration:underline}
   .linkrow{font-size:15.5px;gap:18px}
   footer{font-size:13px}
   #searchdrop{padding:10px 10px 12px}
+  .dropmenu label{font-size:15px;padding:8px 2px}
+  .dropmenu .dm-t{font-size:13px}
+  .dropmenu .dm-note{font-size:13px}
+  .leaflet-popup-content{font-size:14.5px;line-height:1.5}
+  .pop-open, .curDetail{font-size:14.5px}
+  .times{font-size:14.5px !important}
+  .h-hint{font-size:13px}
+  .h-search input[type=search]{font-size:16px}
+  #cur-label{font-size:13px}
 }
 </style>
 </head>
@@ -256,6 +281,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
     <span class="h-sub" id="datastamp"></span>
     <span class="h-spacer"></span>
     <button id="searchToggle" class="hbtn" title="Zoeken" aria-label="Zoeken"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20.5 20.5l-4.6-4.6"/></svg></button>
+    <button id="tzBtn" class="hbtn tz" title="Tijdzone: NL / UTC / UK">CEST</button>
     <span class="langsw">
       <button class="langbtn" data-lang="nl" title="Nederlands"><svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#21468B"/><rect width="30" height="13.3" fill="#fff"/><rect width="30" height="6.7" fill="#AE1C28"/></svg></button>
       <button class="langbtn" data-lang="en" title="English"><svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#012169"/><path d="M0 0l30 20M30 0L0 20" stroke="#fff" stroke-width="4"/><path d="M0 0l30 20M30 0L0 20" stroke="#C8102E" stroke-width="2"/><path d="M15 0v20M0 10h30" stroke="#fff" stroke-width="7"/><path d="M15 0v20M0 10h30" stroke="#C8102E" stroke-width="4"/></svg></button>
@@ -300,7 +326,9 @@ footer a{color:var(--brand-dim);text-decoration:underline}
     <div id="curbar" hidden>
       <button id="cur-play" title="Afspelen">▶</button>
       <button id="cur-now" data-i18n="cur_now">Nu</button>
+      <button id="cur-prev" class="step" title="-1 uur" aria-label="-1 uur">−1u</button>
       <input type="range" id="cur-slider" min="0" max="71" step="0.04" value="0">
+      <button id="cur-next" class="step" title="+1 uur" aria-label="+1 uur">+1u</button>
       <span id="cur-label">—</span>
     </div>
     <div id="map"></div>
@@ -631,16 +659,7 @@ function telHTML(o){
   return `<a class="tel" href="tel:${esc(t.replace(/[^+\d]/g,""))}" title="Bel ${esc(o.tel? "de bediening" : "de beheerder")}">${esc(t)}</a>`;
 }
 function fmtNlClock(isoUtc){
-  const d = new Date(isoUtc+":00Z");
-  const p = new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Amsterdam",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(d);
-  const g = t => p.find(x=>x.type===t).value;
-  const n = amsNow();
-  const dm = g("day")+"/"+g("month");
-  const nowDm = String(n.d).padStart(2,"0")+"/"+String(n.m).padStart(2,"0");
-  const mo = dayAt(n,1);
-  const moDm = String(mo.d).padStart(2,"0")+"/"+String(mo.m).padStart(2,"0");
-  const pre = dm===nowDm ? "" : (dm===moDm ? T("morgen")+" " : dm+" ");
-  return pre+g("hour")+":"+g("minute");
+  return fmtClockD(new Date(isoUtc+":00Z").getTime());   // opgeslagen als UTC → toon in gekozen zone
 }
 function nextTideTxt(o){
   if (o.t!=="G") return "";
@@ -826,16 +845,8 @@ function fetchUkTides(){
   return ukTidesPromise;
 }
 function fmtUkClock(isoUtc){
-  const d = typeof isoUtc==="number" ? new Date(isoUtc) : new Date(isoUtc+":00Z");
-  const p = new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/London",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(d);
-  const g = t => p.find(x=>x.type===t).value;
-  const now = ukNowParts();
-  const dm = g("day")+"/"+g("month");
-  const nowDm = now.date.slice(8,10)+"/"+now.date.slice(5,7);
-  const morgen = new Date(now.date+"T12:00:00Z"); morgen.setUTCDate(morgen.getUTCDate()+1);
-  const morgenDm = String(morgen.getUTCDate()).padStart(2,"0")+"/"+String(morgen.getUTCMonth()+1).padStart(2,"0");
-  const pre = dm===nowDm ? "" : (dm===morgenDm ? "morgen " : dm+" ");
-  return pre+g("hour")+":"+g("minute");
+  const ms = typeof isoUtc==="number" ? isoUtc : new Date(isoUtc+":00Z").getTime();
+  return fmtClockD(ms);
 }
 async function fetchTide(o){
   const key = o.t+o.id;
@@ -851,17 +862,13 @@ function ukNowParts(){
   return {date:`${g("year")}-${g("month")}-${g("day")}`, h:+g("hour"), m:+g("minute")};
 }
 function fmtTideTime(iso, offMin, todayDate){
+  // iso = Europe/London wandkloktijd (Open-Meteo), + offMin sub-uur → echte UTC → gekozen zone
   const [dpart, tpart] = iso.split("T");
   const [H,M] = tpart.split(":").map(Number);
-  const base = Date.UTC(2000,0,1,H,M) + offMin*60000;
-  const d2 = new Date(base);
-  let dayShift = Math.floor((H*60+M+offMin)/1440);
-  const day = new Date(dpart+"T12:00:00Z"); day.setUTCDate(day.getUTCDate()+dayShift);
-  const dstr = day.toISOString().slice(0,10);
-  const hhmm = String(d2.getUTCHours()).padStart(2,"0")+":"+String(d2.getUTCMinutes()).padStart(2,"0");
-  if (dstr===todayDate) return hhmm;
-  const morgen = new Date(todayDate+"T12:00:00Z"); morgen.setUTCDate(morgen.getUTCDate()+1);
-  return (dstr===morgen.toISOString().slice(0,10) ? T("morgen")+" " : dstr.slice(8,10)+"/"+dstr.slice(5,7)+" ") + hhmm;
+  const [Y,Mo,D] = dpart.split("-").map(Number);
+  const guess = Date.UTC(Y,Mo-1,D,H,M) + offMin*60000;   // London-wandklok als-UTC
+  const ms = guess - zoneOffMin(guess,"Europe/London")*60000;
+  return fmtClockD(ms);
 }
 function wireTideScrub(box, X, Yv, labels, vals){
   const svg = box.querySelector("svg.tidecurve");
@@ -961,7 +968,7 @@ function renderOfficialTide(box, official, refObj){
   box.classList.remove("p-note");
   box.innerHTML = `
     <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px">${chips||`<span class='hinfo'>${T("geen komende kenteringen in de data")}</span>`}</div>
-    <div class="tlegend" style="margin:0 0 8px">${LANG==="en"?`Official Admiralty prediction, station ${esc(official.station)} · height above chart datum (LAT) · times UK local`:`Officiële Admiralty-voorspelling, station ${esc(official.station)} · hoogte boven kaartnul (LAT) · tijden UK-lokaal`}</div>
+    <div class="tlegend" style="margin:0 0 8px">${LANG==="en"?`Official Admiralty prediction, station ${esc(official.station)} · height above chart datum (LAT) · times ${tzShort()}`:`Officiële Admiralty-voorspelling, station ${esc(official.station)} · hoogte boven kaartnul (LAT) · tijden ${tzShort()}`}</div>
     <svg class="tidecurve" viewBox="0 0 ${W} ${Hc}" style="width:100%;height:auto;display:block" role="img" aria-label="Getijcurve uit officiële kenteringen">
       <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2"/>
       ${dots}
@@ -1019,7 +1026,7 @@ async function loadTideInto(o){
       chips = up.map(e=>
         `<span class="tchip${e[1]==="H"?" now":""}"><b>${e[1]==="H"?"HW":"LW"}</b> ${fmtUkClock(e[0])} · ${e[2].toFixed(1).replace(".",",")} m</span>`
       ).join(" ");
-      chipsNote = LANG==="en" ? `Official Admiralty prediction, station ${esc(official.station)} · height above chart datum (LAT) · times UK local` : `Officiële Admiralty-voorspelling, station ${esc(official.station)} · hoogte boven kaartnul (LAT) · tijden UK-lokaal`;
+      chipsNote = LANG==="en" ? `Official Admiralty prediction, station ${esc(official.station)} · height above chart datum (LAT) · times ${tzShort()}` : `Officiële Admiralty-voorspelling, station ${esc(official.station)} · hoogte boven kaartnul (LAT) · tijden ${tzShort()}`;
     }
     if (!chips){
       const upcoming = ext.filter(e=>e.pos>=nowPos).slice(0,4);
@@ -1048,7 +1055,7 @@ async function loadTideInto(o){
         <line x1="${X(nowPos).toFixed(1)}" y1="${PY-4}" x2="${X(nowPos).toFixed(1)}" y2="${Hc-PY+4}" stroke="var(--critical)" stroke-width="1.5"/>
         <text x="${Math.min(X(nowPos)+4, W-30).toFixed(1)}" y="${PY+6}" font-size="10" fill="var(--muted)">${T("nu")}</text>
       </svg>
-      <div class="tlegend">${LANG==="en"?"Curve: next 3 days · Open-Meteo/ECMWF model (rel. to MSL) · times UK local · drag or tap the chart for time and height":"Curve: komende 3 dagen · model Open-Meteo/ECMWF (t.o.v. MSL) · tijden UK-lokaal · sleep of tik op de grafiek voor tijd en hoogte"}</div>
+      <div class="tlegend">${LANG==="en"?`Curve: next 3 days · Open-Meteo/ECMWF model (rel. to MSL) · times ${tzShort()} · drag or tap the chart for time and height`:`Curve: komende 3 dagen · model Open-Meteo/ECMWF (t.o.v. MSL) · tijden ${tzShort()} · sleep of tik op de grafiek voor tijd en hoogte`}</div>
       <details class="tlex">
         <summary>${LANG==="en"?(chipsNote?"About this tide data":"Why is this not an official tide table?"):(chipsNote?"Over deze getijgegevens":"Waarom is dit geen officiële getijtafel?")}</summary>
         ${chipsNote?`<p>De HW/LW-tijden en -hoogtes hierboven zijn de <b>officiële Admiralty-voorspellingen</b> van de UK Hydrographic Office (station ${esc(official.station)}) — dezelfde bron als de getijtafels in je almanak, met hoogtes boven kaartnul (LAT). Ze worden dagelijks ververst en beslaan 7 dagen vooruit.</p><p>De <b>curve</b> eronder blijft een modelverwachting (ECMWF via Open-Meteo, t.o.v. gemiddeld zeeniveau) en dient alleen om het ritme te zien — de hoogtes van curve en chips zijn dus niet 1-op-1 vergelijkbaar.</p>`:`<p>Deze verwachting komt uit een wereldwijd getijde-/oceaanmodel (ECMWF, via Open-Meteo), berekend voor het modelpunt op zee dat het dichtst bij deze haven ligt — niet uit de officiële getijtafels van de UK Hydrographic Office voor deze specifieke haven.</p>`}
@@ -1063,6 +1070,7 @@ async function loadTideInto(o){
   }
 }
 function openHarbourDetail(o){
+  panelRefresh = ()=>openHarbourDetail(o);
   const sec = [];
   if (o.access) sec.push(`<div class="p-sec"><h3>${T("Toegang & getijdenvenster")}</h3><p style="margin:0">${esc(o.access)}</p></div>`);
   if (o.lock) sec.push(`<div class="p-sec"><h3>${T("Sluis")}</h3><p style="margin:0">${esc(o.lock)}</p></div>`);
@@ -1103,6 +1111,7 @@ function openHarbourDetail(o){
   loadTideInto(o);
 }
 function openTideStationDetail(o){
+  panelRefresh = ()=>openTideStationDetail(o);
   if (o.uk){
     // officieel Admiralty-station
     $("#panel").innerHTML = `
@@ -1167,7 +1176,7 @@ function openTideStationDetail(o){
     </div>
     <div class="p-sec"><h3>${T("Getij (astronomisch)")}</h3>
       <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px">${chips||`<span class='hinfo'>${T("geen verwachtingen beschikbaar — ververs vannacht")}</span>`}</div>
-      <div class="tlegend" style="margin:0 0 8px">${LANG==="en"?`Official astronomical tide prediction by Rijkswaterstaat · height rel. to NAP · times NL local · refreshed ${esc(checked)}`:`Officiële astronomische getijverwachting Rijkswaterstaat · hoogte t.o.v. NAP · tijden NL-tijd · ververst ${esc(checked)}`}</div>
+      <div class="tlegend" style="margin:0 0 8px">${LANG==="en"?`Official astronomical tide prediction by Rijkswaterstaat · height rel. to NAP · times ${tzShort()} · refreshed ${esc(checked)}`:`Officiële astronomische getijverwachting Rijkswaterstaat · hoogte t.o.v. NAP · tijden ${tzShort()} · ververst ${esc(checked)}`}</div>
       ${curve}
       ${stationRow({lat:o.lat, lon:o.lon, station:s.n}, null)}
       <details class="tlex">
@@ -1198,6 +1207,7 @@ function openTideStationDetail(o){
 function openDetail(o){
   if (o.t==="H"){ openHarbourDetail(o); return; }
   if (o.t==="G"){ openTideStationDetail(o); return; }
+  panelRefresh = ()=>openDetail(o);
   const st = statusFor(o);
   const ot = DATA.ot[o.ot];
   const n = amsNow();
@@ -1274,7 +1284,7 @@ function openDetail(o){
   // kaart meteen naar het object zoomen terwijl de details tonen
   if (map){ map.setView([o.lat,o.lon], Math.max(map.getZoom(), 15), {animate:false}); highlightOnMap(o); }
 }
-function closeDetail(){ $("#panel").classList.remove("open"); $("#ovl").classList.remove("open"); }
+function closeDetail(){ $("#panel").classList.remove("open"); $("#ovl").classList.remove("open"); panelRefresh = null; }
 
 /* ---------- kaart ---------- */
 let map=null, cluster=null, stremLayer=null, meMarker=null, watchId=null, onlyBedien=false, showStrem=false;
@@ -1304,6 +1314,42 @@ function initMap(){
   initCurrents();
 }
 
+/* ---------- globale tijdzone (NL / UTC / UK) ---------- */
+const TZ_MODES = ["nl","utc","uk"];
+const TZ_ZONE = { nl:"Europe/Amsterdam", utc:"UTC", uk:"Europe/London" };
+let TZ = "nl";
+try { const s = JSON.parse(localStorage.getItem("bs_tz")||'""'); if (TZ_MODES.includes(s)) TZ = s; } catch(_){}
+let panelRefresh = null;   // her-render de open detail/getij-sectie na tijdzonewissel
+function zoneOffMin(ms, zone){
+  const s = new Intl.DateTimeFormat("en-US",{timeZone:zone,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).format(new Date(ms));
+  const [dt,tm] = s.split(", "); const [mo,da,yr] = dt.split("/").map(Number); const [hh,mm,ss] = tm.split(":").map(Number);
+  return Math.round((Date.UTC(yr,mo-1,da,hh,mm,ss) - Math.floor(ms/1000)*1000)/60000);
+}
+function tzAbbr(ms){
+  if (TZ==="utc") return "UTC/GMT";
+  if (TZ==="nl")  return zoneOffMin(ms,"Europe/Amsterdam")===120 ? "CEST" : "CET";
+  return zoneOffMin(ms,"Europe/London")===60 ? "BST" : "GMT";
+}
+function tzShort(ms){ const ref = ms==null?Date.now():ms; return TZ==="utc" ? "UTC" : tzAbbr(ref); }
+function fmtClock(ms){ return new Intl.DateTimeFormat("en-GB",{timeZone:TZ_ZONE[TZ],hour:"2-digit",minute:"2-digit",hour12:false}).format(new Date(ms)); }
+function zoneDateStr(ms){ return new Intl.DateTimeFormat("en-CA",{timeZone:TZ_ZONE[TZ],year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(ms)); }
+/* HH:MM met "morgen"/datum-prefix in de gekozen zone */
+function fmtClockD(ms){
+  const clk = fmtClock(ms), dd = zoneDateStr(ms), today = zoneDateStr(Date.now());
+  if (dd===today) return clk;
+  if (dd===zoneDateStr(Date.now()+86400000)) return T("morgen")+" "+clk;
+  return dd.slice(8,10)+"/"+dd.slice(5,7)+" "+clk;
+}
+function setTZ(mode){
+  if (!TZ_MODES.includes(mode) || mode===TZ) return;
+  TZ = mode;
+  try { localStorage.setItem("bs_tz", JSON.stringify(mode)); } catch(_){}
+  updateTZBtn();
+  if (window.Currents && Currents.getTimes && Currents.getTimes()){ const el=$("#cur-label"); if(el) el.textContent = curFmtLabel(Currents.getTFloat()); }
+  if (panelRefresh) panelRefresh();
+}
+function updateTZBtn(){ const b=$("#tzBtn"); if (b) b.textContent = tzShort(); }
+
 /* ---------- getijdestroom-lagen (currents.js) ---------- */
 let curInited = false;
 function amsOffsetMin(ms){
@@ -1321,9 +1367,8 @@ function curMs(tf){
 function hhmm(ms, tz){ return new Intl.DateTimeFormat("en-GB",{timeZone:tz,hour:"2-digit",minute:"2-digit",hour12:false}).format(new Date(ms)); }
 function curFmtLabel(tf){
   const ms = curMs(tf); if (ms==null) return "—";
-  const dstr = new Intl.DateTimeFormat(LANG==="en"?"en-GB":"nl-NL",{timeZone:"UTC",weekday:"short",day:"numeric",month:"short"}).format(new Date(ms));
-  const abbr = amsOffsetMin(ms)===120 ? "CEST" : "CET";
-  return `${dstr} · ${hhmm(ms,"UTC")} UTC/GMT · ${hhmm(ms,"Europe/Amsterdam")} ${abbr}`;
+  const dstr = new Intl.DateTimeFormat(LANG==="en"?"en-GB":"nl-NL",{timeZone:TZ_ZONE[TZ],weekday:"short",day:"numeric",month:"short"}).format(new Date(ms));
+  return `${dstr} · ${fmtClock(ms)} ${tzAbbr(ms)}`;
 }
 function initCurrents(){
   if (curInited) return;
@@ -1358,6 +1403,9 @@ function initCurrents(){
   document.addEventListener("click", e => { if (!e.target.closest("#lagenmenu") && !e.target.closest("#mb-lagen")) $("#lagenmenu").hidden = true; });
   $("#cur-slider").addEventListener("input", ()=>{ Currents.setPlaying(false); Currents.setTime(+$("#cur-slider").value); $("#cur-play").textContent="▶"; });
   $("#cur-now").addEventListener("click", ()=>{ Currents.setPlaying(false); Currents.setTime(Currents.nowIndex()); $("#cur-play").textContent="▶"; });
+  const stepBy = h => { Currents.setPlaying(false); Currents.setTime(Math.max(0, Math.min(Currents.NHOURS-1, Math.round(Currents.getTFloat())+h))); $("#cur-play").textContent="▶"; };
+  $("#cur-prev").addEventListener("click", ()=>stepBy(-1));
+  $("#cur-next").addEventListener("click", ()=>stepBy(1));
   $("#cur-play").addEventListener("click", ()=>{ Currents.setPlaying(!Currents.isPlaying()); $("#cur-play").textContent = Currents.isPlaying()?"❚❚":"▶"; });
   // klik op zee → stroom-info (met doorklik naar detailpaneel)
   map.on("click", e=>{
@@ -1385,6 +1433,7 @@ function curDirCardinal(deg){
   return { abbr:(LANG==="en"?enAbbr:nlAbbr)[i], word:(LANG==="en"?enWord:nlWord)[i] };
 }
 function openCurrentDetail(lat, lon){
+  panelRefresh = ()=>openCurrentDetail(lat, lon);
   const now = Currents.pointNow(lat, lon);
   const series = Currents.pointSeries(lat, lon);
   const times = Currents.getTimes();
@@ -1396,10 +1445,9 @@ function openCurrentDetail(lat, lon){
     for (let i=nowIdx; i<Math.min(nowIdx+13, series.length); i++){
       const s = series[i]; if (!s) continue;
       const ms = times[i]*1000, c = curDirCardinal(s.dirTo);
-      rows += `<tr${i===nowIdx?' style="font-weight:650"':''}><td>${hhmm(ms,"UTC")}</td><td>${hhmm(ms,"Europe/Amsterdam")}</td><td>${(s.kmh/1.852).toFixed(1)} kn</td><td>${c.abbr} ${Math.round(s.dirTo)}°</td></tr>`;
+      rows += `<tr${i===nowIdx?' style="font-weight:650"':''}><td>${fmtClock(ms)}</td><td>${(s.kmh/1.852).toFixed(1)} kn</td><td>${c.abbr} ${Math.round(s.dirTo)}°</td></tr>`;
     }
   }
-  const abbr = now ? (amsOffsetMin(curMs(Currents.getTFloat()))===120?"CEST":"CET") : "";
   $("#panel").innerHTML = `
     <button class="p-close" id="pclose">${T({nl:"sluiten ✕",en:"close ✕"})}</button>
     <div class="p-h">${T({nl:"Getijstroom",en:"Tidal current"})}</div>
@@ -1410,7 +1458,7 @@ function openCurrentDetail(lat, lon){
       <div class="tlegend" style="margin-top:6px">${curFmtLabel(Currents.getTFloat())}</div></div>`
       : `<div class="p-note">${T({nl:"Geen stroomdata op dit punt (land of buiten het model).",en:"No current data here (land or outside the model)."})}</div>`}
     ${rows ? `<div class="p-sec"><h3>${T({nl:"Verwachting (12 uur)",en:"Forecast (12 h)"})}</h3>
-      <table class="times" style="font-size:13px"><tr style="color:var(--muted)"><td>UTC</td><td>${abbr}</td><td>${T({nl:"snelheid",en:"speed"})}</td><td>${T({nl:"richting",en:"dir"})}</td></tr>${rows}</table></div>` : ""}
+      <table class="times" style="font-size:13px"><tr style="color:var(--muted)"><td>${T({nl:"tijd",en:"time"})} (${tzShort()})</td><td>${T({nl:"snelheid",en:"speed"})}</td><td>${T({nl:"richting",en:"dir"})}</td></tr>${rows}</table></div>` : ""}
     <div class="p-note">${T({nl:"Astronomische getijstroom (Copernicus). Wind kan de werkelijke stroom beïnvloeden.",en:"Astronomical tidal current (Copernicus). Wind can affect the actual current."})}</div>`;
   $("#panel").classList.add("open"); $("#ovl").classList.add("open");
   $("#pclose").onclick = closeDetail;
@@ -1439,12 +1487,15 @@ function buildHarbourLayer(){
 function buildMarkers(){
   cluster.clearLayers();
   const ms = [];
+  const touch = matchMedia("(pointer:coarse)").matches;
+  const box = touch ? 34 : 22;                 // groot (onzichtbaar) tikvlak
   for (const o of DATA.objs){
     if (o.t==="H" || o.t==="G") continue;
     if (onlyBedien && !o.open) continue;
-    const m = L.circleMarker([o.lat, o.lon], {
-      radius: o.open?7:5, weight:2, color:"#ffffff", fillColor: markerColor(o), fillOpacity:0.95
-    });
+    const d = o.open ? 13 : 10;                 // kleine zichtbare stip
+    const icon = L.divIcon({ className:"", iconSize:[box,box], iconAnchor:[box/2,box/2],
+      html:`<span class="mk"><i style="width:${d}px;height:${d}px;background:${markerColor(o)}"></i></span>` });
+    const m = L.marker([o.lat, o.lon], {icon});
     m.bindPopup(`<b>${esc(o.n)}</b><br>${o.t==="B"?"brug":"sluis"}${o.c?" · "+esc(o.c):""}<br><span class="pop-open" data-open="${o.t}${o.id}">${T("details →")}</span>`);
     ms.push(m);
   }
@@ -1607,6 +1658,12 @@ document.addEventListener("click", e=>{
   }
 });
 applyStaticLang();
+updateTZBtn();
+// globale tijdzone-knop: NL → UTC → UK → NL
+$("#tzBtn").addEventListener("click", e=>{
+  e.stopPropagation();
+  setTZ(TZ_MODES[(TZ_MODES.indexOf(TZ)+1)%TZ_MODES.length]);
+});
 // vergrootglas: zoekbalk in-/uitklappen
 $("#searchToggle").addEventListener("click", e=>{
   e.stopPropagation();
