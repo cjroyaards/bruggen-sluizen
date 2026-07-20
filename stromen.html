@@ -100,7 +100,7 @@
   <label><input type="checkbox" id="cbCmems"> Copernicus kleurlaag</label>
 </div>
 
-<div id="legend" class="panel">
+<div id="legend" class="panel" style="display:none">
   <div class="t">Stroomsnelheid</div>
   <div class="bar"></div>
   <div class="ticks"><span>0</span><span>0,5</span><span>1</span><span>1,5</span><span>2</span><span>≥2,5 kn</span></div>
@@ -119,11 +119,18 @@ const WMTS = 'https://wmts.marine.copernicus.eu/teroWmts?SERVICE=WMTS&REQUEST=Ge
   + '&TILEMATRIXSET=EPSG:3857&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/png';
 
 /* ================= kaart ================= */
-const map = L.map('map', { center: [55.2, 2.5], zoom: 6, minZoom: 4, maxZoom: 11, zoomControl: true });
+const map = L.map('map', { center: [51.65, 3.75], zoom: 8, minZoom: 4, maxZoom: 11, zoomControl: true });
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-bijdragers · stromingen: <a href="https://marine.copernicus.eu/">Copernicus Marine Service</a> (NWS 1,5 km / SMOC via <a href="https://open-meteo.com/">Open-Meteo</a>)'
 }).addTo(map);
+// panelen in de kaartcontainer (onder de header) + niet door de kaart laten wegvangen
+['layersPanel', 'legend'].forEach(id => {
+  const el = document.getElementById(id);
+  map.getContainer().appendChild(el);
+  L.DomEvent.disableClickPropagation(el);
+  L.DomEvent.disableScrollPropagation(el);
+});
 
 function isoHour(unixSec) { return new Date(unixSec * 1000).toISOString().replace(/\.\d{3}Z$/, '.000Z'); }
 
@@ -394,8 +401,13 @@ function drawArrows() {
   ctx.globalAlpha = 1;
   for (let x = step * 0.6; x < sz.x; x += step) {
     for (let y = step * 0.6; y < sz.y; y += step) {
+      // kustlijn: fijn kleurlaag-masker (land = transparant); val terug op grid-masker
+      if (maskData) {
+        const mx = x | 0, my = y | 0;
+        if (mx < 0 || my < 0 || mx >= maskW || my >= maskH || maskData[(my * maskW + mx) * 4 + 3] <= 25) continue;
+      }
       const ll = map.containerPointToLatLng([x, y]);
-      const uv = sampleUVarrow(ll.lat, ll.lng, tFloat);
+      const uv = maskData ? sampleUV(ll.lat, ll.lng, tFloat) : sampleUVarrow(ll.lat, ll.lng, tFloat);
       if (!uv) continue;
       const u = uv[0], v = uv[1], kmh = Math.hypot(u, v);
       if (kmh < 0.05) continue;
@@ -526,9 +538,10 @@ function syncLayers() {
   lastWmtsHour = hr;
   particlesOn = $('cbParticles').checked;
   arrowsOn = $('cbArrows').checked;
-  ensureMask(particlesOn);                // kustlijnmasker (kleurlaag) alleen laden bij deeltjes
-  if (particlesOn) scheduleMaskRedraw();
+  ensureMask(particlesOn || arrowsOn);    // kustlijnmasker (kleurlaag) laden bij deeltjes én eigen pijlen
+  if (particlesOn || arrowsOn) scheduleMaskRedraw();
   canvas.style.display = (particlesOn || arrowsOn) ? 'block' : 'none';
+  document.getElementById('legend').style.display = (particlesOn || arrowsOn) ? 'block' : 'none';
   if (particlesOn) resetParticles();
 }
 ['cbParticles', 'cbCmems', 'cbArrows', 'cbWmts'].forEach(id => $(id).addEventListener('change', syncLayers));
