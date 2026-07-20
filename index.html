@@ -313,7 +313,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
       <button class="mapbtn" id="mb-bedien" data-i18n="mb_bedien">Alleen bedienbaar</button>
       <button class="mapbtn" id="mb-strem"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 22 21H2Z"/><path d="M12 10v5"/><path d="M12 18.2v.1"/></svg><span data-i18n="mb_strem">Stremmingen</span></button>
       <button class="mapbtn" id="mb-locate"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="2.2"/></svg><span data-i18n="mb_locate">Volg mij</span></button>
-      <button class="mapbtn" id="mb-uk" data-i18n="mb_uk">UK havens</button>
+      <button class="mapbtn" id="mb-uk" data-i18n="mb_uk">Kusthavens</button>
       <div class="dropwrap">
         <button class="mapbtn" id="mb-lagen"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5Z"/><path d="M3 13l9 5 9-5"/></svg><span data-i18n="mb_lagen">Stromen</span> ▾</button>
         <div id="lagenmenu" class="dropmenu" hidden>
@@ -356,7 +356,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
         <span class="k">Scheepvaartberichten</span><span>Actuele en aangekondigde stremmingen en beperkingen, met doorklik naar het volledige bericht op vaarweginformatie.nl.</span>
         <span class="k">Masthoogte-check</span><span>Vul je masthoogte in (vergrootglas → mast); vaste bruggen die te laag zijn krijgen dan een waarschuwing.</span>
         <span class="k">Getij NL &amp; UK</span><span>Hoog- en laagwatertijden en -hoogtes plus een getijcurve, voor Nederlandse en Britse getijstations.</span>
-        <span class="k">UK-kusthavens</span><span>48 geselecteerde havens langs de Engelse kust met toegang en getijdenvenster.</span>
+        <span class="k">Kusthavens UK &amp; BE</span><span>Geselecteerde havens langs de Engelse én Belgische kust (Nieuwpoort, Oostende, Blankenberge, Zeebrugge) met toegang, getijdenvenster, marifoon en sluis-/bruginfo.</span>
         <span class="k">Getijstroom Noordzee</span><span>Stroomrichting en -snelheid als pijlen, kleurlaag en deeltjesanimatie, met een tijdlijn tot 72 uur vooruit en klik-op-zee voor richting/snelheid op een punt.</span>
         <span class="k">Handig</span><span>Favorieten (☆), zoeken op naam/plaats/vaarweg, en een tijdzoneknop (NL / UTC-GMT / UK) die alle tijden meteen omzet.</span>
       </div>
@@ -420,6 +420,7 @@ const EN = {
  "vaste brug":"fixed bridge","geen bediening":"no operation","stremming gemeld":"closure reported",
  "beperking gemeld":"restriction reported","beperking":"restriction","bediening — tijden onbekend":"operated — times unknown",
  "geen periode gevonden":"no period found","let op bericht":"see notice","UK kusthaven":"UK coastal harbour",
+ "Belgische kusthaven":"Belgian coastal harbour","kusthaven":"coastal harbour",
  "getijstation":"tide station","brug":"bridge","sluis":"lock","haven":"harbour","getij":"tide",
  "beweegbaar dicht":"opening closed clearance","vast deel":"fixed span","breedte":"width","kolk":"chamber",
  "aangekondigd":"announced","sinds":"since","gepland / periodiek":"planned / periodic","bericht ↗":"notice ↗",
@@ -467,7 +468,7 @@ async function fetchGz(url){
 }
 let UKCHECKED = "";
 let NLTIDES = null;
-const AREALBL = {oostkust:"Engelse oostkust", theems:"Theems & Medway", zuidkust:"Sussex & Kent", solent:"Solent & westkust"};
+const AREALBL = {oostkust:"Engelse oostkust", theems:"Theems & Medway", zuidkust:"Sussex & Kent", solent:"Solent & westkust", "belgische kust":"Belgische kust"};
 async function loadData(){
   const [stat, st, uk, nlt] = await Promise.all([
     fetchGz("data/static.json.gz"),
@@ -478,7 +479,7 @@ async function loadData(){
   DATA = stat; STREM = st.strem; STREMTS = st.ts;
   UKCHECKED = uk.checked || "";
   for (const h of uk.harbours||[]){
-    h.c = "UK"; h.fw = AREALBL[h.area] || "UK kust";
+    h.c = h.co || "UK"; h.fw = AREALBL[h.area] || (h.c==="BE" ? "Belgische kust" : "UK kust");
     DATA.objs.push(h);
   }
   NLTIDES = nlt;
@@ -1124,9 +1125,9 @@ function openHarbourDetail(o){
   $("#panel").innerHTML = `
     <button class="p-close" id="pclose">${T("sluiten ✕")}</button>
     <div class="p-h">${esc(o.n)} <button class="star big ${favs.has(o.t+o.id)?"on":""}" data-fav="${o.t}${o.id}" title="${T("Favoriet")}">${STARSVG}</button></div>
-    <div class="p-sub">${T("UK kusthaven")} · ${esc(o.fw)}</div>
+    <div class="p-sub">${harbLabel(o)} · ${esc(o.fw)}</div>
     <div class="row2" style="margin-top:0">
-      <span class="chip mut"><span class="dot mut"></span>${T("UK kusthaven")}</span>
+      <span class="chip mut"><span class="dot mut"></span>${harbLabel(o)}</span>
       ${o.vhf&&o.vhf.length?`<span class="vhf">VHF ${o.vhf.join(", ")}</span>`:""}
       ${telHTML(o)}
       <a href="#" class="tel showOnMap">${T("toon op kaart")}</a>
@@ -1522,6 +1523,7 @@ function openCurrentDetail(lat, lon){
   $("#pclose").onclick = closeDetail;
 }
 const ANCHORSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="5.5" r="2.3"/><path d="M12 8v12"/><path d="M5 13c0 4.5 3 7 7 7s7-2.5 7-7"/><path d="M8.5 11.5h7"/></svg>`;
+function harbLabel(o){ return o.c==="BE" ? T("Belgische kusthaven") : T("UK kusthaven"); }
 let harbourLayer = null;
 function buildHarbourLayer(){
   if (harbourLayer) return;
@@ -1531,7 +1533,7 @@ function buildHarbourLayer(){
     if (o.t==="H"){
       const icon = L.divIcon({className:"", html:`<div class="harb-pin">${ANCHORSVG}</div>`, iconSize:[22,22], iconAnchor:[11,11]});
       L.marker([o.lat,o.lon], {icon, zIndexOffset:400})
-        .bindPopup(`<b>${esc(o.n)}</b><br>${T("UK kusthaven")} · ${esc(o.fw)}<br><span class="pop-open" data-open="${o.t}${o.id}">${T("details →")}</span>`)
+        .bindPopup(`<b>${esc(o.n)}</b><br>${harbLabel(o)} · ${esc(o.fw)}<br><span class="pop-open" data-open="${o.t}${o.id}">${T("details →")}</span>`)
         .addTo(harbourLayer);
     } else if (o.t==="G"){
       const icon = L.divIcon({className:"", html:`<div class="harb-pin tide">${WAVESVG}</div>`, iconSize:[22,22], iconAnchor:[11,11]});
@@ -1665,7 +1667,7 @@ $("#mb-uk").onclick = ()=>{
 
 const STATIC_EN = {
   tab_kaart:"Map", tab_fav:"Favourites", tab_strem:"Closures",
-  mb_all:"All objects", mb_bedien:"Operable only", mb_strem:"Closures", mb_locate:"Follow me", mb_uk:"UK harbours",
+  mb_all:"All objects", mb_bedien:"Operable only", mb_strem:"Closures", mb_locate:"Follow me", mb_uk:"Coastal harbours",
   mb_lagen:"Currents", dm_title:"Tidal current (Copernicus)", dm_arrows:"Copernicus arrows (sharp)", dm_own:"Own arrows (smooth)", dm_particles:"Particle animation", dm_color:"Colour layer (speed)", cur_now:"Now",
 };
 function applyStaticLang(){
@@ -1692,7 +1694,7 @@ function applyStaticLang(){
         <span class="k">Notices to skippers</span><span>Current and announced closures and restrictions, with a link through to the full notice on vaarweginformatie.nl.</span>
         <span class="k">Mast-height check</span><span>Enter your mast height (magnifier → mast); fixed bridges that are too low then get a warning.</span>
         <span class="k">Tides NL &amp; UK</span><span>High- and low-water times and heights plus a tide curve, for Dutch and British tide stations.</span>
-        <span class="k">UK coastal harbours</span><span>48 curated harbours along the English coast with access and tidal window.</span>
+        <span class="k">Coastal harbours UK &amp; BE</span><span>Curated harbours along the English and Belgian coast (Nieuwpoort, Ostend, Blankenberge, Zeebrugge) with access, tidal window, VHF and lock/bridge info.</span>
         <span class="k">North Sea currents</span><span>Current direction and speed as arrows, colour layer and particle animation, with a timeline up to 72 h ahead and tap-the-sea for direction/speed at a point.</span>
         <span class="k">Handy</span><span>Favourites (☆), search by name/place/waterway, and a time-zone button (NL / UTC-GMT / UK) that converts all times instantly.</span>
       </div>
@@ -1778,8 +1780,8 @@ loadData().then(()=>{
   if (oc){
     const nB=DATA.objs.filter(o=>o.t==="B").length, nS=DATA.objs.filter(o=>o.t==="S").length, nH=DATA.objs.filter(o=>o.t==="H").length;
     oc.textContent = LANG==="en"
-      ? `${nB} bridges · ${nS} locks · ${nH} UK harbours · ${STREM.length} live notices`
-      : `${nB} bruggen · ${nS} sluizen · ${nH} UK-kusthavens · ${STREM.length} actuele berichten`;
+      ? `${nB} bridges · ${nS} locks · ${nH} coastal harbours (UK/BE) · ${STREM.length} live notices`
+      : `${nB} bruggen · ${nS} sluizen · ${nH} kusthavens (UK/BE) · ${STREM.length} actuele berichten`;
   }
   const m = readStore("bs_mast", null);
   if (m!=null) $("#mast").value = m;
