@@ -1398,7 +1398,7 @@ function initMap(){
   }).addTo(map);
   // panes voor de zeekaartmodus: diepte < iENC < zeekaart-symbolen (tussen basiskaart 200 en overlays 400)
   map.createPane("depthPane"); map.getPane("depthPane").style.zIndex = 250;
-  map.createPane("bathyPane"); map.getPane("bathyPane").style.zIndex = 260;
+  map.createPane("bathyPane"); map.getPane("bathyPane").style.zIndex = 270;
   map.createPane("depthLinePane"); map.getPane("depthLinePane").style.zIndex = 265;
   map.createPane("iencPane");  map.getPane("iencPane").style.zIndex = 300;
   map.createPane("seaPane");   map.getPane("seaPane").style.zIndex = 350;
@@ -1848,7 +1848,9 @@ function setZeeChart(on){
     baseLight.addTo(map);
     if (chartDepthGeo) drawChartDepth(chartDepthGeo);
     else fetch("data/depth_chart.geojson?v=20260721c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ chartDepthGeo=gj; if(zeechartView){ drawChartDepth(gj); if(window.updateLegend) updateLegend(); } }).catch(()=>{});
-    // (RWS-bodemhoogte kleurraster uitgezet — groen/paars ongewenst; blauwe EMODnet-stijl blijft)
+    // RWS-bodemhoogte (20 m) live in de browser herkleurd naar blauw + fijne contourlijnen (NL); EMODnet vult kust/zee/UK
+    if (window.makeRwsDepthLayer){ if(!rwsBathy) rwsBathy = makeRwsDepthLayer({pane:"bathyPane"}); rwsBathy.addTo(map); }
+    else loadScriptOnce("rwsdepth.js", ()=>{ if(zeechartView && window.makeRwsDepthLayer){ rwsBathy = makeRwsDepthLayer({pane:"bathyPane"}); rwsBathy.addTo(map); } });
     if (depthGeo) drawChartLines(depthGeo);
     else fetch("data/depth.geojson?v=20260721c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ depthGeo=gj; if(zeechartView) drawChartLines(gj); }).catch(()=>{});
     if (!iencLayer) iencLayer = L.tileLayer.wms("https://geo.rijkswaterstaat.nl/arcgis/rest/services/ENC/mcs_inland/MapServer/exts/MaritimeChartService/WMSServer",
