@@ -399,6 +399,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
         <span class="k">Getij NL &amp; UK</span><span>Hoog- en laagwatertijden en -hoogtes plus een getijcurve, voor Nederlandse en Britse getijstations.</span>
         <span class="k">Kusthavens UK &amp; BE</span><span>Geselecteerde havens langs de Engelse én Belgische kust (Nieuwpoort, Oostende, Blankenberge, Zeebrugge) met toegang, getijdenvenster, marifoon en sluis-/bruginfo.</span>
         <span class="k">Getijstroom Noordzee</span><span>Stroomrichting en -snelheid als pijlen, kleurlaag en deeltjesanimatie, met een tijdlijn tot 72 uur vooruit en klik-op-zee voor richting/snelheid op een punt.</span>
+        <span class="k">Windvoorspelling</span><span>Windpijlen, deeltjes en een kleurlaag (Beaufort), zelfde tijdlijn als de stroming; tik op de kaart voor windsnelheid (kn), Beaufort en richting waar de wind vandaan komt.</span>
         <span class="k">Handig</span><span>Favorieten (☆), zoeken op naam/plaats/vaarweg, en een tijdzoneknop (NL / UTC-GMT / UK) die alle tijden meteen omzet.</span>
       </div>
     </div>
@@ -424,6 +425,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
         <span class="k">Getij Nederland</span><span>Rijkswaterstaat WaterWebservices (waterinfo) — astronomische voorspelling, hoogtes t.o.v. <b>NAP</b>.</span>
         <span class="k">Getij Verenigd Koninkrijk</span><span>UK Hydrographic Office — Admiralty-voorspellingen, hoogtes boven <b>kaartnul (LAT)</b>.</span>
         <span class="k">Getijstroom</span><span>Copernicus Marine Service (NWShelf-model, ~1,5 km) voor de pijlen en kleurlaag; het stroomveld voor eigen pijlen/deeltjes via Open-Meteo (zelfde Copernicus-model).</span>
+        <span class="k">Wind</span><span>Open-Meteo — open weermodeldata (o.a. <b>GFS</b> van NOAA en <b>ICON</b> van DWD; dezelfde modellen die ook in GRIB-bestanden zitten). 10&nbsp;m-windsnelheid, -richting en windstoten, uurlijks tot 72&nbsp;uur vooruit, live in je browser opgehaald. Modelvoorspelling — geen waarneming; bij hard weer kan de werkelijke wind afwijken.</span>
         <span class="k">Getijcurve UK-havens</span><span>Waar geen officieel Admiralty-station is: modelcurve van Open-Meteo/ECMWF (t.o.v. gemiddeld zeeniveau) — alleen om het ritme te zien.</span>
         <span class="k">Diepte</span><span>EMODnet Bathymetry — het Europese Digital Terrain Model (DTM 2024, ~115&nbsp;m raster), herleid tot dieptelijnen en gearceerde banden. Dieptes t.o.v. <b>kaartnul (LAT)</b> — hetzelfde nulvlak als een zeekaart, dus aan de veilige (ondiepe) kant.</span>
         <span class="k">Diepte — actualiteit</span><span>EMODnet brengt het DTM ongeveer eens per twee jaar uit (…, 2020, 2022, 2024); de 2024-versie verscheen in maart 2025. Het is dus een samengesteld, periodiek bijgewerkt model — geen live meting.</span>
@@ -1921,6 +1923,7 @@ function applyStaticLang(){
         <span class="k">Tides NL &amp; UK</span><span>High- and low-water times and heights plus a tide curve, for Dutch and British tide stations.</span>
         <span class="k">Coastal harbours UK &amp; BE</span><span>Curated harbours along the English and Belgian coast (Nieuwpoort, Ostend, Blankenberge, Zeebrugge) with access, tidal window, VHF and lock/bridge info.</span>
         <span class="k">North Sea currents</span><span>Current direction and speed as arrows, colour layer and particle animation, with a timeline up to 72 h ahead and tap-the-sea for direction/speed at a point.</span>
+        <span class="k">Wind forecast</span><span>Wind arrows, particles and a colour layer (Beaufort), same timeline as the current; tap the map for wind speed (kn), Beaufort and the direction the wind comes from.</span>
         <span class="k">Handy</span><span>Favourites (☆), search by name/place/waterway, and a time-zone button (NL / UTC-GMT / UK) that converts all times instantly.</span>
       </div>
     </div>
@@ -1946,6 +1949,7 @@ function applyStaticLang(){
         <span class="k">Tides Netherlands</span><span>Rijkswaterstaat WaterWebservices (waterinfo) — astronomical prediction, heights relative to <b>NAP</b>.</span>
         <span class="k">Tides United Kingdom</span><span>UK Hydrographic Office — Admiralty predictions, heights above <b>chart datum (LAT)</b>.</span>
         <span class="k">Tidal current</span><span>Copernicus Marine Service (NWShelf model, ~1.5 km) for the arrows and colour layer; the current field for own arrows/particles via Open-Meteo (same Copernicus model).</span>
+        <span class="k">Wind</span><span>Open-Meteo — open weather-model data (incl. <b>GFS</b> from NOAA and <b>ICON</b> from DWD; the same models found in GRIB files). 10&nbsp;m wind speed, direction and gusts, hourly up to 72&nbsp;h ahead, fetched live in your browser. Model forecast — not an observation; in heavy weather the real wind may differ.</span>
         <span class="k">Tide curve, UK harbours</span><span>Where there is no official Admiralty station: model curve from Open-Meteo/ECMWF (rel. to mean sea level) — only to show the rhythm.</span>
         <span class="k">Depth</span><span>EMODnet Bathymetry — the European Digital Terrain Model (DTM 2024, ~115&nbsp;m grid), reduced to contour lines and shaded bands. Depths relative to <b>chart datum (LAT)</b> — the same reference as a nautical chart, so on the safe (shallow) side.</span>
         <span class="k">Depth — how current</span><span>EMODnet releases the DTM roughly every two years (…, 2020, 2022, 2024); the 2024 version appeared in March 2025. It is a compiled, periodically updated model — not a live measurement.</span>
