@@ -1853,7 +1853,7 @@ function setZeeChart(on){
     if (depthGeo) drawChartLines(depthGeo);
     else fetch("data/depth.geojson?v=20260721c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ depthGeo=gj; if(zeechartView) drawChartLines(gj); }).catch(()=>{});
     if (!iencLayer) iencLayer = L.tileLayer.wms("https://geo.rijkswaterstaat.nl/arcgis/rest/services/ENC/mcs_inland/MapServer/exts/MaritimeChartService/WMSServer",
-      { layers:"0", format:"image/png", transparent:true, version:"1.3.0", maxZoom:19, pane:"iencPane", attribution:'Vaarwegkaart: © Rijkswaterstaat iENC (CC-0)' });
+      { layers:"0", format:"image/png", transparent:true, version:"1.3.0", minZoom:12, maxZoom:19, pane:"iencPane", attribution:'Vaarwegkaart: © Rijkswaterstaat iENC (CC-0)' });
     iencLayer.addTo(map);
     if (!seaChartLayer) seaChartLayer = L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",
       { maxZoom:18, pane:"seaPane", attribution:'© OpenSeaMap' });
