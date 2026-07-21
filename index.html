@@ -348,7 +348,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
           <label><input type="radio" name="depthset" value="ondiep"> <span data-i18n="ds_shal">Ondiep — 1 / 2 / 3 / 5 m</span></label>
           <label><input type="radio" name="depthset" value="per1"> <span data-i18n="ds_1">Fijne lijnen — per 1 m</span></label>
           <label><input type="radio" name="depthset" value="per5"> <span data-i18n="ds_5">Per 5 m — 5 t/m 30 m</span></label>
-          <div class="dm-note" data-i18n="ds_note">Niet voor navigatie</div>
+          <div class="dm-note" data-i18n="ds_note">EMODnet · t.o.v. kaartnul (LAT) · niet voor navigatie</div>
         </div>
       </div>
       <button class="mapbtn" id="mb-locate"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="2.2"/></svg><span data-i18n="mb_locate">Volg mij</span></button>
@@ -411,6 +411,9 @@ footer a{color:var(--brand-dim);text-decoration:underline}
         <span class="k">Getij Verenigd Koninkrijk</span><span>UK Hydrographic Office — Admiralty-voorspellingen, hoogtes boven <b>kaartnul (LAT)</b>.</span>
         <span class="k">Getijstroom</span><span>Copernicus Marine Service (NWShelf-model, ~1,5 km) voor de pijlen en kleurlaag; het stroomveld voor eigen pijlen/deeltjes via Open-Meteo (zelfde Copernicus-model).</span>
         <span class="k">Getijcurve UK-havens</span><span>Waar geen officieel Admiralty-station is: modelcurve van Open-Meteo/ECMWF (t.o.v. gemiddeld zeeniveau) — alleen om het ritme te zien.</span>
+        <span class="k">Diepte</span><span>EMODnet Bathymetry — het Europese Digital Terrain Model (DTM 2024, ~115&nbsp;m raster), herleid tot dieptelijnen en gearceerde banden. Dieptes t.o.v. <b>kaartnul (LAT)</b> — hetzelfde nulvlak als een zeekaart, dus aan de veilige (ondiepe) kant.</span>
+        <span class="k">Diepte — actualiteit</span><span>EMODnet brengt het DTM ongeveer eens per twee jaar uit (…, 2020, 2022, 2024); de 2024-versie verscheen in maart 2025. Het is dus een samengesteld, periodiek bijgewerkt model — geen live meting.</span>
+        <span class="k">Diepte — nauwkeurigheid</span><span>EMODnet bouwt het DTM uit duizenden ingemeten surveys (akoestisch, lidar, satelliet). Elke bron is via CDI/Sextant-metadata herleidbaar, en per rastercel wordt bijgehouden welke bron is gebruikt, hoeveel metingen zijn meegenomen en of de cel ge-interpoleerd is. Bronnen die niet aan de QA/QC-eisen voldoen vallen af. De nauwkeurigheid verschilt per gebied — dicht bemeten kustzones zijn betrouwbaarder dan dunbemeten open zee.</span>
         <span class="k">Kaartondergrond</span><span>© OpenStreetMap-bijdragers.</span>
       </div>
       <p style="color:var(--muted);font-size:12.5px">Hoogtes uit verschillende bronnen hebben verschillende nulvlakken (NAP, kaartnul/LAT, gemiddeld zeeniveau) en zijn niet zomaar met elkaar of met kaartdieptes te verrekenen.</p>
@@ -1821,7 +1824,7 @@ const STATIC_EN = {
   mb_tide:"Tide & current", dm_tide:"Tide", t_stations:"Tide stations",
   mb_kaart:"Map", dm_layers:"Layers", k_sea:"Sea chart (OpenSeaMap)", k_vts:"VTS sectors",
   dm_title:"Tidal current (Copernicus)", dm_arrows:"Copernicus arrows (sharp)", dm_own:"Own arrows (smooth)", dm_particles:"Particle animation", dm_color:"Colour layer (speed)", cur_now:"Now",
-  dm_depth:"Depth (EMODnet)", ds_off:"Off", ds_fill:"Shaded — shallows coloured", ds_std:"Standard — 2 / 5 / 10 / 20 m", ds_shal:"Shallow — 1 / 2 / 3 / 5 m", ds_1:"Every 1 m — 1 to 10 m", ds_2:"Every 2 m — 2 to 20 m", ds_5:"Every 5 m — 5 to 30 m", ds_note:"Open data · rel. to mean sea level · not for navigation",
+  dm_depth:"Depth (EMODnet)", ds_off:"Off", ds_fill:"Shaded — shallows coloured", ds_std:"Standard — 2 / 5 / 10 / 20 m", ds_shal:"Shallow — 1 / 2 / 3 / 5 m", ds_1:"Every 1 m — 1 to 10 m", ds_2:"Every 2 m — 2 to 20 m", ds_5:"Every 5 m — 5 to 30 m", ds_note:"EMODnet · rel. to chart datum (LAT) · not for navigation",
 };
 function applyStaticLang(){
   document.querySelectorAll(".langbtn").forEach(b=> b.classList.toggle("on", b.dataset.lang===LANG));
@@ -1875,6 +1878,9 @@ function applyStaticLang(){
         <span class="k">Tides United Kingdom</span><span>UK Hydrographic Office — Admiralty predictions, heights above <b>chart datum (LAT)</b>.</span>
         <span class="k">Tidal current</span><span>Copernicus Marine Service (NWShelf model, ~1.5 km) for the arrows and colour layer; the current field for own arrows/particles via Open-Meteo (same Copernicus model).</span>
         <span class="k">Tide curve, UK harbours</span><span>Where there is no official Admiralty station: model curve from Open-Meteo/ECMWF (rel. to mean sea level) — only to show the rhythm.</span>
+        <span class="k">Depth</span><span>EMODnet Bathymetry — the European Digital Terrain Model (DTM 2024, ~115&nbsp;m grid), reduced to contour lines and shaded bands. Depths relative to <b>chart datum (LAT)</b> — the same reference as a nautical chart, so on the safe (shallow) side.</span>
+        <span class="k">Depth — how current</span><span>EMODnet releases the DTM roughly every two years (…, 2020, 2022, 2024); the 2024 version appeared in March 2025. It is a compiled, periodically updated model — not a live measurement.</span>
+        <span class="k">Depth — accuracy</span><span>EMODnet builds the DTM from thousands of surveys (acoustic, lidar, satellite). Every source is traceable through CDI/Sextant metadata, and each grid cell records which source was used, how many soundings went in, and whether the cell was interpolated. Sources failing the QA/QC criteria are dropped. Accuracy varies by area — densely surveyed coastal zones are more reliable than sparsely surveyed open sea.</span>
         <span class="k">Base map</span><span>© OpenStreetMap contributors.</span>
       </div>
       <p style="color:var(--muted);font-size:12.5px">Heights from different sources use different datums (NAP, chart datum/LAT, mean sea level) and cannot simply be combined with each other or with charted depths.</p>
