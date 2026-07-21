@@ -430,6 +430,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
         <span class="k">Diepte</span><span>EMODnet Bathymetry — het Europese Digital Terrain Model (DTM 2024, ~115&nbsp;m raster), herleid tot dieptelijnen en gearceerde banden. Dieptes t.o.v. <b>kaartnul (LAT)</b> — hetzelfde nulvlak als een zeekaart, dus aan de veilige (ondiepe) kant.</span>
         <span class="k">Diepte — actualiteit</span><span>EMODnet brengt het DTM ongeveer eens per twee jaar uit (…, 2020, 2022, 2024); de 2024-versie verscheen in maart 2025. Het is dus een samengesteld, periodiek bijgewerkt model — geen live meting.</span>
         <span class="k">Diepte — nauwkeurigheid</span><span>EMODnet bouwt het DTM uit duizenden ingemeten surveys (akoestisch, lidar, satelliet). Elke bron is via CDI/Sextant-metadata herleidbaar, en per rastercel wordt bijgehouden welke bron is gebruikt, hoeveel metingen zijn meegenomen en of de cel ge-interpoleerd is. Bronnen die niet aan de QA/QC-eisen voldoen vallen af. De nauwkeurigheid verschilt per gebied — dicht bemeten kustzones zijn betrouwbaarder dan dunbemeten open zee.</span>
+        <span class="k">VTS-sectoren (Scheldemond)</span><span>De marifoon-/VHF-sectoren volgen de officiële GNB VHF-sectorenkaart (vts-scheldt.net): estuariumgrenzen op de echte tonnen, buitenaanloop op de brochure-punten. Kanalen, namen en telefoon uit de GNB-brochure. De Maas-aanloop (01/02/03) staat op de Reeds-afstanden; overige zeewaartse grenzen zijn bij benadering. <b>Indicatief — niet voor navigatie</b>; controleer de exacte grenzen op de zeekaart. Nood/oproep Kustwacht: VHF 16 · DSC 70. In elke sector-popup staat uitleg over meldplicht en bereikbaarheidsplicht.</span>
         <span class="k">Kaartondergrond</span><span>© OpenStreetMap-bijdragers.</span>
       </div>
       <p style="color:var(--muted);font-size:12.5px">Hoogtes uit verschillende bronnen hebben verschillende nulvlakken (NAP, kaartnul/LAT, gemiddeld zeeniveau) en zijn niet zomaar met elkaar of met kaartdieptes te verrekenen.</p>
@@ -1619,8 +1620,6 @@ const VTS = [
     info:"Aanmelden op VHF 62, zeker als je gelabeld staat op de radar. Vermijd onnodige gesprekken op kanaal 16 of 62 en schakel snel over naar een werkkanaal.",
     poly:[[53.07,4.6],[53.1436,4.814],[53.133,4.8057],[53.1085,4.7585],[53.0842,4.7337],[53.0546,4.7139],[53.0285,4.7077],[53.0031,4.7268],[52.9943,4.762],[53.0003,4.7957],[53.0268,4.8181],[53.0502,4.8652],[53.0917,4.9061],[53.1048,4.9131],[53.1048,4.8926],[53.111,4.8926],[53.1188,4.9099],[53.1346,4.9102],[53.1523,4.8999],[53.1662,4.8858],[53.18,4.92],[52.95,5.0],[52.9108,4.8355],[52.9296,4.8094],[52.9602,4.8244],[52.9676,4.8169],[52.9618,4.807],[52.9676,4.7455],[52.9589,4.7339],[52.9383,4.7264],[52.8827,4.7175],[52.85,4.58],[53.07,4.6]] },
 ];
-const VTS_NOTE = "⚠ Indicatief — niet voor navigatie. De Scheldemond-vakken (60/65/69/64 buitenaanloop + 14/03/65/12 Westerschelde) volgen de officiële GNB VHF-sectorenkaart v7.1 (dec 2024): estuariumgrenzen op de echte tonnen (E2A ~03°44′E, 32/35 ~03°57′E, 46/55 ~04°02′E) en de buitenaanloop op de brochure-punten (Twin/OD1, NE Akkaert/VG, WP4/WP3, SBO). Kanalen, namen en telefoon komen uit de GNB-brochure. De Maas-aanloop (01/02/03) staat op de Reeds-afstanden vanaf Hoek van Holland; overige zeewaartse grenzen bij benadering. Controleer de exacte grenzen op de zeekaart of via vts-scheldt.net. Nood/oproep Kustwacht: VHF 16 · DSC 70. Meldpost Ouddorp (VHF 87) is sinds 2024 gesloten; Slijkgat via Goereesluis VHF 20.";
-const VTS_NOTE_EN = "⚠ Indicative — not for navigation. The Scheldemond sectors (60/65/69/64 outer approaches + 14/03/65/12 Westerschelde) follow the official GNB VHF-sector chart v7.1 (Dec 2024): estuary limits on the real buoys (E2A ~03°44′E, 32/35 ~03°57′E, 46/55 ~04°02′E) and the outer approaches on the brochure points (Twin/OD1, NE Akkaert/VG, WP4/WP3, SBO). Channels, names and phone are from the GNB brochure. The Maas approach (01/02/03) uses the Reeds distances from Hoek van Holland; other seaward limits are approximate. Check exact limits on the chart or at vts-scheldt.net. Distress/calling Coastguard: VHF 16 · DSC 70. The Ouddorp report post (VHF 87) closed in 2024; Slijkgat via Goereesluis VHF 20.";
 const VTS_HOWTO = "<b>Recreatievaart</b> met marifoon: <b>bereikbaarheidsplicht</b> — luister uit op het verkeerskanaal van de sector waar je vaart en blijf bereikbaar. Geen actieve meldplicht, maar reageer als je wordt opgeroepen. <b>Beroepsvaart</b>: <b>meldplicht</b>. Melden bij: binnenkomst vanaf zee (±30 min vóór het eerste blokgebied, op dát kanaal), bij het verlaten van de vaargeul, haven, ligplaats of ankerplaats, en bij passage van een blokgrens (op het kanaal van het nieuwe blok — afmelden bij het vorige blok hoeft niet). Inhoud melding: naam schip, positie, bestemming (beroepsvaart ook diepgang, geplande route en ETA loodsstation). Onderling maken schepen zélf verkeersafspraken, zonder tussenkomst van de centrale. Zet je zendvermogen op max. 1 W. Nood/oproep: VHF 16 · DSC 70.";
 const VTS_HOWTO_EN = "<b>Leisure craft</b> with VHF: <b>reachability duty</b> — keep a listening watch on the traffic channel of the sector you are in and stay reachable. No active reporting duty, but respond when called. <b>Commercial traffic</b>: <b>reporting duty</b>. Report on: arrival from sea (±30 min before the first block area, on that channel), when leaving the fairway, harbour, berth or anchorage, and when crossing a block boundary (on the new block's channel — no need to sign off the previous block). Report content: ship's name, position, destination (commercial also draught, planned route and pilot-station ETA). Vessels arrange traffic between themselves directly, without the traffic centre. Set your transmit power to max 1 W. Distress/calling: VHF 16 · DSC 70.";
 function polyCenter(poly){ let la=0,lo=0; for(const p of poly){la+=p[0];lo+=p[1];} return [la/poly.length, lo/poly.length]; }
@@ -1642,18 +1641,13 @@ function buildVtsLayer(){
       .setLatLng(polyCenter(poly)).setContent("VHF "+s.ch).addTo(vtsLayer);
   }
 }
-let vtsView = false, vtsNoteShown = false;
+let vtsView = false;
 function updateKaartBtn(){ $("#mb-kaart").classList.toggle("on", vtsView || seaView || (depthLayer!=null)); }
 function setVts(on){
   vtsView = on;
   if (on){
     if (!vtsLayer) buildVtsLayer();
     vtsLayer.addTo(map);
-    if (!vtsNoteShown){
-      vtsNoteShown = true;
-      L.popup({maxWidth:300}).setLatLng(map.getCenter())
-        .setContent(`<div style="font:12px/1.5 system-ui,sans-serif;color:var(--muted)">${esc(LANG==="en"?VTS_NOTE_EN:VTS_NOTE)}</div>`).openOn(map);
-    }
   } else if (vtsLayer){ map.removeLayer(vtsLayer); }
   updateKaartBtn();
 }
@@ -1954,6 +1948,7 @@ function applyStaticLang(){
         <span class="k">Depth</span><span>EMODnet Bathymetry — the European Digital Terrain Model (DTM 2024, ~115&nbsp;m grid), reduced to contour lines and shaded bands. Depths relative to <b>chart datum (LAT)</b> — the same reference as a nautical chart, so on the safe (shallow) side.</span>
         <span class="k">Depth — how current</span><span>EMODnet releases the DTM roughly every two years (…, 2020, 2022, 2024); the 2024 version appeared in March 2025. It is a compiled, periodically updated model — not a live measurement.</span>
         <span class="k">Depth — accuracy</span><span>EMODnet builds the DTM from thousands of surveys (acoustic, lidar, satellite). Every source is traceable through CDI/Sextant metadata, and each grid cell records which source was used, how many soundings went in, and whether the cell was interpolated. Sources failing the QA/QC criteria are dropped. Accuracy varies by area — densely surveyed coastal zones are more reliable than sparsely surveyed open sea.</span>
+        <span class="k">VTS sectors (Scheldemond)</span><span>The VHF sectors follow the official GNB VHF-sector chart (vts-scheldt.net): estuary limits on the real buoys, outer approaches on the brochure points. Channels, names and phone from the GNB brochure. The Maas approach (01/02/03) uses the Reeds distances; other seaward limits are approximate. <b>Indicative — not for navigation</b>; check exact limits on the chart. Distress/calling Coastguard: VHF 16 · DSC 70. Each sector popup explains the reporting and reachability duties.</span>
         <span class="k">Base map</span><span>© OpenStreetMap contributors.</span>
       </div>
       <p style="color:var(--muted);font-size:12.5px">Heights from different sources use different datums (NAP, chart datum/LAT, mean sea level) and cannot simply be combined with each other or with charted depths.</p>
