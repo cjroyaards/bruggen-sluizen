@@ -352,7 +352,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
         <button class="mapbtn" id="mb-kaart"><svg class="ic" viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg><span data-i18n="mb_kaart">Kaart</span> ▾</button>
         <div id="kaartmenu" class="dropmenu" hidden>
           <label style="font-weight:700"><input type="checkbox" id="k-zeekaart"> <span data-i18n="k_zeekaart">Zeekaartmodus</span></label>
-          <div class="dm-note" data-i18n="k_zeekaart_note">EMODnet-dieptekaart (heel Europa) als ondergrond + officiële RWS-vaarwegkaart (iENC) voor NL bij inzoomen + OpenSeaMap-symbolen.</div>
+          <div class="dm-note" data-i18n="k_zeekaart_note">Ondergrond + fijnmazige RWS-diepte (vaklodingen 20 m + 1 m) voor NL, EMODnet-diepte voor kust/zee + OpenSeaMap-symbolen.</div>
           <div class="dm-t" data-i18n="dm_layers">Losse lagen</div>
           <label><input type="checkbox" id="k-sea"> <span data-i18n="k_sea">Zeekaart (OpenSeaMap)</span></label>
           <label><input type="checkbox" id="k-vts"> <span data-i18n="k_vts">VTS-sectoren</span></label>
@@ -433,7 +433,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
         <span class="k">Diepte — actualiteit</span><span>EMODnet brengt het DTM ongeveer eens per twee jaar uit (…, 2020, 2022, 2024); de 2024-versie verscheen in maart 2025. Het is dus een samengesteld, periodiek bijgewerkt model — geen live meting.</span>
         <span class="k">Diepte — nauwkeurigheid</span><span>EMODnet bouwt het DTM uit duizenden ingemeten surveys (akoestisch, lidar, satelliet). Elke bron is via CDI/Sextant-metadata herleidbaar, en per rastercel wordt bijgehouden welke bron is gebruikt, hoeveel metingen zijn meegenomen en of de cel ge-interpoleerd is. Bronnen die niet aan de QA/QC-eisen voldoen vallen af. De nauwkeurigheid verschilt per gebied — dicht bemeten kustzones zijn betrouwbaarder dan dunbemeten open zee.</span>
         <span class="k">VTS-sectoren (Scheldemond)</span><span>De marifoon-/VHF-sectoren volgen de officiële GNB VHF-sectorenkaart (vts-scheldt.net): estuariumgrenzen op de echte tonnen, buitenaanloop op de brochure-punten. Kanalen, namen en telefoon uit de GNB-brochure. De Maas-aanloop (01/02/03) staat op de Reeds-afstanden; overige zeewaartse grenzen zijn bij benadering. <b>Indicatief — niet voor navigatie</b>; controleer de exacte grenzen op de zeekaart. Nood/oproep Kustwacht: VHF 16 · DSC 70. In elke sector-popup staat uitleg over meldplicht en bereikbaarheidsplicht.</span>
-        <span class="k">Zeekaartmodus</span><span>Als ondergrond de kant-en-klare <b>EMODnet Bathymetry</b>-dieptekaart voor heel Europa (al ingekleurd geserveerd als tegels). Bij inzoomen in Nederland komt daar de officiële <b>RWS-vaarwegkaart (iENC, CC-0)</b> overheen met dieptelijnen, tonnen en soundings. Zeekaart-symbolen van OpenSeaMap. Live diensten — kunnen bij inzoomen even laden. <b>Indicatief — niet voor navigatie.</b></span>
+        <span class="k">Zeekaartmodus</span><span>Fijnmazige diepte (vaklodingen) van <b>Rijkswaterstaat</b> (bodemhoogte 20 m + 1 m, CC-0/publiek domein) voor de Nederlandse wateren, live in de browser herkleurd naar zeekaart-blauw met contourlijnen; EMODnet-diepte voor kust, zee en het Kanaal; symbolen van OpenSeaMap; ondergrond © CARTO/OpenStreetMap. Live diensten — kunnen bij inzoomen even laden.</span>
         <span class="k">Kaartondergrond</span><span>© OpenStreetMap-bijdragers.</span>
       </div>
       <p style="color:var(--muted);font-size:12.5px">Hoogtes uit verschillende bronnen hebben verschillende nulvlakken (NAP, kaartnul/LAT, gemiddeld zeeniveau) en zijn niet zomaar met elkaar of met kaartdieptes te verrekenen.</p>
@@ -1842,26 +1842,32 @@ function drawChartLines(gj){
 function setZeeChart(on){
   zeechartView = on;
   if (on){
-    // Ondergrond: kant-en-klare EMODnet-dieptetegels (heel Europa, al ingekleurd) — één tegellaag, geen eigen bewerking
-    if (!baseLight) baseLight = L.tileLayer("https://tiles.emodnet-bathymetry.eu/2020/baselayer/web_mercator/{z}/{x}/{y}.png",
-      { maxZoom:19, maxNativeZoom:15, attribution:'Diepte © EMODnet Bathymetry · © OpenStreetMap' });
+    if (!baseLight) baseLight = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+      { maxZoom:19, subdomains:"abcd", attribution:'© OpenStreetMap © CARTO' });
     if (map.hasLayer(baseOSM)) map.removeLayer(baseOSM);
     baseLight.addTo(map);
-    // RWS-iENC over NL: de officiële vaarwegkaart in de schone "Standard"-stand (geen kwaliteitswaas/ZOC-sterren), pas bij inzoomen
-    if (!iencLayer) iencLayer = L.tileLayer.wms("https://geo.rijkswaterstaat.nl/arcgis/rest/services/ENC/mcs_inland/MapServer/exts/MaritimeChartService/WMSServer",
-      { layers:"0", format:"image/png", transparent:true, version:"1.3.0", minZoom:11, maxZoom:19, pane:"iencPane",
-        display_params:'{"DisplayCategories":["Standard"]}', attribution:'Vaarwegkaart © Rijkswaterstaat iENC (CC-0)' });
-    iencLayer.addTo(map);
-    // Zeekaart-symbolen (betonning, lichten) van OpenSeaMap
+    if (chartDepthGeo) drawChartDepth(chartDepthGeo);
+    else fetch("data/depth_chart.geojson?v=20260721c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ chartDepthGeo=gj; if(zeechartView){ drawChartDepth(gj); if(window.updateLegend) updateLegend(); } }).catch(()=>{});
+    // RWS-bodemhoogte (20 m + 1 m) live in de browser herkleurd naar blauw + fijne contourlijnen (NL); EMODnet vult kust/zee/UK
+    function addRws(){
+      if(!rwsBathy) rwsBathy = makeRwsDepthLayer({pane:"bathyPane", service:"bodemhoogte_20mtr"});
+      rwsBathy.addTo(map);
+      // 1 m-raster: fijnere dekking in vaargeulen/binnenwater (o.a. Haringvliet), pas vanaf zoom 12
+      if(!rws1m) rws1m = makeRwsDepthLayer({pane:"bathyPane", service:"bodemhoogte_1mtr", minZoom:12});
+      rws1m.addTo(map);
+    }
+    if (window.makeRwsDepthLayer){ addRws(); }
+    else loadScriptOnce("rwsdepth.js", ()=>{ if(zeechartView && window.makeRwsDepthLayer){ addRws(); } });
+    if (depthGeo) drawChartLines(depthGeo);
+    else fetch("data/depth.geojson?v=20260721c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ depthGeo=gj; if(zeechartView) drawChartLines(gj); }).catch(()=>{});
     if (!seaChartLayer) seaChartLayer = L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",
       { maxZoom:18, pane:"seaPane", attribution:'© OpenSeaMap' });
     seaChartLayer.addTo(map);
   } else {
     if (chartDepthLayer){ map.removeLayer(chartDepthLayer); chartDepthLayer=null; }
     if (chartLinesLayer){ map.removeLayer(chartLinesLayer); chartLinesLayer=null; }
-    if (rwsBathy){ map.removeLayer(rwsBathy); rwsBathy=null; }
-    if (rws1m){ map.removeLayer(rws1m); rws1m=null; }
-    if (iencLayer) map.removeLayer(iencLayer);
+    if (rwsBathy) map.removeLayer(rwsBathy);
+    if (rws1m) map.removeLayer(rws1m);
     if (seaChartLayer) map.removeLayer(seaChartLayer);
     if (baseLight && map.hasLayer(baseLight)) map.removeLayer(baseLight);
     if (baseOSM && !map.hasLayer(baseOSM)) baseOSM.addTo(map);
@@ -1963,7 +1969,7 @@ const STATIC_EN = {
   mb_tide:"Tide, current & wind", dm_tide:"Tide", t_stations:"Tide stations",
   dm_wind:"Wind (Open-Meteo, GFS/ICON)", w_arrows:"Wind arrows (Beaufort)", w_part:"Wind particles", w_color:"Wind colour (speed)",
   mb_kaart:"Map", dm_layers:"Separate layers", k_sea:"Sea chart (OpenSeaMap)", k_vts:"VTS sectors",
-  k_zeekaart:"Nautical chart mode", k_zeekaart_note:"EMODnet depth map (all Europe) as base + official RWS fairway chart (iENC) for NL when zoomed in + OpenSeaMap symbols.",
+  k_zeekaart:"Nautical chart mode", k_zeekaart_note:"Base + fine RWS depth (soundings, 20 m + 1 m) for NL, EMODnet depth for coast/sea + OpenSeaMap symbols.",
   dm_title:"Tidal current (Copernicus)", dm_arrows:"Copernicus arrows (sharp)", dm_own:"Own arrows (smooth)", dm_particles:"Particle animation", dm_color:"Colour layer (speed)", cur_now:"Now",
   dm_depth:"Depth (EMODnet)", ds_off:"Off", ds_fill:"Shaded — shallows coloured", ds_std:"Standard — 2 / 5 / 10 / 20 m", ds_shal:"Shallow — 1 / 2 / 3 / 5 m", ds_1:"Every 1 m — 1 to 10 m", ds_2:"Every 2 m — 2 to 20 m", ds_5:"Every 5 m — 5 to 30 m", ds_note:"EMODnet · rel. to chart datum (LAT) · not for navigation",
 };
@@ -2025,7 +2031,7 @@ function applyStaticLang(){
         <span class="k">Depth — how current</span><span>EMODnet releases the DTM roughly every two years (…, 2020, 2022, 2024); the 2024 version appeared in March 2025. It is a compiled, periodically updated model — not a live measurement.</span>
         <span class="k">Depth — accuracy</span><span>EMODnet builds the DTM from thousands of surveys (acoustic, lidar, satellite). Every source is traceable through CDI/Sextant metadata, and each grid cell records which source was used, how many soundings went in, and whether the cell was interpolated. Sources failing the QA/QC criteria are dropped. Accuracy varies by area — densely surveyed coastal zones are more reliable than sparsely surveyed open sea.</span>
         <span class="k">VTS sectors (Scheldemond)</span><span>The VHF sectors follow the official GNB VHF-sector chart (vts-scheldt.net): estuary limits on the real buoys, outer approaches on the brochure points. Channels, names and phone from the GNB brochure. The Maas approach (01/02/03) uses the Reeds distances; other seaward limits are approximate. <b>Indicative — not for navigation</b>; check exact limits on the chart. Distress/calling Coastguard: VHF 16 · DSC 70. Each sector popup explains the reporting and reachability duties.</span>
-        <span class="k">Nautical chart mode</span><span>The ready-made <b>EMODnet Bathymetry</b> depth map for the whole of Europe as the base (served pre-coloured as tiles). Zooming into the Netherlands adds the official <b>RWS fairway chart (iENC, CC-0)</b> on top with depth contours, buoys and soundings. Chart symbols from OpenSeaMap. Live services — may take a moment to load when zooming. <b>Indicative — not for navigation.</b></span>
+        <span class="k">Nautical chart mode</span><span>Fine-grained depth (soundings) from <b>Rijkswaterstaat</b> (seabed height 20 m + 1 m, CC-0/public domain) for Dutch waters, recoloured live in the browser to chart-blue with contour lines; EMODnet depth for the coast, sea and Channel; symbols from OpenSeaMap; base © CARTO/OpenStreetMap. Live services — may take a moment to load when zooming.</span>
         <span class="k">Base map</span><span>© OpenStreetMap contributors.</span>
       </div>
       <p style="color:var(--muted);font-size:12.5px">Heights from different sources use different datums (NAP, chart datum/LAT, mean sea level) and cannot simply be combined with each other or with charted depths.</p>
