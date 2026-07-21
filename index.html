@@ -1848,8 +1848,7 @@ function setZeeChart(on){
     baseLight.addTo(map);
     if (chartDepthGeo) drawChartDepth(chartDepthGeo);
     else fetch("data/depth_chart.geojson?v=20260721c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ chartDepthGeo=gj; if(zeechartView){ drawChartDepth(gj); if(window.updateLegend) updateLegend(); } }).catch(()=>{});
-    if (!rwsBathy) rwsBathy = makeRwsBathy();
-    rwsBathy.addTo(map);   // fijnmazige RWS-diepte over de EMODnet-laag (NL); EMODnet vult kust/zee/UK
+    // (RWS-bodemhoogte kleurraster uitgezet — groen/paars ongewenst; blauwe EMODnet-stijl blijft)
     if (depthGeo) drawChartLines(depthGeo);
     else fetch("data/depth.geojson?v=20260721c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ depthGeo=gj; if(zeechartView) drawChartLines(gj); }).catch(()=>{});
     if (!iencLayer) iencLayer = L.tileLayer.wms("https://geo.rijkswaterstaat.nl/arcgis/rest/services/ENC/mcs_inland/MapServer/exts/MaritimeChartService/WMSServer",
