@@ -1377,7 +1377,7 @@ function closeDetail(){ $("#panel").classList.remove("open"); $("#ovl").classLis
 
 /* ---------- kaart ---------- */
 let map=null, cluster=null, stremLayer=null, meMarker=null, watchId=null, showBedien=true, showVast=true, showStrem=false;
-let baseOSM=null, baseLight=null, iencLayer=null, seaChartLayer=null, chartDepthLayer=null, chartDepthGeo=null, zeechartView=false, rwsBathy=null;
+let baseOSM=null, baseLight=null, iencLayer=null, seaChartLayer=null, chartDepthLayer=null, chartDepthGeo=null, zeechartView=false, rwsBathy=null, chartLinesLayer=null;
 function markerColor(o){
   const st = o._mapcls || (o._mapcls = quickCls(o));
   return {good:"#0ca30c", warn:"#fab219", ser:"#ec835a", crit:"#d03b3b", mut:"#898781", open:"#2a78d6"}[st];
@@ -1399,6 +1399,7 @@ function initMap(){
   // panes voor de zeekaartmodus: diepte < iENC < zeekaart-symbolen (tussen basiskaart 200 en overlays 400)
   map.createPane("depthPane"); map.getPane("depthPane").style.zIndex = 250;
   map.createPane("bathyPane"); map.getPane("bathyPane").style.zIndex = 260;
+  map.createPane("depthLinePane"); map.getPane("depthLinePane").style.zIndex = 265;
   map.createPane("iencPane");  map.getPane("iencPane").style.zIndex = 300;
   map.createPane("seaPane");   map.getPane("seaPane").style.zIndex = 350;
   cluster = L.markerClusterGroup({chunkedLoading:true, disableClusteringAtZoom:14, maxClusterRadius:55});
@@ -1833,6 +1834,11 @@ function makeRwsBathy(){
   });
   return new T("", { pane:"bathyPane", maxZoom:19, opacity:.92, attribution:'Diepte NL: © Rijkswaterstaat vaklodingen (CC-0)' });
 }
+/* dunne dieptelijntjes (isobaten) uit EMODnet — over de vullingen heen, zowel binnenwater als zee */
+function drawChartLines(gj){
+  chartLinesLayer = L.geoJSON(gj, { pane:"depthLinePane", interactive:false,
+    style: f => ({ color:"#3f6f93", weight: f.properties.d<=3?0.9:0.55, opacity:.5 }) }).addTo(map);
+}
 function setZeeChart(on){
   zeechartView = on;
   if (on){
@@ -1844,6 +1850,8 @@ function setZeeChart(on){
     else fetch("data/depth_chart.geojson?v=20260721c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ chartDepthGeo=gj; if(zeechartView){ drawChartDepth(gj); if(window.updateLegend) updateLegend(); } }).catch(()=>{});
     if (!rwsBathy) rwsBathy = makeRwsBathy();
     rwsBathy.addTo(map);   // fijnmazige RWS-diepte over de EMODnet-laag (NL); EMODnet vult kust/zee/UK
+    if (depthGeo) drawChartLines(depthGeo);
+    else fetch("data/depth.geojson?v=20260721c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ depthGeo=gj; if(zeechartView) drawChartLines(gj); }).catch(()=>{});
     if (!iencLayer) iencLayer = L.tileLayer.wms("https://geo.rijkswaterstaat.nl/arcgis/rest/services/ENC/mcs_inland/MapServer/exts/MaritimeChartService/WMSServer",
       { layers:"0", format:"image/png", transparent:true, version:"1.3.0", maxZoom:19, pane:"iencPane", attribution:'Vaarwegkaart: © Rijkswaterstaat iENC (CC-0)' });
     iencLayer.addTo(map);
@@ -1852,6 +1860,7 @@ function setZeeChart(on){
     seaChartLayer.addTo(map);
   } else {
     if (chartDepthLayer){ map.removeLayer(chartDepthLayer); chartDepthLayer=null; }
+    if (chartLinesLayer){ map.removeLayer(chartLinesLayer); chartLinesLayer=null; }
     if (rwsBathy) map.removeLayer(rwsBathy);
     if (iencLayer) map.removeLayer(iencLayer);
     if (seaChartLayer) map.removeLayer(seaChartLayer);
