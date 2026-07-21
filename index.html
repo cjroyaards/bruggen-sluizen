@@ -352,7 +352,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
         <button class="mapbtn" id="mb-kaart"><svg class="ic" viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg><span data-i18n="mb_kaart">Kaart</span> ▾</button>
         <div id="kaartmenu" class="dropmenu" hidden>
           <label style="font-weight:700"><input type="checkbox" id="k-zeekaart"> <span data-i18n="k_zeekaart">Zeekaartmodus</span></label>
-          <div class="dm-note" data-i18n="k_zeekaart_note">Lichte ondergrond + officiële RWS-iENC (binnenwater) + diepte in zeekaart-stijl + OpenSeaMap-symbolen.</div>
+          <div class="dm-note" data-i18n="k_zeekaart_note">Ondergrond + RWS-vaarwegkaart (iENC) + fijnmazige RWS-diepte (vaklodingen) voor NL, EMODnet-diepte voor kust/zee + OpenSeaMap-symbolen.</div>
           <div class="dm-t" data-i18n="dm_layers">Losse lagen</div>
           <label><input type="checkbox" id="k-sea"> <span data-i18n="k_sea">Zeekaart (OpenSeaMap)</span></label>
           <label><input type="checkbox" id="k-vts"> <span data-i18n="k_vts">VTS-sectoren</span></label>
@@ -1376,7 +1376,7 @@ function closeDetail(){ $("#panel").classList.remove("open"); $("#ovl").classLis
 
 /* ---------- kaart ---------- */
 let map=null, cluster=null, stremLayer=null, meMarker=null, watchId=null, showBedien=true, showVast=true, showStrem=false;
-let baseOSM=null, baseLight=null, iencLayer=null, seaChartLayer=null, chartDepthLayer=null, chartDepthGeo=null, zeechartView=false;
+let baseOSM=null, baseLight=null, iencLayer=null, seaChartLayer=null, chartDepthLayer=null, chartDepthGeo=null, zeechartView=false, rwsBathy=null;
 function markerColor(o){
   const st = o._mapcls || (o._mapcls = quickCls(o));
   return {good:"#0ca30c", warn:"#fab219", ser:"#ec835a", crit:"#d03b3b", mut:"#898781", open:"#2a78d6"}[st];
@@ -1397,6 +1397,7 @@ function initMap(){
   }).addTo(map);
   // panes voor de zeekaartmodus: diepte < iENC < zeekaart-symbolen (tussen basiskaart 200 en overlays 400)
   map.createPane("depthPane"); map.getPane("depthPane").style.zIndex = 250;
+  map.createPane("bathyPane"); map.getPane("bathyPane").style.zIndex = 260;
   map.createPane("iencPane");  map.getPane("iencPane").style.zIndex = 300;
   map.createPane("seaPane");   map.getPane("seaPane").style.zIndex = 350;
   cluster = L.markerClusterGroup({chunkedLoading:true, disableClusteringAtZoom:14, maxClusterRadius:55});
@@ -1817,15 +1818,31 @@ function drawChartDepth(gj){
   chartDepthLayer = L.geoJSON(gj, { pane:"depthPane",
     style: f => ({ stroke:false, fill:true, fillColor: chartDepthColor(f.properties.dmax), fillOpacity:.9 }) }).addTo(map);
 }
+/* RWS-bodemhoogte (vaklodingen 20 m, CC-0) als tegels via de ArcGIS-export in Web Mercator */
+function makeRwsBathy(){
+  const T = L.TileLayer.extend({
+    getTileUrl: function(c){
+      const n = Math.pow(2, c.z), span = 40075016.686/n, W = 20037508.343;
+      const x = ((c.x % n) + n) % n;
+      const xmin = -W + x*span, xmax = xmin+span, ymax = W - c.y*span, ymin = ymax-span;
+      return "https://geo.rijkswaterstaat.nl/arcgis/rest/services/GDR/bodemhoogte_20mtr/MapServer/export"
+        + "?bbox=" + xmin + "," + ymin + "," + xmax + "," + ymax
+        + "&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true&dpi=96&f=image";
+    }
+  });
+  return new T("", { pane:"bathyPane", maxZoom:19, opacity:.92, attribution:'Diepte NL: © Rijkswaterstaat vaklodingen (CC-0)' });
+}
 function setZeeChart(on){
   zeechartView = on;
   if (on){
-    if (!baseLight) baseLight = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+    if (!baseLight) baseLight = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
       { maxZoom:19, subdomains:"abcd", attribution:'© OpenStreetMap © CARTO' });
     if (map.hasLayer(baseOSM)) map.removeLayer(baseOSM);
     baseLight.addTo(map);
     if (chartDepthGeo) drawChartDepth(chartDepthGeo);
     else fetch("data/depth_chart.geojson?v=20260721c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ chartDepthGeo=gj; if(zeechartView){ drawChartDepth(gj); if(window.updateLegend) updateLegend(); } }).catch(()=>{});
+    if (!rwsBathy) rwsBathy = makeRwsBathy();
+    rwsBathy.addTo(map);   // fijnmazige RWS-diepte over de EMODnet-laag (NL); EMODnet vult kust/zee/UK
     if (!iencLayer) iencLayer = L.tileLayer.wms("https://geo.rijkswaterstaat.nl/arcgis/rest/services/ENC/mcs_inland/MapServer/exts/MaritimeChartService/WMSServer",
       { layers:"0", format:"image/png", transparent:true, version:"1.3.0", maxZoom:19, pane:"iencPane", attribution:'Vaarwegkaart: © Rijkswaterstaat iENC (CC-0)' });
     iencLayer.addTo(map);
@@ -1834,6 +1851,7 @@ function setZeeChart(on){
     seaChartLayer.addTo(map);
   } else {
     if (chartDepthLayer){ map.removeLayer(chartDepthLayer); chartDepthLayer=null; }
+    if (rwsBathy) map.removeLayer(rwsBathy);
     if (iencLayer) map.removeLayer(iencLayer);
     if (seaChartLayer) map.removeLayer(seaChartLayer);
     if (baseLight && map.hasLayer(baseLight)) map.removeLayer(baseLight);
@@ -1936,7 +1954,7 @@ const STATIC_EN = {
   mb_tide:"Tide, current & wind", dm_tide:"Tide", t_stations:"Tide stations",
   dm_wind:"Wind (Open-Meteo, GFS/ICON)", w_arrows:"Wind arrows (Beaufort)", w_part:"Wind particles", w_color:"Wind colour (speed)",
   mb_kaart:"Map", dm_layers:"Separate layers", k_sea:"Sea chart (OpenSeaMap)", k_vts:"VTS sectors",
-  k_zeekaart:"Nautical chart mode", k_zeekaart_note:"Light base + official RWS iENC (inland waters) + chart-style depth + OpenSeaMap symbols.",
+  k_zeekaart:"Nautical chart mode", k_zeekaart_note:"Base + RWS fairway chart (iENC) + fine RWS depth (soundings) for NL, EMODnet depth for coast/sea + OpenSeaMap symbols.",
   dm_title:"Tidal current (Copernicus)", dm_arrows:"Copernicus arrows (sharp)", dm_own:"Own arrows (smooth)", dm_particles:"Particle animation", dm_color:"Colour layer (speed)", cur_now:"Now",
   dm_depth:"Depth (EMODnet)", ds_off:"Off", ds_fill:"Shaded — shallows coloured", ds_std:"Standard — 2 / 5 / 10 / 20 m", ds_shal:"Shallow — 1 / 2 / 3 / 5 m", ds_1:"Every 1 m — 1 to 10 m", ds_2:"Every 2 m — 2 to 20 m", ds_5:"Every 5 m — 5 to 30 m", ds_note:"EMODnet · rel. to chart datum (LAT) · not for navigation",
 };
