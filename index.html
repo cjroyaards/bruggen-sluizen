@@ -341,8 +341,9 @@ footer a{color:var(--brand-dim);text-decoration:underline}
           <div class="dm-t" data-i18n="dm_layers">Lagen</div>
           <label><input type="checkbox" id="k-sea"> <span data-i18n="k_sea">Zeekaart (OpenSeaMap)</span></label>
           <label><input type="checkbox" id="k-vts"> <span data-i18n="k_vts">VTS-sectoren</span></label>
-          <div class="dm-t" data-i18n="dm_depth">Dieptelijnen (EMODnet)</div>
+          <div class="dm-t" data-i18n="dm_depth">Diepte (EMODnet)</div>
           <label><input type="radio" name="depthset" value="off" checked> <span data-i18n="ds_off">Uit</span></label>
+          <label><input type="radio" name="depthset" value="fill"> <span data-i18n="ds_fill">Gearceerd — ondiep gekleurd</span></label>
           <label><input type="radio" name="depthset" value="standaard"> <span data-i18n="ds_std">Standaard — 2 / 5 / 10 / 20 m</span></label>
           <label><input type="radio" name="depthset" value="ondiep"> <span data-i18n="ds_shal">Ondiep — 1 / 2 / 3 / 5 m</span></label>
           <label><input type="radio" name="depthset" value="per1"> <span data-i18n="ds_1">Fijne lijnen — per 1 m</span></label>
@@ -1774,7 +1775,7 @@ $("#tide-stations").addEventListener("change", ()=>{ if(!harbLayerG) return; $("
 $("#k-sea").addEventListener("change", ()=> setSea($("#k-sea").checked));
 $("#k-vts").addEventListener("change", ()=> setVts($("#k-vts").checked));
 const DEPTHSETS = { standaard:[2,5,10,20], ondiep:[1,2,3,5], per1:[1,2,3,4,5,6,7,8,9,10], per2:[2,4,6,8,10,12,14,16,18,20], per5:[5,10,15,20,25,30] };
-let depthGeo = null, depthLayer = null;
+let depthGeo = null, depthLayer = null, depthFillGeo = null;
 function depthColor(d){
   if (d<=2) return "#d94b3f";        // ondiep = waarschuwingsrood
   if (d<=3) return "#e8863a";        // 3 m = oranje
@@ -1782,6 +1783,16 @@ function depthColor(d){
   if (d<=10) return "#2f7fd0";
   if (d<=20) return "#1a5aa0";
   return "#0d3260";                  // diep = donkerblauw
+}
+function depthFillColor(dm){
+  if (dm<=2) return "#d94b3f";       // 0-2 m  ondiep = rood
+  if (dm<=5) return "#eea23a";       // 2-5 m  oranje
+  if (dm<=10) return "#f0d060";      // 5-10 m geel
+  return "#7fb0d8";                  // 10-20 m licht blauw
+}
+function drawDepthFill(gj){
+  depthLayer = L.geoJSON(gj, { pane:"overlayPane",
+    style: f => ({ stroke:false, fill:true, fillColor: depthFillColor(f.properties.dmax), fillOpacity:.32 }) }).addTo(map);
 }
 function drawDepth(gj, levels){
   depthLayer = L.geoJSON(gj, { pane:"overlayPane",
@@ -1791,7 +1802,10 @@ function drawDepth(gj, levels){
 }
 function setDepth(set){
   if (depthLayer){ map.removeLayer(depthLayer); depthLayer=null; }
-  if (set!=="off"){
+  if (set==="fill"){
+    if (depthFillGeo) drawDepthFill(depthFillGeo);
+    else fetch("data/depth_fill.geojson?v=20260721b", {cache:"reload"}).then(r=>r.json()).then(gj=>{ depthFillGeo=gj; if($("#kaartmenu") && document.querySelector('input[name="depthset"]:checked').value==="fill"){ drawDepthFill(gj); updateKaartBtn(); } }).catch(()=>{});
+  } else if (set!=="off"){
     const levels = new Set(DEPTHSETS[set] || DEPTHSETS.standaard);
     if (depthGeo) drawDepth(depthGeo, levels);
     else fetch("data/depth.geojson?v=20260721b", {cache:"reload"}).then(r=>r.json()).then(gj=>{ depthGeo=gj; if($("#kaartmenu") && document.querySelector('input[name="depthset"]:checked').value===set){ drawDepth(gj, levels); updateKaartBtn(); } }).catch(()=>{});
@@ -1807,7 +1821,7 @@ const STATIC_EN = {
   mb_tide:"Tide & current", dm_tide:"Tide", t_stations:"Tide stations",
   mb_kaart:"Map", dm_layers:"Layers", k_sea:"Sea chart (OpenSeaMap)", k_vts:"VTS sectors",
   dm_title:"Tidal current (Copernicus)", dm_arrows:"Copernicus arrows (sharp)", dm_own:"Own arrows (smooth)", dm_particles:"Particle animation", dm_color:"Colour layer (speed)", cur_now:"Now",
-  dm_depth:"Depth contours (EMODnet)", ds_off:"Off", ds_std:"Standard — 2 / 5 / 10 / 20 m", ds_shal:"Shallow — 1 / 2 / 3 / 5 m", ds_1:"Every 1 m — 1 to 10 m", ds_2:"Every 2 m — 2 to 20 m", ds_5:"Every 5 m — 5 to 30 m", ds_note:"Open data · rel. to mean sea level · not for navigation",
+  dm_depth:"Depth (EMODnet)", ds_off:"Off", ds_fill:"Shaded — shallows coloured", ds_std:"Standard — 2 / 5 / 10 / 20 m", ds_shal:"Shallow — 1 / 2 / 3 / 5 m", ds_1:"Every 1 m — 1 to 10 m", ds_2:"Every 2 m — 2 to 20 m", ds_5:"Every 5 m — 5 to 30 m", ds_note:"Open data · rel. to mean sea level · not for navigation",
 };
 function applyStaticLang(){
   document.querySelectorAll(".langbtn").forEach(b=> b.classList.toggle("on", b.dataset.lang===LANG));
