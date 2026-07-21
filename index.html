@@ -1807,11 +1807,11 @@ function setDepth(set){
   if (depthLayer){ map.removeLayer(depthLayer); depthLayer=null; }
   if (set==="fill"){
     if (depthFillGeo) drawDepthFill(depthFillGeo);
-    else fetch("data/depth_fill.geojson?v=20260721b", {cache:"reload"}).then(r=>r.json()).then(gj=>{ depthFillGeo=gj; if($("#kaartmenu") && document.querySelector('input[name="depthset"]:checked').value==="fill"){ drawDepthFill(gj); updateKaartBtn(); } }).catch(()=>{});
+    else fetch("data/depth_fill.geojson?v=20260721c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ depthFillGeo=gj; if($("#kaartmenu") && document.querySelector('input[name="depthset"]:checked').value==="fill"){ drawDepthFill(gj); updateKaartBtn(); } }).catch(()=>{});
   } else if (set!=="off"){
     const levels = new Set(DEPTHSETS[set] || DEPTHSETS.standaard);
     if (depthGeo) drawDepth(depthGeo, levels);
-    else fetch("data/depth.geojson?v=20260721b", {cache:"reload"}).then(r=>r.json()).then(gj=>{ depthGeo=gj; if($("#kaartmenu") && document.querySelector('input[name="depthset"]:checked').value===set){ drawDepth(gj, levels); updateKaartBtn(); } }).catch(()=>{});
+    else fetch("data/depth.geojson?v=20260721c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ depthGeo=gj; if($("#kaartmenu") && document.querySelector('input[name="depthset"]:checked').value===set){ drawDepth(gj, levels); updateKaartBtn(); } }).catch(()=>{});
   }
   updateKaartBtn();
 }
