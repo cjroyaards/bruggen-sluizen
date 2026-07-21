@@ -1794,7 +1794,7 @@ function setDepth(set){
   if (set!=="off"){
     const levels = new Set(DEPTHSETS[set] || DEPTHSETS.standaard);
     if (depthGeo) drawDepth(depthGeo, levels);
-    else fetch("data/depth.geojson", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{ depthGeo=gj; if($("#kaartmenu") && document.querySelector('input[name="depthset"]:checked').value===set){ drawDepth(gj, levels); updateKaartBtn(); } }).catch(()=>{});
+    else fetch("data/depth.geojson?v=20260721b", {cache:"reload"}).then(r=>r.json()).then(gj=>{ depthGeo=gj; if($("#kaartmenu") && document.querySelector('input[name="depthset"]:checked').value===set){ drawDepth(gj, levels); updateKaartBtn(); } }).catch(()=>{});
   }
   updateKaartBtn();
 }
