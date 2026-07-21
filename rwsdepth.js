@@ -6,12 +6,19 @@
   'use strict';
   // [srcR,srcG,srcB, tgtR,tgtG,tgtB,tgtA, rank]
   var PAL = [[114, 0, 77, 243, 248, 253, 235, 46], [121, 25, 91, 243, 248, 253, 235, 45], [123, 43, 105, 243, 248, 253, 235, 44], [127, 64, 125, 243, 248, 253, 235, 43], [129, 81, 142, 243, 248, 253, 235, 42], [128, 97, 161, 235, 244, 251, 235, 41], [129, 116, 181, 223, 238, 248, 235, 40], [127, 134, 202, 223, 238, 248, 235, 39], [123, 151, 222, 207, 230, 243, 235, 38], [120, 172, 247, 207, 230, 243, 235, 37], [117, 182, 253, 207, 230, 243, 235, 36], [116, 189, 250, 188, 220, 238, 235, 35], [117, 200, 247, 188, 220, 238, 235, 34], [117, 207, 243, 168, 207, 230, 235, 33], [118, 216, 241, 147, 195, 224, 235, 32], [120, 224, 238, 121, 179, 216, 235, 31], [116, 230, 232, 91, 158, 203, 235, 30], [118, 241, 230, 63, 134, 189, 235, 29], [117, 247, 224, 188, 214, 168, 235, 28], [114, 255, 221, 188, 214, 168, 235, 27]];
-  var EXPORT = "https://geo.rijkswaterstaat.nl/arcgis/rest/services/GDR/bodemhoogte_20mtr/MapServer/export";
+  var EXPORT_BASE = "https://geo.rijkswaterstaat.nl/arcgis/rest/services/GDR/";
+  // 20 m-dienst: één dieptelaag (id 1); hillshade (0) laten we weg.
+  // 1 m-dienst: veel regionale vaklodingslagen (ZD-delta, Wadden, IJsselmeer, Noordzeegeulen) — toon ze allemaal.
+  var LAYERS = {
+    "bodemhoogte_20mtr":"show:1",
+    "bodemhoogte_1mtr":"show:0,1,2,3,4,5,6,7,8,9,10,12,13,14,15,16,17,24,25,26,27,28,29"
+  };
   function tileBbox(c){ var n=Math.pow(2,c.z), span=40075016.686/n, W=20037508.343, x=((c.x%n)+n)%n;
     return [-W+x*span, W-(c.y+1)*span, -W+(x+1)*span, W-c.y*span]; }
-  function tileUrl(c){ var b=tileBbox(c);
-    return EXPORT+"?bbox="+b[0]+","+b[1]+","+b[2]+","+b[3]
-      +"&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true&layers=show:1&f=image"; }
+  function tileUrl(c, service){ var b=tileBbox(c);
+    return EXPORT_BASE+service+"/MapServer/export?bbox="+b[0]+","+b[1]+","+b[2]+","+b[3]
+      +"&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true&layers="
+      +(LAYERS[service]||"show:1")+"&f=image"; }
   function nearest(r,g,b){ var best=-1,bd=1e9; for(var k=0;k<PAL.length;k++){ var p=PAL[k];
       var dr=r-p[0],dg=g-p[1],db=b-p[2],d=dr*dr+dg*dg+db*db; if(d<bd){bd=d;best=k;} }
     return bd<1600?best:-1; }   // drempel ~40 per kanaal
@@ -33,13 +40,13 @@
   }
   window.makeRwsDepthLayer=function(opts){
     opts=opts||{};
+    var service=opts.service||"bodemhoogte_20mtr";
     var L_=window.L;
     var Layer=L_.GridLayer.extend({
       createTile:function(coords,done){
         var tile=document.createElement("canvas"); tile.width=256; tile.height=256;
         var ctx=tile.getContext("2d");
         var img=new Image(); img.crossOrigin="anonymous";
-        var self=this;
         img.onload=function(){ try{
             var tmp=document.createElement("canvas"); tmp.width=256; tmp.height=256;
             var tc=tmp.getContext("2d"); tc.drawImage(img,0,0,256,256);
@@ -47,11 +54,14 @@
             recolor(s.data,d.data); ctx.putImageData(d,0,0); done(null,tile);
           }catch(e){ done(null,tile); } };
         img.onerror=function(){ done(null,tile); };
-        img.src=tileUrl(coords);
+        img.src=tileUrl(coords, service);
         return tile;
       }
     });
+    // maxNativeZoom voorkomt dat we boven de brondekking (20 m ~z13, 1 m ~z16) steeds
+    // fijnere tegels opvragen — Leaflet schaalt dan de scherpste bron soepel op i.p.v. hakkelige lijnen.
     return new Layer(Object.assign({pane:opts.pane||"bathyPane",minZoom:8,maxZoom:19,
+      maxNativeZoom:(service==="bodemhoogte_1mtr"?16:13),
       opacity:opts.opacity||1,attribution:'Diepte NL: © Rijkswaterstaat bodemhoogte (CC-0)'},opts));
   };
 })();
