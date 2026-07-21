@@ -312,29 +312,21 @@ footer a{color:var(--brand-dim);text-decoration:underline}
   <div id="loading">Gegevens laden…</div>
   <section id="v-kaart" hidden style="position:relative">
     <div class="mapbar">
-      <button class="mapbtn on" id="mb-all" data-i18n="mb_all">Alle objecten</button>
-      <button class="mapbtn" id="mb-bedien" data-i18n="mb_bedien">Alleen bedienbaar</button>
-      <button class="mapbtn" id="mb-strem"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 22 21H2Z"/><path d="M12 10v5"/><path d="M12 18.2v.1"/></svg><span data-i18n="mb_strem">Stremmingen</span></button>
-      <button class="mapbtn" id="mb-locate"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="2.2"/></svg><span data-i18n="mb_locate">Volg mij</span></button>
-      <button class="mapbtn" id="mb-uk" data-i18n="mb_uk">Kusthavens</button>
-      <button class="mapbtn" id="mb-vts"><svg class="ic" viewBox="0 0 24 24"><path d="M12 8v13"/><path d="M8.5 21h7"/><path d="M7.8 7.8a6 6 0 0 1 8.4 0"/><path d="M5.2 5.2a9.6 9.6 0 0 1 13.6 0"/><circle cx="12" cy="8" r="1.4"/></svg><span data-i18n="mb_vts">VTS</span></button>
-      <button class="mapbtn" id="mb-sea"><svg class="ic" viewBox="0 0 24 24"><path d="M12 2v14"/><path d="M12 6l6 2-6 2"/><path d="M4 20c1.6 0 1.6-1.2 3.2-1.2S8.8 20 10.4 20s1.6-1.2 3.2-1.2S15.2 20 16.8 20s1.6-1.2 3.2-1.2"/></svg><span data-i18n="mb_sea">Zeekaart</span></button>
       <div class="dropwrap">
-        <button class="mapbtn" id="mb-depth"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6c2 0 2-1.5 4-1.5S12 6 14 6s2-1.5 4-1.5"/><path d="M7 10v8M12 8v10M17 11v7"/><path d="M5.5 18h13"/></svg><span data-i18n="mb_depth">Diepte</span> ▾</button>
-        <div id="depthmenu" class="dropmenu" hidden>
-          <div class="dm-t" data-i18n="dm_depth">Dieptelijnen (EMODnet)</div>
-          <label><input type="radio" name="depthset" value="off" checked> <span data-i18n="ds_off">Uit</span></label>
-          <label><input type="radio" name="depthset" value="standaard"> <span data-i18n="ds_std">Standaard — 2 / 5 / 10 / 20 m</span></label>
-          <label><input type="radio" name="depthset" value="ondiep"> <span data-i18n="ds_shal">Ondiep — 1 / 2 / 3 / 5 m</span></label>
-          <label><input type="radio" name="depthset" value="per1"> <span data-i18n="ds_1">Per 1 m — 1 t/m 10 m</span></label>
-          <label><input type="radio" name="depthset" value="per2"> <span data-i18n="ds_2">Per 2 m — 2 t/m 20 m</span></label>
-          <label><input type="radio" name="depthset" value="per5"> <span data-i18n="ds_5">Per 5 m — 5 t/m 30 m</span></label>
-          <div class="dm-note" data-i18n="ds_note">Open data · t.o.v. gemiddeld zeeniveau · niet voor navigatie</div>
+        <button class="mapbtn on" id="mb-objs"><svg class="ic" viewBox="0 0 24 24"><path d="M4 17V9M20 17V9M4 12h16M8 12V8a4 4 0 0 1 8 0v4"/></svg><span data-i18n="mb_objs">Bruggen &amp; sluizen</span> ▾</button>
+        <div id="objmenu" class="dropmenu" hidden>
+          <div class="dm-t" data-i18n="dm_objs">Op de kaart</div>
+          <label><input type="checkbox" id="obj-bedien" checked> <span data-i18n="o_bedien">Bedienbaar</span></label>
+          <label><input type="checkbox" id="obj-vast" checked> <span data-i18n="o_vast">Niet bedienbaar</span></label>
+          <label><input type="checkbox" id="obj-strem"> <span data-i18n="o_strem">Stremmingen</span></label>
+          <label><input type="checkbox" id="obj-harb" checked> <span data-i18n="o_harb">Kusthavens (UK/BE)</span></label>
         </div>
       </div>
       <div class="dropwrap">
-        <button class="mapbtn" id="mb-lagen"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5Z"/><path d="M3 13l9 5 9-5"/></svg><span data-i18n="mb_lagen">Stromen</span> ▾</button>
-        <div id="lagenmenu" class="dropmenu" hidden>
+        <button class="mapbtn" id="mb-tide"><svg class="ic" viewBox="0 0 24 24"><path d="M3 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M3 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/></svg><span data-i18n="mb_tide">Getij &amp; stroming</span> ▾</button>
+        <div id="tidemenu" class="dropmenu" hidden>
+          <div class="dm-t" data-i18n="dm_tide">Getij</div>
+          <label><input type="checkbox" id="tide-stations" checked> <span data-i18n="t_stations">Getijstations</span></label>
           <div class="dm-t" data-i18n="dm_title">Getijdestroom (Copernicus)</div>
           <label><input type="checkbox" id="lay-arrows"> <span data-i18n="dm_arrows">Copernicus pijlen (scherp)</span></label>
           <label><input type="checkbox" id="lay-own"> <span data-i18n="dm_own">Eigen pijlen (vloeiend)</span></label>
@@ -343,6 +335,22 @@ footer a{color:var(--brand-dim);text-decoration:underline}
           <div class="dm-note" id="lay-status"></div>
         </div>
       </div>
+      <div class="dropwrap">
+        <button class="mapbtn" id="mb-kaart"><svg class="ic" viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg><span data-i18n="mb_kaart">Kaart</span> ▾</button>
+        <div id="kaartmenu" class="dropmenu" hidden>
+          <div class="dm-t" data-i18n="dm_layers">Lagen</div>
+          <label><input type="checkbox" id="k-sea"> <span data-i18n="k_sea">Zeekaart (OpenSeaMap)</span></label>
+          <label><input type="checkbox" id="k-vts"> <span data-i18n="k_vts">VTS-sectoren</span></label>
+          <div class="dm-t" data-i18n="dm_depth">Dieptelijnen (EMODnet)</div>
+          <label><input type="radio" name="depthset" value="off" checked> <span data-i18n="ds_off">Uit</span></label>
+          <label><input type="radio" name="depthset" value="standaard"> <span data-i18n="ds_std">Standaard — 2 / 5 / 10 / 20 m</span></label>
+          <label><input type="radio" name="depthset" value="ondiep"> <span data-i18n="ds_shal">Ondiep — 1 / 2 / 3 / 5 m</span></label>
+          <label><input type="radio" name="depthset" value="per1"> <span data-i18n="ds_1">Fijne lijnen — per 1 m</span></label>
+          <label><input type="radio" name="depthset" value="per5"> <span data-i18n="ds_5">Per 5 m — 5 t/m 30 m</span></label>
+          <div class="dm-note" data-i18n="ds_note">Niet voor navigatie</div>
+        </div>
+      </div>
+      <button class="mapbtn" id="mb-locate"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="2.2"/></svg><span data-i18n="mb_locate">Volg mij</span></button>
     </div>
     <div id="curbar" hidden>
       <button id="cur-play" title="Afspelen">▶</button>
@@ -1344,7 +1352,7 @@ function openDetail(o){
 function closeDetail(){ $("#panel").classList.remove("open"); $("#ovl").classList.remove("open"); panelRefresh = null; }
 
 /* ---------- kaart ---------- */
-let map=null, cluster=null, stremLayer=null, meMarker=null, watchId=null, onlyBedien=false, showStrem=false;
+let map=null, cluster=null, stremLayer=null, meMarker=null, watchId=null, showBedien=true, showVast=true, showStrem=false;
 function markerColor(o){
   const st = o._mapcls || (o._mapcls = quickCls(o));
   return {good:"#0ca30c", warn:"#fab219", ser:"#ec835a", crit:"#d03b3b", mut:"#898781", open:"#2a78d6"}[st];
@@ -1457,7 +1465,7 @@ function initCurrents(){
   function refreshBar(){
     const on = Currents.anyOn();
     $("#curbar").hidden = !on;
-    $("#mb-lagen").classList.toggle("on", on);
+    $("#mb-tide").classList.toggle("on", on);
     if (on){ $("#cur-slider").value = String(Currents.getTFloat()); $("#cur-label").textContent = curFmtLabel(Currents.getTFloat()); }
   }
   function applyLayers(){
@@ -1465,13 +1473,6 @@ function initCurrents(){
     refreshBar();
   }
   ["lay-arrows","lay-own","lay-particles","lay-color"].forEach(id => $("#"+id).addEventListener("change", applyLayers));
-  $("#mb-lagen").addEventListener("click", e => {
-    e.stopPropagation();
-    const opening = $("#lagenmenu").hidden;
-    $("#lagenmenu").hidden = !opening;
-    if (opening && !Currents.anyOn()){ $("#lay-arrows").checked = true; applyLayers(); }  // meteen Copernicus-pijlen + tijdbalk
-  });
-  document.addEventListener("click", e => { if (!e.target.closest("#lagenmenu") && !e.target.closest("#mb-lagen")) $("#lagenmenu").hidden = true; });
   $("#cur-slider").addEventListener("input", ()=>{ Currents.setPlaying(false); Currents.setTime(+$("#cur-slider").value); $("#cur-play").textContent="▶"; });
   $("#cur-now").addEventListener("click", ()=>{ Currents.setPlaying(false); Currents.setTime(Currents.nowIndex()); $("#cur-play").textContent="▶"; });
   const stepBy = h => { Currents.setPlaying(false); Currents.setTime(Math.max(0, Math.min(Currents.NHOURS-1, Math.round(Currents.getTFloat())+h))); $("#cur-play").textContent="▶"; };
@@ -1589,10 +1590,10 @@ function buildVtsLayer(){
   }
 }
 let vtsView = false, vtsNoteShown = false;
-function toggleVts(){
-  vtsView = !vtsView;
-  $("#mb-vts").classList.toggle("on", vtsView);
-  if (vtsView){
+function updateKaartBtn(){ $("#mb-kaart").classList.toggle("on", vtsView || seaView || (depthLayer!=null)); }
+function setVts(on){
+  vtsView = on;
+  if (on){
     if (!vtsLayer) buildVtsLayer();
     vtsLayer.addTo(map);
     if (!vtsNoteShown){
@@ -1601,27 +1602,28 @@ function toggleVts(){
         .setContent(`<div style="font:12px/1.5 system-ui,sans-serif;color:var(--muted)">${esc(LANG==="en"?VTS_NOTE_EN:VTS_NOTE)}</div>`).openOn(map);
     }
   } else if (vtsLayer){ map.removeLayer(vtsLayer); }
+  updateKaartBtn();
 }
 function harbLabel(o){ return o.c==="BE" ? T("Belgische kusthaven") : T("UK kusthaven"); }
-let harbourLayer = null;
+let harbLayerH = null, harbLayerG = null;
 function buildHarbourLayer(){
-  if (harbourLayer) return;
-  harbourLayer = L.layerGroup();
+  if (harbLayerH) return;
+  harbLayerH = L.layerGroup(); harbLayerG = L.layerGroup();
   const WAVESVG = `<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M3 9c3-3.5 6 3.5 9 0s6 3.5 9 0"/><path d="M3 16c3-3.5 6 3.5 9 0s6 3.5 9 0"/></svg>`;
   for (const o of DATA.objs){
     if (o.t==="H"){
       const icon = L.divIcon({className:"", html:`<div class="harb-pin">${ANCHORSVG}</div>`, iconSize:[22,22], iconAnchor:[11,11]});
       L.marker([o.lat,o.lon], {icon, zIndexOffset:400})
         .bindPopup(`<b>${esc(o.n)}</b><br>${harbLabel(o)} · ${esc(o.fw)}<br><span class="pop-open" data-open="${o.t}${o.id}">${T("details →")}</span>`)
-        .addTo(harbourLayer);
+        .addTo(harbLayerH);
     } else if (o.t==="G"){
       const icon = L.divIcon({className:"", html:`<div class="harb-pin tide">${WAVESVG}</div>`, iconSize:[22,22], iconAnchor:[11,11]});
       L.marker([o.lat,o.lon], {icon, zIndexOffset:350})
         .bindPopup(`<b>${esc(o.n)}</b><br>${esc(nextTideTxt(o))||T("getijstation")}<br><span class="pop-open" data-open="${o.t}${o.id}">${T("details →")}</span>`)
-        .addTo(harbourLayer);
+        .addTo(harbLayerG);
     }
   }
-  harbourLayer.addTo(map);
+  harbLayerH.addTo(map); harbLayerG.addTo(map);
 }
 function buildMarkers(){
   cluster.clearLayers();
@@ -1630,7 +1632,8 @@ function buildMarkers(){
   const box = touch ? 34 : 22;                 // groot (onzichtbaar) tikvlak
   for (const o of DATA.objs){
     if (o.t==="H" || o.t==="G") continue;
-    if (onlyBedien && !o.open) continue;
+    if (o.open && !showBedien) continue;
+    if (!o.open && !showVast) continue;
     const d = o.open ? 13 : 10;                 // kleine zichtbare stip
     const icon = L.divIcon({ className:"", iconSize:[box,box], iconAnchor:[box/2,box/2],
       html:`<span class="mk"><i style="width:${d}px;height:${d}px;background:${markerColor(o)}"></i></span>` });
@@ -1732,23 +1735,11 @@ $("#ovl").addEventListener("click", closeDetail);
 document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeDetail(); $("#searchdrop").hidden = true; } });
 $("#q").addEventListener("focus", updateDrop);
 window.addEventListener("resize", setHeaderH);
-$("#mb-all").onclick = ()=>{ onlyBedien=false; $("#mb-all").classList.add("on"); $("#mb-bedien").classList.remove("on"); buildMarkers(); };
-$("#mb-bedien").onclick = ()=>{ onlyBedien=true; $("#mb-bedien").classList.add("on"); $("#mb-all").classList.remove("on"); buildMarkers(); };
-$("#mb-strem").onclick = ()=>{ showStrem=!showStrem; $("#mb-strem").classList.toggle("on", showStrem); buildStremLayer(); };
 $("#mb-locate").onclick = toggleLocate;
-let ukView = false;
-$("#mb-uk").onclick = ()=>{
-  ukView = !ukView;
-  $("#mb-uk").classList.toggle("on", ukView);
-  if (ukView) map.fitBounds([[50.45,-2.7],[52.75,1.9]]);
-  else map.setView([52.2,5.3], 8);
-};
-$("#mb-vts").onclick = toggleVts;
 let seaLayer = null, seaView = false, seaNoteShown = false;
-function toggleSea(){
-  seaView = !seaView;
-  $("#mb-sea").classList.toggle("on", seaView);
-  if (seaView){
+function setSea(on){
+  seaView = on;
+  if (on){
     if (!seaLayer) seaLayer = L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",
       { maxZoom:18, opacity:1, attribution:'Zeekaart: © <a href="https://www.openseamap.org" target="_blank" rel="noopener">OpenSeaMap</a>' });
     seaLayer.addTo(map);
@@ -1758,8 +1749,30 @@ function toggleSea(){
         .setContent(`<div style="font:12px/1.5 system-ui,sans-serif;color:var(--muted)">${LANG==="en"?"OpenSeaMap nautical layer: buoys, lights, beacons, harbours and depths. Community data — not for navigation; use official charts.":"OpenSeaMap-zeekaartlaag: tonnen, lichten, bakens, havens en dieptes. Gemeenschapsdata — niet voor navigatie; gebruik de officiële zeekaart."}</div>`).openOn(map);
     }
   } else if (seaLayer){ map.removeLayer(seaLayer); }
+  updateKaartBtn();
 }
-$("#mb-sea").onclick = toggleSea;
+/* ---- mapbar-dropdowns openen/sluiten ---- */
+document.querySelectorAll(".mapbar .dropwrap > .mapbtn").forEach(btn=>{
+  btn.addEventListener("click", e=>{
+    e.stopPropagation();
+    const menu = btn.parentElement.querySelector(".dropmenu");
+    const opening = menu.hidden;
+    document.querySelectorAll(".mapbar .dropmenu").forEach(m=> m.hidden = true);
+    menu.hidden = !opening;
+  });
+});
+document.addEventListener("click", e=>{ if (!e.target.closest(".mapbar .dropwrap")) document.querySelectorAll(".mapbar .dropmenu").forEach(m=> m.hidden = true); });
+/* 1) Bruggen & sluizen */
+function updateObjs(){ showBedien=$("#obj-bedien").checked; showVast=$("#obj-vast").checked; $("#mb-objs").classList.toggle("on", showBedien||showVast); buildMarkers(); }
+$("#obj-bedien").addEventListener("change", updateObjs);
+$("#obj-vast").addEventListener("change", updateObjs);
+$("#obj-strem").addEventListener("change", ()=>{ showStrem=$("#obj-strem").checked; buildStremLayer(); });
+$("#obj-harb").addEventListener("change", ()=>{ if(!harbLayerH) return; $("#obj-harb").checked ? harbLayerH.addTo(map) : map.removeLayer(harbLayerH); });
+/* 2) Getij: getijstations (stroming-checkboxes via initCurrents) */
+$("#tide-stations").addEventListener("change", ()=>{ if(!harbLayerG) return; $("#tide-stations").checked ? harbLayerG.addTo(map) : map.removeLayer(harbLayerG); });
+/* 3) Kaart: zeekaart + VTS (diepte via depthset-radios) */
+$("#k-sea").addEventListener("change", ()=> setSea($("#k-sea").checked));
+$("#k-vts").addEventListener("change", ()=> setVts($("#k-vts").checked));
 const DEPTHSETS = { standaard:[2,5,10,20], ondiep:[1,2,3,5], per1:[1,2,3,4,5,6,7,8,9,10], per2:[2,4,6,8,10,12,14,16,18,20], per5:[5,10,15,20,25,30] };
 let depthGeo = null, depthLayer = null;
 function depthColor(d){
@@ -1778,20 +1791,22 @@ function drawDepth(gj, levels){
 }
 function setDepth(set){
   if (depthLayer){ map.removeLayer(depthLayer); depthLayer=null; }
-  $("#mb-depth").classList.toggle("on", set!=="off");
-  if (set==="off") return;
-  const levels = new Set(DEPTHSETS[set] || DEPTHSETS.standaard);
-  if (depthGeo) drawDepth(depthGeo, levels);
-  else fetch("data/depth.geojson", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{ depthGeo=gj; drawDepth(gj, levels); }).catch(()=>{});
+  if (set!=="off"){
+    const levels = new Set(DEPTHSETS[set] || DEPTHSETS.standaard);
+    if (depthGeo) drawDepth(depthGeo, levels);
+    else fetch("data/depth.geojson", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{ depthGeo=gj; if($("#kaartmenu") && document.querySelector('input[name="depthset"]:checked').value===set){ drawDepth(gj, levels); updateKaartBtn(); } }).catch(()=>{});
+  }
+  updateKaartBtn();
 }
-$("#mb-depth").addEventListener("click", e=>{ e.stopPropagation(); $("#depthmenu").hidden = !$("#depthmenu").hidden; });
-document.addEventListener("click", e=>{ if (!e.target.closest("#depthmenu") && !e.target.closest("#mb-depth")) $("#depthmenu").hidden = true; });
 document.querySelectorAll('input[name="depthset"]').forEach(r=> r.addEventListener("change", ()=> setDepth(document.querySelector('input[name="depthset"]:checked').value)));
 
 const STATIC_EN = {
   tab_kaart:"Map", tab_fav:"Favourites", tab_strem:"Closures",
-  mb_all:"All objects", mb_bedien:"Operable only", mb_strem:"Closures", mb_locate:"Follow me", mb_uk:"Coastal harbours", mb_vts:"VTS", mb_sea:"Sea chart", mb_depth:"Depth",
-  mb_lagen:"Currents", dm_title:"Tidal current (Copernicus)", dm_arrows:"Copernicus arrows (sharp)", dm_own:"Own arrows (smooth)", dm_particles:"Particle animation", dm_color:"Colour layer (speed)", cur_now:"Now",
+  mb_locate:"Follow me",
+  mb_objs:"Bridges & locks", dm_objs:"On the map", o_bedien:"Operable", o_vast:"Non-operable", o_strem:"Closures", o_harb:"Coastal harbours (UK/BE)",
+  mb_tide:"Tide & current", dm_tide:"Tide", t_stations:"Tide stations",
+  mb_kaart:"Map", dm_layers:"Layers", k_sea:"Sea chart (OpenSeaMap)", k_vts:"VTS sectors",
+  dm_title:"Tidal current (Copernicus)", dm_arrows:"Copernicus arrows (sharp)", dm_own:"Own arrows (smooth)", dm_particles:"Particle animation", dm_color:"Colour layer (speed)", cur_now:"Now",
   dm_depth:"Depth contours (EMODnet)", ds_off:"Off", ds_std:"Standard — 2 / 5 / 10 / 20 m", ds_shal:"Shallow — 1 / 2 / 3 / 5 m", ds_1:"Every 1 m — 1 to 10 m", ds_2:"Every 2 m — 2 to 20 m", ds_5:"Every 5 m — 5 to 30 m", ds_note:"Open data · rel. to mean sea level · not for navigation",
 };
 function applyStaticLang(){
