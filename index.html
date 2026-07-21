@@ -351,7 +351,9 @@ footer a{color:var(--brand-dim);text-decoration:underline}
       <div class="dropwrap">
         <button class="mapbtn" id="mb-kaart"><svg class="ic" viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg><span data-i18n="mb_kaart">Kaart</span> ▾</button>
         <div id="kaartmenu" class="dropmenu" hidden>
-          <div class="dm-t" data-i18n="dm_layers">Lagen</div>
+          <label style="font-weight:700"><input type="checkbox" id="k-zeekaart"> <span data-i18n="k_zeekaart">Zeekaartmodus</span></label>
+          <div class="dm-note" data-i18n="k_zeekaart_note">Lichte ondergrond + officiële RWS-iENC (binnenwater) + diepte in zeekaart-stijl + OpenSeaMap-symbolen.</div>
+          <div class="dm-t" data-i18n="dm_layers">Losse lagen</div>
           <label><input type="checkbox" id="k-sea"> <span data-i18n="k_sea">Zeekaart (OpenSeaMap)</span></label>
           <label><input type="checkbox" id="k-vts"> <span data-i18n="k_vts">VTS-sectoren</span></label>
           <div class="dm-t" data-i18n="dm_depth">Diepte (EMODnet)</div>
@@ -1374,6 +1376,7 @@ function closeDetail(){ $("#panel").classList.remove("open"); $("#ovl").classLis
 
 /* ---------- kaart ---------- */
 let map=null, cluster=null, stremLayer=null, meMarker=null, watchId=null, showBedien=true, showVast=true, showStrem=false;
+let baseOSM=null, baseLight=null, iencLayer=null, seaChartLayer=null, chartDepthLayer=null, chartDepthGeo=null, zeechartView=false;
 function markerColor(o){
   const st = o._mapcls || (o._mapcls = quickCls(o));
   return {good:"#0ca30c", warn:"#fab219", ser:"#ec835a", crit:"#d03b3b", mut:"#898781", open:"#2a78d6"}[st];
@@ -1389,9 +1392,13 @@ function quickCls(o){
 function initMap(){
   if (map) return;
   map = L.map("map", {preferCanvas:true}).setView([52.2,5.3], 8);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  baseOSM = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19, attribution: "© OpenStreetMap"
   }).addTo(map);
+  // panes voor de zeekaartmodus: diepte < iENC < zeekaart-symbolen (tussen basiskaart 200 en overlays 400)
+  map.createPane("depthPane"); map.getPane("depthPane").style.zIndex = 250;
+  map.createPane("iencPane");  map.getPane("iencPane").style.zIndex = 300;
+  map.createPane("seaPane");   map.getPane("seaPane").style.zIndex = 350;
   cluster = L.markerClusterGroup({chunkedLoading:true, disableClusteringAtZoom:14, maxClusterRadius:55});
   buildMarkers();
   map.addLayer(cluster);
@@ -1642,7 +1649,7 @@ function buildVtsLayer(){
   }
 }
 let vtsView = false;
-function updateKaartBtn(){ $("#mb-kaart").classList.toggle("on", vtsView || seaView || (depthLayer!=null)); }
+function updateKaartBtn(){ $("#mb-kaart").classList.toggle("on", vtsView || seaView || zeechartView || (depthLayer!=null) || (chartDepthLayer!=null)); }
 function setVts(on){
   vtsView = on;
   if (on){
@@ -1798,6 +1805,42 @@ function setSea(on){
   } else if (seaLayer){ map.removeLayer(seaLayer); }
   updateKaartBtn();
 }
+/* ---- Zeekaartmodus: lichte ondergrond + RWS-iENC + zeekaart-diepte + OpenSeaMap ---- */
+function chartDepthColor(dm){
+  if (dm<=0) return "#bcd6a8";   // droogvallend = groen
+  if (dm<=2) return "#6aa8cf";   // 0-2 m  = donkerst blauw (ondiep)
+  if (dm<=5) return "#93c3e0";
+  if (dm<=10) return "#bfdcef";
+  return "#e3f0f8";              // 10-20 m = palst blauw (dieper → wit-basis eronder)
+}
+function drawChartDepth(gj){
+  chartDepthLayer = L.geoJSON(gj, { pane:"depthPane",
+    style: f => ({ stroke:false, fill:true, fillColor: chartDepthColor(f.properties.dmax), fillOpacity:.9 }) }).addTo(map);
+}
+function setZeeChart(on){
+  zeechartView = on;
+  if (on){
+    if (!baseLight) baseLight = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+      { maxZoom:19, subdomains:"abcd", attribution:'© OpenStreetMap © CARTO' });
+    if (map.hasLayer(baseOSM)) map.removeLayer(baseOSM);
+    baseLight.addTo(map);
+    if (chartDepthGeo) drawChartDepth(chartDepthGeo);
+    else fetch("data/depth_chart.geojson?v=20260721c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ chartDepthGeo=gj; if(zeechartView){ drawChartDepth(gj); if(window.updateLegend) updateLegend(); } }).catch(()=>{});
+    if (!iencLayer) iencLayer = L.tileLayer.wms("https://geo.rijkswaterstaat.nl/arcgis/rest/services/ENC/mcs_inland/MapServer/exts/MaritimeChartService/WMSServer",
+      { layers:"0", format:"image/png", transparent:true, version:"1.3.0", maxZoom:19, pane:"iencPane", attribution:'Vaarwegkaart: © Rijkswaterstaat iENC (CC-0)' });
+    iencLayer.addTo(map);
+    if (!seaChartLayer) seaChartLayer = L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",
+      { maxZoom:18, pane:"seaPane", attribution:'© OpenSeaMap' });
+    seaChartLayer.addTo(map);
+  } else {
+    if (chartDepthLayer){ map.removeLayer(chartDepthLayer); chartDepthLayer=null; }
+    if (iencLayer) map.removeLayer(iencLayer);
+    if (seaChartLayer) map.removeLayer(seaChartLayer);
+    if (baseLight && map.hasLayer(baseLight)) map.removeLayer(baseLight);
+    if (baseOSM && !map.hasLayer(baseOSM)) baseOSM.addTo(map);
+  }
+  updateKaartBtn(); if (window.updateLegend) updateLegend();
+}
 /* ---- mapbar-dropdowns openen/sluiten ---- */
 document.querySelectorAll(".mapbar .dropwrap > .mapbtn").forEach(btn=>{
   btn.addEventListener("click", e=>{
@@ -1818,6 +1861,7 @@ $("#obj-harb").addEventListener("change", ()=>{ if(!harbLayerH) return; $("#obj-
 /* 2) Getij: getijstations (stroming-checkboxes via initCurrents) */
 $("#tide-stations").addEventListener("change", ()=>{ if(!harbLayerG) return; $("#tide-stations").checked ? harbLayerG.addTo(map) : map.removeLayer(harbLayerG); });
 /* 3) Kaart: zeekaart + VTS (diepte via depthset-radios) */
+$("#k-zeekaart").addEventListener("change", ()=> setZeeChart($("#k-zeekaart").checked));
 $("#k-sea").addEventListener("change", ()=> setSea($("#k-sea").checked));
 $("#k-vts").addEventListener("change", ()=> setVts($("#k-vts").checked));
 const DEPTHSETS = { standaard:[2,5,10,20], ondiep:[1,2,3,5], per1:[1,2,3,4,5,6,7,8,9,10], per2:[2,4,6,8,10,12,14,16,18,20], per5:[5,10,15,20,25,30] };
@@ -1863,6 +1907,10 @@ document.querySelectorAll('input[name="depthset"]').forEach(r=> r.addEventListen
 function legendDepthSet(){ const r=document.querySelector('input[name="depthset"]:checked'); return r?r.value:"off"; }
 function updateLegend(){
   const box=$("#maplegend"); if(!box) return; let html="";
+  if (zeechartView && chartDepthLayer!=null){
+    html+=`<div class="lg-t">${LANG==="en"?"Depth (m · LAT)":"Diepte (m · LAT)"}</div>`;
+    [[(LANG==="en"?"drying":"droogvallend"),"#bcd6a8"],["0–2","#6aa8cf"],["2–5","#93c3e0"],["5–10","#bfdcef"],["10–20","#e3f0f8"]].forEach(([lab,c])=>{ html+=`<div class="lg-row"><span class="lg-sw" style="background:${c};border:1px solid #cbd5dd"></span>${lab}${/\d/.test(lab)?" m":""}</div>`; });
+  }
   const dval=legendDepthSet();
   if (depthLayer!=null && dval!=="off"){
     if (dval==="fill"){
@@ -1887,7 +1935,8 @@ const STATIC_EN = {
   mb_objs:"Bridges & locks", dm_objs:"On the map", o_bedien:"Operable", o_vast:"Non-operable", o_strem:"Closures", o_harb:"Coastal harbours (UK/BE)",
   mb_tide:"Tide, current & wind", dm_tide:"Tide", t_stations:"Tide stations",
   dm_wind:"Wind (Open-Meteo, GFS/ICON)", w_arrows:"Wind arrows (Beaufort)", w_part:"Wind particles", w_color:"Wind colour (speed)",
-  mb_kaart:"Map", dm_layers:"Layers", k_sea:"Sea chart (OpenSeaMap)", k_vts:"VTS sectors",
+  mb_kaart:"Map", dm_layers:"Separate layers", k_sea:"Sea chart (OpenSeaMap)", k_vts:"VTS sectors",
+  k_zeekaart:"Nautical chart mode", k_zeekaart_note:"Light base + official RWS iENC (inland waters) + chart-style depth + OpenSeaMap symbols.",
   dm_title:"Tidal current (Copernicus)", dm_arrows:"Copernicus arrows (sharp)", dm_own:"Own arrows (smooth)", dm_particles:"Particle animation", dm_color:"Colour layer (speed)", cur_now:"Now",
   dm_depth:"Depth (EMODnet)", ds_off:"Off", ds_fill:"Shaded — shallows coloured", ds_std:"Standard — 2 / 5 / 10 / 20 m", ds_shal:"Shallow — 1 / 2 / 3 / 5 m", ds_1:"Every 1 m — 1 to 10 m", ds_2:"Every 2 m — 2 to 20 m", ds_5:"Every 5 m — 5 to 30 m", ds_note:"EMODnet · rel. to chart datum (LAT) · not for navigation",
 };
