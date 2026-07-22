@@ -17,6 +17,9 @@
   let arrowFade = null, colorFade = null, lastWmtsHour = -1;
   let maskLayer = null, maskData = null, maskW = 0, maskH = 0, maskT = null;
   let want = { arrows: false, particles: false, color: false, own: false };
+  /* fijn lokaal veld (±1,6 km) voor het zichtgebied bij diep inzoomen */
+  const FINE = { minZoom: 12, dLat: 0.015, dLon: 0.024, maxPts: 300, pad: 0.25 };
+  let fine = null, fineLoading = false, fineTimer = 0, fineKey = '';
   let onTimeChange = null, statusCb = null;
 
   const isoHour = s => new Date(s * 1000).toISOString().replace(/\.\d{3}Z$/, '.000Z');
@@ -112,6 +115,87 @@
     if (want.particles) resetParticles();   // nu pas echte zeecellen → deeltjes met coördinaten
   }
 
+  /* ---- fijn veld: bemonster het 1,5km-model lokaal zodra je diep inzoomt ---- */
+  async function fetchFineChunk(ch, attempt) {
+    attempt = attempt || 0;
+    const url = 'https://marine-api.open-meteo.com/v1/marine?latitude=' + ch.map(p => p[0]).join(',')
+      + '&longitude=' + ch.map(p => p[1]).join(',')
+      + '&hourly=ocean_current_velocity,ocean_current_direction&forecast_days=3&cell_selection=sea&timeformat=unixtime&timezone=GMT';
+    try {
+      const r = await fetch(url, { cache: 'no-store' });
+      if ((r.status === 429 || r.status >= 500) && attempt < 3) { await sleep(700 * (attempt + 1)); return fetchFineChunk(ch, attempt + 1); }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = await r.json(); return Array.isArray(j) ? j : [j];
+    } catch (e) { if (attempt < 2) { await sleep(600 * (attempt + 1)); return fetchFineChunk(ch, attempt + 1); } return null; }
+  }
+  function fineCovers(b) {
+    return fine && b.getSouth() >= fine.lat0 && b.getNorth() <= fine.lat0 + (fine.nLat - 1) * fine.dLat
+      && b.getWest() >= fine.lon0 && b.getEast() <= fine.lon0 + (fine.nLon - 1) * fine.dLon;
+  }
+  function scheduleFine() { clearTimeout(fineTimer); fineTimer = setTimeout(loadFine, 700); }
+  async function loadFine() {
+    if (!map || fineLoading) return;
+    if (map.getZoom() < FINE.minZoom) return;
+    if (!want.own && !want.particles && !want.color) return;
+    if (fineCovers(map.getBounds().pad(0.05))) return;      // zichtgebied al gedekt
+    const b = map.getBounds().pad(FINE.pad);
+    let dLat = FINE.dLat, dLon = FINE.dLon;
+    let nLat = Math.ceil((b.getNorth() - b.getSouth()) / dLat) + 1, nLon = Math.ceil((b.getEast() - b.getWest()) / dLon) + 1;
+    while (nLat * nLon > FINE.maxPts) { dLat *= 1.3; dLon *= 1.3; nLat = Math.ceil((b.getNorth() - b.getSouth()) / dLat) + 1; nLon = Math.ceil((b.getEast() - b.getWest()) / dLon) + 1; }
+    const lat0 = b.getSouth(), lon0 = b.getWest();
+    const key = lat0.toFixed(3) + ',' + lon0.toFixed(3) + ',' + nLat + 'x' + nLon;
+    if (key === fineKey) return;
+    fineLoading = true;
+    const pts = []; for (let i = 0; i < nLat; i++) for (let j = 0; j < nLon; j++) pts.push([+(lat0 + i * dLat).toFixed(4), +(lon0 + j * dLon).toFixed(4)]);
+    const responses = [];
+    let ok = true;
+    for (let s = 0; s < pts.length; s += CHUNK) {
+      const r = await fetchFineChunk(pts.slice(s, s + CHUNK));
+      if (!r) { ok = false; break; }
+      responses.push(...r);
+    }
+    fineLoading = false;
+    if (!ok || !responses.length || !responses[0].hourly) return;
+    const nH = Math.min(72, responses[0].hourly.time.length);
+    const base = (times || defaultTimes());
+    const t0 = Math.round((responses[0].hourly.time[0] - base[0]) / 3600);
+    const n = nLat * nLon;
+    const FU = new Float32Array(nH * n).fill(NaN), FV = new Float32Array(nH * n).fill(NaN);
+    for (let p = 0; p < n && p < responses.length; p++) {
+      const h = responses[p].hourly; if (!h) continue;
+      const vel = h.ocean_current_velocity, dir = h.ocean_current_direction;
+      for (let t = 0; t < nH; t++) {
+        const sp = vel[t], dd = dir[t]; if (sp == null || dd == null) continue;
+        const rad = dd * Math.PI / 180;
+        FU[t * n + p] = sp * Math.sin(rad); FV[t * n + p] = sp * Math.cos(rad);
+      }
+    }
+    fine = { lat0, lon0, dLat, dLon, nLat, nLon, nH, t0, U: FU, V: FV };
+    fineKey = key;
+    scheduleFine();                                          // dek zo nodig meteen het inmiddels verschoven beeld
+  }
+  function fineSampleAt(lat, lon, t) {
+    const n = fine.nLat * fine.nLon, fi = (lat - fine.lat0) / fine.dLat, fj = (lon - fine.lon0) / fine.dLon;
+    const i0 = Math.floor(fi), j0 = Math.floor(fj);
+    if (i0 < 0 || j0 < 0 || i0 >= fine.nLat - 1 || j0 >= fine.nLon - 1) return null;
+    const wi = fi - i0, wj = fj - j0; let su = 0, sv = 0, sw = 0;
+    for (let di = 0; di <= 1; di++) for (let dj = 0; dj <= 1; dj++) {
+      const idx = t * n + (i0 + di) * fine.nLon + (j0 + dj); const u = fine.U[idx]; if (Number.isNaN(u)) continue;
+      const w = (di ? wi : 1 - wi) * (dj ? wj : 1 - wj); su += u * w; sv += fine.V[idx] * w; sw += w;
+    }
+    if (sw < 0.25) return null; return [su / sw, sv / sw];
+  }
+  function fineSample(lat, lon, tf) {
+    if (!fine || !map || map.getZoom() < FINE.minZoom) return null;
+    const lt = tf - fine.t0; if (lt < -1e-3 || lt > fine.nH - 1) return null;
+    const t0i = Math.max(0, Math.min(fine.nH - 1, Math.floor(lt))), w = lt - t0i;
+    const a = fineSampleAt(lat, lon, t0i);
+    if (w < 1e-3 || t0i >= fine.nH - 1) return a;
+    const b = fineSampleAt(lat, lon, t0i + 1);
+    if (!a) return b; if (!b) return a;
+    return [a[0] * (1 - w) + b[0] * w, a[1] * (1 - w) + b[1] * w];
+  }
+
   /* ---- interpolatie ---- */
   function sampleUVi(lat, lon, t) {
     const n = GRID.nLat * GRID.nLon, fi = (lat - GRID.lat0) / GRID.dLat, fj = (lon - GRID.lon0) / GRID.dLon;
@@ -122,12 +206,14 @@
     if (sw < 0.25) return null; return [su / sw, sv / sw];
   }
   function sampleUV(lat, lon, tf) {
+    const f = fineSample(lat, lon, tf); if (f) return f;    // fijn veld gaat vóór (alleen actief bij diep inzoomen)
     const t0 = Math.floor(tf), w = tf - t0, a = sampleUVi(lat, lon, t0);
     if (w < 1e-3 || t0 >= NHOURS - 1) return a; const b = sampleUVi(lat, lon, t0 + 1);
     if (!a) return b; if (!b) return a; return [a[0] * (1 - w) + b[0] * w, a[1] * (1 - w) + b[1] * w];
   }
   function isSeaAt(lat, lon) { if (!seaMask) return true; const i = Math.round((lat - GRID.lat0) / GRID.dLat), j = Math.round((lon - GRID.lon0) / GRID.dLon); if (i < 0 || j < 0 || i >= GRID.nLat || j >= GRID.nLon) return false; return seaMask[i * GRID.nLon + j] === 1; }
   function sampleUVarrow(lat, lon, tf) {
+    const f = fineSample(lat, lon, tf); if (f) return f;    // fijn veld kent de geulen die het grove landmasker mist
     if (!seaMask) return null;
     const fi = (lat - GRID.lat0) / GRID.dLat, fj = (lon - GRID.lon0) / GRID.dLon, i0 = Math.floor(fi), j0 = Math.floor(fj);
     if (i0 < 0 || j0 < 0 || i0 >= GRID.nLat - 1 || j0 >= GRID.nLon - 1) return null;
@@ -238,6 +324,7 @@
     if (canvas) canvas.style.display = canvasOn ? 'block' : 'none';
     if ((want.arrows || want.color || canvasOn) && !loaded) loadData();   // grid ook laden voor klik-info
     if (want.particles) resetParticles();
+    scheduleFine();
   }
 
   const API = {
@@ -254,7 +341,7 @@
       arrowFade = makeFadeManager('cmap:speed,vectorStyle:vector', 0.92);
       colorFade = makeFadeManager('cmap:speed,vectorStyle:solid', 0.55);
       map.on('resize', () => { resizeCanvas(); reposition(); resetParticles(); scheduleMaskRedraw(); });
-      map.on('moveend zoomend', () => { reposition(); resetParticles(); scheduleMaskRedraw(); });
+      map.on('moveend zoomend', () => { reposition(); resetParticles(); scheduleMaskRedraw(); scheduleFine(); });
       map.on('movestart zoomstart', () => ctx && ctx.clearRect(0, 0, canvas.width, canvas.height));
       resizeCanvas(); reposition(); setTimeFloat(nowIndex()); requestAnimationFrame(frame);
       return API;
