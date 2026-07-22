@@ -561,7 +561,7 @@ header{position:sticky}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-26</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-27</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1647,7 +1647,7 @@ function initCurrents(){
   $("#cur-play").addEventListener("click", ()=>{ const p=!isPlaying(); Currents.setPlaying(p); Wind.setPlaying(p); $("#cur-play").textContent = p?"❚❚":"▶"; });
   // klik op zee → stroom- en/of wind-info (met doorklik naar detailpaneel)
   map.on("click", e=>{
-    if (window.plotterArmWp) return;   // klik zet een waypoint, geen popup
+    if (window.plotterArmWp || (plOn && !plWp)) return;   // klik zet een waypoint, geen popup
     if (!Currents.anyOn() && !Wind.anyOn()) return;
     let parts = [];
     if (Currents.anyOn()){
@@ -1976,8 +1976,12 @@ function plUpdate(){
 function plSetWp(latlng){
   plWp=[latlng.lat,latlng.lng];
   if (!plWpMarker){
-    plWpMarker=L.marker(plWp,{icon:L.divIcon({className:"",html:'<div style="font-size:22px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))">🚩</div>',iconAnchor:[3,20]})}).addTo(map);
+    plWpMarker=L.marker(plWp,{draggable:true,autoPan:true,icon:L.divIcon({className:"",html:'<div style="font-size:22px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))">🚩</div>',iconAnchor:[3,20]})}).addTo(map);
     plWpLine=L.polyline([plWp,plWp],{color:"#d64550",weight:2,dashArray:"6 6",opacity:.85}).addTo(map);
+    // versleepbaar: tijdens het slepen schuiven waypoint, lijn en DTW/BTW/TTW live mee
+    plWpMarker.on("drag dragend", e=>{
+      const ll=e.target.getLatLng(); plWp=[ll.lat,ll.lng]; plUpdate();
+    });
   } else plWpMarker.setLatLng(plWp);
   window.plotterArmWp=false; const b=$("#pl-wp"); if(b) b.classList.remove("arm");
   plUpdate();
@@ -2225,7 +2229,7 @@ $("#q").addEventListener("focus", updateDrop);
 window.addEventListener("resize", setHeaderH);
 $("#mb-locate").onclick = toggleLocate;
 $("#mb-plotter").onclick = ()=>{
-  if (!plOn && map && !map.__plWpClick){ map.__plWpClick=true; map.on("click", e=>{ if (window.plotterArmWp && plOn) plSetWp(e.latlng); }); }
+  if (!plOn && map && !map.__plWpClick){ map.__plWpClick=true; map.on("click", e=>{ if (plOn && (window.plotterArmWp || !plWp)) plSetWp(e.latlng); }); }
   togglePlotter();
 };
 $("#pl-wp").onclick = ()=>{ window.plotterArmWp=!window.plotterArmWp; $("#pl-wp").classList.toggle("arm", window.plotterArmWp); };
