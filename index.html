@@ -561,7 +561,7 @@ header{position:sticky}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-27</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-28</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -605,6 +605,285 @@ const EN = {
  "geen verwachtingen beschikbaar — ververs vannacht":"no predictions available yet — refreshes tonight"
 };
 function T(s){ return LANG==="en" ? (EN[s] ?? s) : s; }
+/* vertaal RWS/haven-vrije-tekst NL→EN met geordende frase-regels (langste eerst) */
+const NL2EN_RULES = [
+  // vaste uitdrukkingen / lange frasen eerst
+  ["bij geen gehoor voor een aanvraag", "if there is no reply to a request"],
+  ["bij geen gehoor", "if no reply"],
+  ["in verband met", "due to"],
+  ["in dringende gevallen", "in urgent cases"],
+  ["na voorafgaand verzoek", "after prior request"],
+  ["op de voorafgaande werkdag", "on the preceding working day"],
+  ["voorafgaande werkdag", "preceding working day"],
+  ["gelegenheid tot doorvaart", "passage"],
+  ["houdt? rekening (te houden )?met", "allow for"],
+  ["rekening (moet )?worden gehouden met", "allowance must be made for"],
+  ["rekening houden met", "allow for"],
+  ["van te ?voren", "in advance"],
+  ["\\bte ?voren\\b", "in advance"],
+  ["\\bvooraf\\b", "in advance"],
+  ["vooraanmelding", "advance notice"],
+  ["dient te worden", "must be"],
+  ["dienen te worden", "must be"],
+  ["dient .{0,12}?te worden ingediend", "must be submitted"],
+  ["\\bdient\\b", "must"],
+  ["\\bte worden\\b", "be"],
+  ["\\bopeningen\\b", "openings"],
+  ["voor (\\d{1,2}[:.]\\d{2})", "before $1"],
+  ["kan (er )?(dus )?uitsluitend", "can only"],
+  ["kan worden", "can be"],
+  ["kunnen worden", "can be"],
+  ["mag worden", "may be"],
+  ["mogen worden", "may be"],
+  ["moet worden", "must be"],
+  ["moeten worden", "must be"],
+  ["zal (er )?niet meer", "will no longer be"],
+  ["wordt niet", "is not"],
+  ["worden niet", "are not"],
+  ["wordt uitsluitend", "is only"],
+  ["wordt alleen", "is only"],
+  ["worden bediend", "be operated"],
+  ["wordt bediend", "is operated"],
+  ["worden gedraaid", "be swung"],
+  ["wordt gedraaid", "is swung"],
+  ["worden geopend", "be opened"],
+  ["wordt geopend", "is opened"],
+  ["wordt gestaakt", "is suspended"],
+  ["worden geschut", "be locked through"],
+  ["wordt geschut", "is locked through"],
+  ["wordt uitgevoerd", "is carried out"],
+  ["wordt gevraagd", "is charged"],
+  ["wordt gesloten", "is closed"],
+  ["worden de bruggen niet bediend", "the bridges are not operated"],
+  ["wordt de brug niet bediend", "the bridge is not operated"],
+  ["mag de brug niet meer gedraaid worden", "the bridge may no longer be swung"],
+  ["afhankelijk van", "depending on"],
+  ["met uitzondering van", "except for"],
+  ["ter hoogte van", "near"],
+  ["\\bvan de\\b", "\u0002 the"], ["\\bvan het\\b", "\u0002 the"], ["\\bvan een\\b", "\u0002 a"],
+  ["\\bwordt\\b", "is"],
+  ["\\bworden\\b", "be"],
+  // dagen & periodes
+  ["za-, zon- en feestdagen", "Saturdays, Sundays and public holidays"],
+  ["zon- en feestdagen", "Sundays and public holidays"],
+  ["\\bmaandag\\b", "Monday"], ["\\bdinsdag\\b", "Tuesday"], ["\\bwoensdag\\b", "Wednesday"],
+  ["\\bdonderdag\\b", "Thursday"], ["\\bvrijdag\\b", "Friday"], ["\\bzaterdag\\b", "Saturday"], ["\\bzondag\\b", "Sunday"],
+  ["\\bfeestdagen\\b", "public holidays"], ["\\bfeestdag\\b", "public holiday"],
+  ["\\bwerkdagen\\b", "working days"], ["\\bwerkdag\\b", "working day"],
+  ["\\bkantooruren\\b", "office hours"],
+  ["koningsdag", "King's Day"], ["hemelvaartsdag", "Ascension Day"],
+  ["tweede paasdag", "Easter Monday"], ["tweede pinksterdag", "Whit Monday"],
+  ["eerste kerstdag", "Christmas Day"], ["tweede kerstdag", "Boxing Day"],
+  ["goede vrijdag", "Good Friday"], ["nieuwjaarsdag", "New Year's Day"], ["oudejaarsdag", "New Year's Eve"],
+  ["bevrijdingsdag", "Liberation Day"], ["\\bpasen\\b", "Easter"], ["\\bpinksteren\\b", "Whitsun"], ["\\bkerst(mis)?\\b", "Christmas"],
+  ["\\bjanuari\\b", "January"], ["\\bfebruari\\b", "February"], ["\\bmaart\\b", "March"], ["\\bapril\\b", "April"],
+  ["\\bmei\\b", "May"], ["\\bjuni\\b", "June"], ["\\bjuli\\b", "July"], ["\\baugustus\\b", "August"],
+  ["\\bseptember\\b", "September"], ["\\boktober\\b", "October"], ["\\bnovember\\b", "November"], ["\\bdecember\\b", "December"],
+  ["\\bt/m\\b", "to"], ["\\btot en met\\b", "up to and including"],
+  // tijd
+  ["(\\d{1,2}[:.]\\d{2}) uur", "$1"],
+  ["per uur", "per hour"],
+  ["\\b1 uur\\b", "1 hour"],
+  ["(\\d+([.,]\\d+)?)[- ]uur", "$1 hours"],
+  ["24 uur", "24 hours"],
+  ["een half uur", "half an hour"],
+  ["windkracht van", "wind force \u0002"], ["windsnelheid van", "wind speed \u0002"],
+  ["\\buur\\b", "hours"],
+  ["\\bkwartier\\b", "quarter \u0002 an hour"],
+  ["\\bminuten\\b", "minutes"], ["\\bminuut\\b", "minute"],
+  ["\\bdag en nacht\\b", "day and night"],
+  ["\\bochtend(spertijden)?\\b", (m)=>m.includes("spertijden")?"morning closed periods":"morning"],
+  // scheepvaart & objecten
+  ["beroepsvaart", "commercial shipping"],
+  ["recreatievaart", "recreational craft"],
+  ["\\bscheepvaart\\b", "shipping"],
+  ["bestemmingsverkeer", "local traffic"],
+  ["doorvaartopening", "navigation opening"],
+  ["doorvaarthoogte", "clearance"],
+  ["\\bdoorvaart\\b", "passage"],
+  ["brugopeningen", "bridge openings"],
+  ["brugopening", "bridge opening"],
+  ["brugsluiting", "bridge closing"],
+  ["brugbediening", "bridge operation"],
+  ["\\bbruggen\\b", "bridges"], ["\\bbrug\\b", "bridge"],
+  ["schutsluizen", "locks"], ["schutsluis", "lock"],
+  ["\\bsluizen\\b", "locks"], ["\\bsluis\\b", "lock"],
+  ["schutrichting", "locking direction"],
+  ["schutmomenten", "locking times"],
+  ["\\bschuttingen\\b", "lockings"], ["\\bschutting\\b", "locking"],
+  ["\\bgeschut\\b", "locked through"], ["\\bschutten\\b", "lock through"],
+  ["\\bkolk(en)?\\b", "chamber$1"],
+  ["stormvloedkering", "storm surge barrier"],
+  ["\\bhoogwater\\b", "high water"], ["\\blaagwater\\b", "low water"],
+  ["\\bgetij(den)?\\b", "tide"],
+  ["benedenhoofd", "lower head"], ["bovenhoofd", "upper head"],
+  ["\\bvaarweg\\b", "waterway"],
+  ["\\bkmr\\.?\\b", "km"],
+  ["ter hoogte van", "near"], ["\\bthv\\b", "near"], ["\\bnabij\\b", "near"],
+  // bediening
+  ["bedien(ings?)?tijden", "operating times"],
+  ["bedienpauze", "operating pause"],
+  ["op afstand bediend", "remotely operated"],
+  ["bediening op afstand", "remote operation"],
+  ["lokaal bediend", "operated locally"],
+  ["zelfbediening", "self-service operation"],
+  ["\\bbediening\\b", "operation"],
+  ["\\bbediend\\b", "operated"],
+  ["\\bbedienaar\\b", "operator"],
+  ["bediencentrale", "control centre"],
+  ["treindienstleiding", "rail traffic control"],
+  ["brugwachter", "bridge keeper"], ["sluiswachter", "lock keeper"],
+  ["havenmeester", "harbour master"], ["havendienst", "harbour office"],
+  ["op afroep", "on request"], ["op aanvraag", "on request"], ["op verzoek", "on request"],
+  ["\\bverzoek\\b", "request"],
+  ["aan te vragen", "to be requested"],
+  ["\\baanvrager\\b", "applicant"],
+  ["druk op", "press"], ["aanmeldknop", "call button"], ["drukknop", "push button"],
+  ["niet apart bediend", "not operated separately"],
+  ["\\bapart\\b", "separately"],
+  ["\\beindtijd\\b", "end time"], ["\\bstarttijd\\b", "start time"],
+  ["vaarverbinding", "waterway link"],
+  ["stadsgrachten", "town canals"], ["\\bgrachten\\b", "canals"], ["\\bgracht\\b", "canal"],
+  ["\\bafroep\\b", "request"], ["\\bafroepen\\b", "call"],
+  ["op afspraak", "by appointment"], ["\\bafspraak\\b", "appointment"],
+  ["aangevraagd", "requested"], ["\\baanvragen\\b", "request"], ["\\baanvraag\\b", "request"],
+  ["\\baanmelden\\b", "give notice"], ["aangemeld", "notified"], ["\\bboeken\\b", "book"],
+  ["\\bmelden\\b", "report"], ["\\bmelding\\b", "notification"],
+  ["uitluisteren", "monitor"],
+  ["\\bopgehaald\\b", "collected"], ["op te halen", "to collect"],
+  // stremmingen & beperkingen
+  ["spitsstremmingen", "rush-hour closures"],
+  ["spitssluiting(en)?", "rush-hour closure$1"],
+  ["avondspertijden", "evening closed periods"],
+  ["\\bspertijden\\b", "closed periods"],
+  ["dienstregeling", "timetable"],
+  ["\\bvari\u00ebren\\b", "vary"],
+  ["spoorbruggen", "railway bridges"], ["spoorbrug", "railway bridge"],
+  ["\\bhefbrug\\b", "lift bridge"], ["\\bdraaibrug\\b", "swing bridge"], ["\\bophaalbrug\\b", "bascule bridge"],
+  ["\\bkeersluis\\b", "flood lock"], ["\\bspuisluis\\b", "sluice"], ["\\bgemaal\\b", "pumping station"],
+  ["\\bspits\\b", "rush hour"],
+  ["\\bstremmingen\\b", "closures"], ["\\bstremming\\b", "closure"],
+  ["\\bgestremd\\b", "closed"],
+  ["werkzaamheden", "works"],
+  ["groot onderhoud", "major maintenance"], ["\\bonderhoud\\b", "maintenance"],
+  ["\\bcalamiteit\\b", "emergency"], ["\\bstoring\\b", "malfunction"],
+  ["bijzondere gebeurtenissen", "special events"],
+  ["\\bafwijking\\b", "deviation"],
+  ["windkracht", "wind force"], ["windsnelheid", "wind speed"],
+  ["\\bgemiddelde\\b", "average"], ["\\bgemeten\\b", "measured"],
+  ["\\bgraden\\b", "degrees"], ["temperatuur", "temperature"],
+  ["\\bindicatief\\b", "indicative"],
+  // telefoon & contact
+  ["telefoonnummer", "phone number"],
+  ["tel\\. ?nr\\.?[:.]?", "phone"], ["\\btelnr\\.?[:.]?", "phone"],
+  ["\\btel[.:]", "phone"], ["\\btel\\b", "phone"],
+  ["telefonisch", "by phone"],
+  ["b\\.? ?g\\.? ?g\\.?", "if no answer"],
+  ["marifoon vhf", "VHF"], ["marifoonkanaal", "VHF channel"], ["\\bmarifoon\\b", "VHF"],
+  ["\\bbellen\\b", "call"], ["\\bgebeld\\b", "called"], ["\\bbel\\b", "call"],
+  ["infonummer", "info number"],
+  ["\\bbereikbaar\\b", "reachable"], ["\\bbeschikbaar\\b", "available"],
+  ["\\baanwezig\\b", "present"],
+  // overige zelfstandige naamwoorden / bijv.
+  ["aanrijtijd", "operator travel time"],
+  ["enige vertraging", "some delay"], ["\\bvertraging\\b", "delay"],
+  ["wachttijd", "waiting time"],
+  ["\\baanbod\\b", "demand"], ["\\bvertrek\\b", "departure"], ["\\baankomst\\b", "arrival"],
+  ["\\brichting\\b", "direction"],
+  ["\\bnoord\\b", "north"], ["\\bzuid\\b", "south"], ["\\boost\\b", "east"], ["\\bwest\\b", "west"],
+  ["\\bbeweegbare?\\b", "movable"],
+  ["vaste? (deel|gedeelte)", "fixed span"], ["vaste brug", "fixed bridge"],
+  ["\\bonbemand\\b", "unmanned"], ["\\bbemand\\b", "manned"],
+  ["\\bvergoeding\\b", "fee"], ["\\bborg\\b", "deposit"], ["\\bsleutel\\b", "key"],
+  ["gemeente ?huis", "town hall"], ["\\bgemeente\\b", "municipality"],
+  ["\\bproven?cie\\b", "province"],
+  ["contante betaling", "cash payment"], ["\\bcontant\\b", "cash"],
+  ["alleen pinnen", "card payment only"], ["\\bpinnen\\b", "pay by card"],
+  ["\\bkosten\\b", "charges"], ["\\bgratis\\b", "free"],
+  ["\\bwebsite\\b", "website"], ["\\bsite\\b", "site"],
+  ["\\bkanaal\\b", "canal"], ["\\bhaven\\b", "harbour", "g"],
+  ["\\bopent\\b", "opens"],
+  ["\\baltijd\\b", "always"], ["toegankelijk", "accessible"],
+  ["ingaande stroom", "flood stream"], ["uitgaande stroom", "ebb stream"],
+  ["\\bstroom\\b", "current"], ["\\bmonding\\b", "mouth"], ["\\bingang\\b", "entrance"],
+  ["\\bdiepgang\\b", "draught"], ["\\beb\\b", "ebb"], ["\\bvloed\\b", "flood"],
+  ["\\bbegint\\b", "starts"], ["\\bsterke\\b", "strong"],
+  ["\\bstad\\b", "town"],
+  ["\\bwinter\\b", "winter"], ["\\bzomer\\b", "summer"], ["seizoen", "season"],
+  ["\\battentie\\b", "attention"], ["let op[:!]?", "note:"],
+  ["\\bmeeliften\\b", "join"],
+  // kleine functiewoorden (laatste, met \b)
+  ["\\buiterlijk\\b", "no later than"],
+  ["\\bminimaal\\b", "at least"], ["\\bmaximaal\\b", "at most"],
+  ["\\bten ?minste\\b", "at least"],
+  ["\\btussen\\b", "between"],
+  ["\\bvanaf\\b", "from"],
+  ["\\btot\\b", "until"],
+  ["\\bvoor sluitingstijd\\b", "before closing time"],
+  ["sluitingstijd", "closing time"], ["openingstijden", "opening times"],
+  ["\\bvóór\\b", "before"],
+  ["\\bvoor de\\b", "for the"], ["\\bvoor het\\b", "for the"],
+  ["\\bvoor\\b", "for"],
+  ["\\bvan\\b", "from"],
+  ["\\bnaar\\b", "to"],
+  ["\\bmet\\b", "with"], ["\\bzonder\\b", "without"],
+  ["\\bbij\\b", "at"], ["\\bop\\b", "on"],
+  ["\\bhierboven genoemde\\b", "above-mentioned"],
+  ["\\bgenoemde\\b", "mentioned"],
+  ["\\bhet\\b", "the"], ["\\bde\\b", "the"], ["\\been\\b", "a"],
+  ["\\ben\\b", "and"], ["\\bof\\b", "or"],
+  ["\\bzijn\\b", "are"], ["\\bis\\b", "is"],
+  ["\\bkan\\b", "can"], ["\\bkunnen\\b", "can"],
+  ["\\bmag\\b", "may"], ["\\bmogen\\b", "may"],
+  ["\\bmoet\\b", "must"], ["\\bmoeten\\b", "must"],
+  ["\\bzal\\b", "will"],
+  ["\\bniet meer\\b", "no longer"], ["\\bniet\\b", "not"], ["\\bgeen\\b", "no"],
+  ["\\buitsluitend\\b", "only"], ["\\balleen\\b", "only"],
+  ["\\book\\b", "also"], ["\\bdan\\b", "then"], ["\\bdus\\b", "so"],
+  ["\\bindien\\b", "if"], ["\\bmits\\b", "provided"],
+  ["\\btijdens\\b", "during"], ["\\bbuiten\\b", "outside"], ["\\bbinnen\\b", "within"],
+  ["\\bna\\b", "after"],
+  ["\\bcirca\\b", "approx."], ["\\bca\\.", "approx."],
+  ["\\bzie ook\\b", "see also"], ["\\bzie\\b", "see"],
+  ["\\bmogelijkheid\\b", "possibility"], ["\\bmogelijk\\b", "possible"],
+  ["\\bbijzondere gevallen\\b", "special cases"],
+  ["\\bbijzondere\\b", "special"], ["\\bnormale\\b", "normal"],
+  ["\\bvolgende\\b", "next"], ["\\bvoorgaande\\b", "preceding"],
+  ["\\blaatste\\b", "last"], ["\\beerste\\b", "first"],
+  ["\\bdagelijks\\b", "daily"], ["\\bdagen\\b", "days"], ["\\bdag\\b", "day"],
+  ["\\bnacht\\b", "night"], ["\\bavond\\b", "evening"], ["\\bmiddag\\b", "afternoon"],
+  ["\\bweek\\b", "week"], ["\\bmaanden\\b", "months"], ["\\bmaand\\b", "month"], ["\\bjaar\\b", "year"],
+  ["\\bdeze\\b", "this"], ["\\bdit\\b", "this"], ["\\bdie\\b", "that"], ["\\bdat\\b", "that"],
+  ["\\bhierbij\\b", "here"], ["\\bhiervoor\\b", "for this"], ["\\bdaartoe\\b", "for that"],
+  ["\\bwaarbij\\b", "whereby"],
+  ["\\bals\\b", "as"],
+  ["\\bwij\\b", "we"], ["\\bons\\b", "us"], ["\\bmen\\b", "one"],
+  ["\\bnodig\\b", "needed"],
+  ["\\bin bedrijf\\b", "in service"],
+  ["\\bstaat( in het algemeen)? open\\b", "is generally open"],
+  ["\\bgeldig\\b", "valid"], ["\\bverplicht\\b", "mandatory"],
+  ["\\bvastgestelde\\b", "set"],
+  ["\\bcoördinatie\\b", "coordination"], ["\\bvindt( then)? plaats\\b", "takes place"],
+  ["\\bhoger\\b", "higher"], ["\\blager\\b", "lower"], ["\\bmeer\\b", "more"], ["\\bminder\\b", "less"],
+  ["\\bgesloten\\b", "closed"], ["\\bopen\\b", "open"],
+  ["\\bnieuws\\b", "news"], ["te vinden on", "available at"],
+];
+const NL2EN_C = NL2EN_RULES.map(([a,b,f])=>[new RegExp(a,f||"gi"),b]);
+function nl2en(t){
+  if (!t) return t;
+  let s = String(t);
+  // URL's en e-mailadressen beschermen tegen woordvervanging
+  const keep=[];
+  s = s.replace(/(https?:\/\/\S+|www\.\S+|\S+@\S+\.\w+|[\w-]+\.(?:nl|com|net|org|de|be|eu)\/\S*)/g, m=>{ keep.push(m); return ""+(keep.length-1)+""; });
+  for (const [re,rep] of NL2EN_C) s = s.replace(re, rep);
+  s = s.replace(/(\d),(\d)/g, "$1.$2");                       // decimaalkomma → punt
+  s = s.replace(/(^|[.!?]\s+|\n\s*)([a-z])/g, (m,p,c)=>p+c.toUpperCase()); // zinsbegin met hoofdletter
+  s = s.replace(/\u0001(\d+)\u0001/g, (m,i)=>keep[+i]??m); // URL's terugzetten
+  s = s.replace(/\u0002/g,"of").replace(/\ba ([aeiou])/g,"an $1");
+  return s;
+}
+function xen(t){ return LANG==="en" ? nl2en(t) : t; }
+
 document.documentElement.lang = LANG;
 const $ = s => document.querySelector(s);
 
@@ -932,7 +1211,7 @@ function stremCard(s){
       <div class="row1">
         <span class="chip ${sevCls(s.code)}"><span class="dot ${sevCls(s.code)}"></span>${esc(codeLbl(s.code))}</span>
         ${s.act?"":`<span class="chip mut">${T("aangekondigd")}</span>`}
-        <b>${esc(s.loc)}</b>
+        <b>${esc(xen(s.loc))}</b>
         <span class="stwhen">${s.act?T("sinds")+" "+fmtDate(s.start):(s.start>Date.now()?T("vanaf")+" "+fmtDate(s.start):T("gepland / periodiek"))}</span>
       </div>
       <div class="row2"><span class="stfw">${esc(s.fw)}</span><span style="margin-left:auto"><a href="${ntsUrl(s)}" target="_blank" rel="noopener">${T("bericht ↗")}</a></span></div>
@@ -1001,7 +1280,7 @@ function winsHTML(rules, isToday, nowMin){
   let nextIdx = -1;
   if (isToday) nextIdx = rules.findIndex(r=> r[1] > nowMin);
   const parts = rules.map((r,i)=>{
-    const abbr = dirAbbr(r[3]);
+    let abbr = dirAbbr(r[3]); if (LANG==="en") abbr = abbr.replace(/Z/g,"S").replace(/O/g,"E");
     let mark = "";
     if (r[3] && !abbr && !notes.includes(r[3])) notes.push(r[3]);
     const ref = r[3] && !abbr ? `<em>*${notes.indexOf(r[3])+1}</em>` : (abbr?`<em>${abbr}</em>`:"");
@@ -1010,14 +1289,14 @@ function winsHTML(rules, isToday, nowMin){
     if (blocky){
       const short = (r[2]-r[1]) <= 15;
       const txt = short ? fmtMin(r[1]) : fmtMin(r[1])+"–"+fmtMin(r[2]);
-      return `<span class="tchip${now?" now":""}${next?" next":""}" title="${fmtMin(r[1])}–${fmtMin(r[2])}${r[3]?" · "+esc(r[3]):""}">${txt} ${ref}</span>`;
+      return `<span class="tchip${now?" now":""}${next?" next":""}" title="${fmtMin(r[1])}–${fmtMin(r[2])}${r[3]?" · "+esc(xen(r[3])):""}">${txt} ${ref}</span>`;
     }
     return `<span class="longwins"><span class="win">${fmtMin(r[1])}–${fmtMin(r[2])}</span>${ref?" "+ref:""}${i<rules.length-1?",":""}</span>`;
   });
   let html = parts.join(" ");
   const legend = [];
   if (rules.some(r=>dirAbbr(r[3]))) legend.push(T("N→Z / Z→N = schutrichting"));
-  notes.forEach((t,i)=>legend.push("*"+(i+1)+" "+esc(t)));
+  notes.forEach((t,i)=>legend.push("*"+(i+1)+" "+esc(xen(t))));
   if (legend.length) html += `<div class="tlegend">${legend.join(" · ")}</div>`;
   return html;
 }
@@ -1271,10 +1550,10 @@ async function loadTideInto(o){
 function openHarbourDetail(o){
   panelRefresh = ()=>openHarbourDetail(o);
   const sec = [];
-  if (o.access) sec.push(`<div class="p-sec"><h3>${T("Toegang & getijdenvenster")}</h3><p style="margin:0">${esc(o.access)}</p></div>`);
-  if (o.lock) sec.push(`<div class="p-sec"><h3>${T("Sluis")}</h3><p style="margin:0">${esc(o.lock)}</p></div>`);
-  if (o.bridge) sec.push(`<div class="p-sec"><h3>${T("Brug")}</h3><p style="margin:0">${esc(o.bridge)}</p></div>`);
-  if (o.notes) sec.push(`<div class="p-sec"><h3>${T("Praktisch")}</h3><p style="margin:0">${esc(o.notes)}</p></div>`);
+  if (o.access) sec.push(`<div class="p-sec"><h3>${T("Toegang & getijdenvenster")}</h3><p style="margin:0">${esc(xen(o.access))}</p></div>`);
+  if (o.lock) sec.push(`<div class="p-sec"><h3>${T("Sluis")}</h3><p style="margin:0">${esc(xen(o.lock))}</p></div>`);
+  if (o.bridge) sec.push(`<div class="p-sec"><h3>${T("Brug")}</h3><p style="margin:0">${esc(xen(o.bridge))}</p></div>`);
+  if (o.notes) sec.push(`<div class="p-sec"><h3>${T("Praktisch")}</h3><p style="margin:0">${esc(xen(o.notes))}</p></div>`);
   const kv = [];
   if (o.vhf&&o.vhf.length) kv.push(["Marifoon", "VHF "+o.vhf.join(", ")+(o.vhfName?" — "+esc(o.vhfName):"")]);
   if (o.tel) kv.push([T("Telefoon"), `<a href="tel:${esc(o.tel.replace(/[^+\d]/g,""))}">${esc(o.tel)}</a>`]);
@@ -1296,7 +1575,7 @@ function openHarbourDetail(o){
     <div class="p-sec"><h3>${T("Gegevens")}</h3><div class="kv">${kv.map(([k,v])=>`<span class="k">${k}</span><span>${v}</span>`).join("")}</div></div>
     <div class="p-sec"><h3>${T("Links")}</h3><div class="linkrow">${links.join("")}</div></div>
     <div class="p-sec"><h3>${T("Getij")}</h3><div id="tidebox" class="p-note" style="margin-top:0">${T("Getijverwachting laden…")}</div></div>
-    <div class="p-note">${LANG==="en"?`Curated harbour info, last verified ${esc(UKCHECKED)}. Not a navigational source — always check the current almanac, tide tables and the harbour's notices before departure. Descriptions are in Dutch for now.`:`Gecureerde haveninfo, laatst gecontroleerd ${esc(UKCHECKED)}. Geen navigatiebron — controleer vóór vertrek altijd de actuele almanak, getijtafels en notices van de haven.`}</div>`;
+    <div class="p-note">${LANG==="en"?`Curated harbour info, last verified ${esc(UKCHECKED)}. Not a navigational source — always check the current almanac, tide tables and the harbour's notices before departure. Info automatically translated from Dutch.`:`Gecureerde haveninfo, laatst gecontroleerd ${esc(UKCHECKED)}. Geen navigatiebron — controleer vóór vertrek altijd de actuele almanak, getijtafels en notices van de haven.`}</div>`;
   $("#panel").classList.add("open"); $("#ovl").classList.add("open");
   $("#pclose").onclick = closeDetail;
   $("#panel").querySelectorAll(".showOnMap").forEach(el=> el.onclick = (e)=>{
@@ -1422,7 +1701,7 @@ function openDetail(o){
       .sort((a,b)=> (((+a[0]-today)+1300)%1300) - (((+b[0]-today)+1300)%1300));
     sec += `<div class="p-sec"><h3>${T("Bedieningstijden")} — ${cur?periodLabel(cur):"?"}</h3>`;
     if (cur) sec += scheduleTable(cur, true);
-    if (ot[0]) sec += `<div class="p-note">${esc(ot[0])}</div>`;
+    if (ot[0]) sec += `<div class="p-note">${esc(xen(ot[0]))}</div>`;
     if (others.length) sec += `<div class="note" style="margin-top:10px">${T("Volgende periodes:")}</div>`;
     for (const p of others){
       sec += `<details class="period"><summary>${T("Periode")} ${periodLabel(p)}</summary>${scheduleTable(p,false)}</details>`;
@@ -1894,7 +2173,7 @@ function buildStremLayer(){
     if (!s.act || sevRank(s.code) < 2) continue;
     const icon = L.divIcon({className:"", html:`<div class="strem-pin ${sevRank(s.code)>=3?"crit":"ser"}">!</div>`, iconSize:[16,16], iconAnchor:[8,8]});
     L.marker([s.lat,s.lon], {icon, zIndexOffset:500})
-      .bindPopup(`<b>${esc(codeLbl(s.code))}</b><br>${esc(s.loc)}<br>${esc(s.fw)}<br><a href="${ntsUrl(s)}" target="_blank" rel="noopener">${T("bericht ↗")}</a>`)
+      .bindPopup(`<b>${esc(codeLbl(s.code))}</b><br>${esc(xen(s.loc))}<br>${esc(s.fw)}<br><a href="${ntsUrl(s)}" target="_blank" rel="noopener">${T("bericht ↗")}</a>`)
       .addTo(stremLayer);
   }
   stremLayer.addTo(map);
@@ -2504,6 +2783,8 @@ function loadDepthRegions(){
 function setZeeChart(on){
   zeechartView = on;
   if (on){
+    // ver uitgezoomd is de zeekaart traag (heel veel dieptevlakken in beeld) → eerst wat inzoomen
+    if (map && map.getZoom()<9) map.setView(map.getCenter(), 9, {animate:false});
     if (!regionsHooked){ regionsHooked=true; map.on("moveend", ()=>{ if(zeechartView) loadDepthRegions(); }); }
     for (const k in depthRegionLayers){ const l=depthRegionLayers[k]; if (l && l!=="loading") l.addTo(map); }
     setTimeout(loadDepthRegions, 400);
