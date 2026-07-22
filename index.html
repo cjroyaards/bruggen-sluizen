@@ -189,6 +189,11 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 .mapbtn{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--grid);border-radius:8px;padding:6px 12px;font-size:13px;font-weight:550;color:var(--ink2);cursor:pointer;box-shadow:0 1px 5px rgba(0,0,0,.14)}
 .mapbtn.on{background:var(--brand);border-color:var(--brand);color:#fff}
 #mb-menu{display:none}
+#hd-more{display:none}
+#hd-menu{position:absolute;right:10px;top:100%;margin-top:4px;background:var(--surface);border:1px solid var(--grid);border-radius:11px;padding:11px;display:flex;flex-direction:column;gap:11px;align-items:flex-end;z-index:1002;box-shadow:0 3px 14px rgba(5,10,16,.25)}
+#hd-menu[hidden]{display:none}
+#hd-menu .hbtn{color:var(--ink2);border-color:var(--grid)}
+header{position:sticky}
 .dropwrap{position:relative}
 .dropmenu{position:absolute;top:calc(100% + 5px);left:0;z-index:1002;background:var(--surface);border:1px solid var(--grid);border-radius:10px;box-shadow:0 6px 22px rgba(5,10,16,.22);padding:9px 11px;min-width:186px}
 .dropmenu .dm-t{font-weight:650;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
@@ -227,6 +232,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
   .mapbar.open .dropwrap .mapbtn{width:100%;justify-content:flex-start}
   #mb-locate span,#mb-plotter span{display:none}
   #mb-locate,#mb-plotter{padding:8px 11px}
+  #hd-more{display:flex}
 }
 #plotter[hidden]{display:none}
 #plotter .pl-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 14px}
@@ -259,7 +265,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 #maplegend .lg-row{display:flex;align-items:center;gap:6px;white-space:nowrap}
 #maplegend .lg-sw{width:16px;height:10px;border-radius:2px;flex:none}
 #maplegend .lg-ln{width:16px;height:0;border-top-width:2.4px;border-top-style:solid;flex:none}
-@media (max-width:640px){#maplegend{left:8px;bottom:10px;font-size:10.5px;max-width:150px}}
+@media (max-width:640px){#maplegend{left:auto;right:8px;bottom:auto;top:12px;font-size:10.5px;max-width:150px;max-height:60vh;overflow-y:auto}}
 #curbar button{border:1px solid var(--grid);background:var(--surface);color:var(--ink);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:13px}
 #curbar #cur-play{background:var(--accent);color:#fff;border-color:transparent;min-width:40px}
 #curbar .step{min-width:34px;font-weight:650;font-variant-numeric:tabular-nums}
@@ -364,6 +370,8 @@ footer a{color:var(--brand-dim);text-decoration:underline}
       <button class="langbtn" data-lang="nl" title="Nederlands"><svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#21468B"/><rect width="30" height="13.3" fill="#fff"/><rect width="30" height="6.7" fill="#AE1C28"/></svg></button>
       <button class="langbtn" data-lang="en" title="English"><svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#012169"/><path d="M0 0l30 20M30 0L0 20" stroke="#fff" stroke-width="4"/><path d="M0 0l30 20M30 0L0 20" stroke="#C8102E" stroke-width="2"/><path d="M15 0v20M0 10h30" stroke="#fff" stroke-width="7"/><path d="M15 0v20M0 10h30" stroke="#C8102E" stroke-width="4"/></svg></button>
     </span>
+    <button id="hd-more" class="hbtn" aria-label="meer instellingen"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></button>
+    <div id="hd-menu" hidden></div>
   </div>
   <div class="h-search" id="hsearch" hidden>
     <input type="search" id="q" placeholder="Zoek brug, sluis, plaats of vaarweg…" autocomplete="off">
@@ -550,7 +558,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-15</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-16</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -2431,6 +2439,18 @@ document.querySelectorAll(".mapbar .dropwrap > .mapbtn").forEach(btn=>{
 document.addEventListener("click", e=>{ if (!e.target.closest(".mapbar .dropwrap")) document.querySelectorAll(".mapbar .dropmenu").forEach(m=> m.hidden = true);
   if (!e.target.closest(".mapbar")) document.querySelector(".mapbar").classList.remove("open"); });
 $("#mb-menu").addEventListener("click", e=>{ e.stopPropagation(); document.querySelector(".mapbar").classList.toggle("open"); });
+/* telefoon: tijdzone- en taalknoppen verhuizen naar het ⋮-menu (zelfde elementen, dus alles blijft werken) */
+const hdMq = matchMedia("(max-width:640px)");
+function layoutHeader(){
+  const menu=$("#hd-menu"), top=document.querySelector(".h-top");
+  const tz=$("#tzBtn"), ls=document.querySelector(".langsw"), more=$("#hd-more");
+  if (hdMq.matches){ menu.appendChild(tz); menu.appendChild(ls); }
+  else { top.insertBefore(tz, more); top.insertBefore(ls, more); menu.hidden=true; }
+}
+hdMq.addEventListener ? hdMq.addEventListener("change", layoutHeader) : hdMq.addListener(layoutHeader);
+layoutHeader();
+$("#hd-more").addEventListener("click", e=>{ e.stopPropagation(); const m=$("#hd-menu"); m.hidden=!m.hidden; });
+document.addEventListener("click", e=>{ if (!e.target.closest("#hd-menu") && !e.target.closest("#hd-more")) $("#hd-menu").hidden=true; });
 /* 1) Bruggen & sluizen */
 function updateObjs(){ showBedien=$("#obj-bedien").checked; showVast=$("#obj-vast").checked; $("#mb-objs").classList.toggle("on", showBedien||showVast); buildMarkers(); }
 $("#obj-bedien").addEventListener("change", updateObjs);
@@ -2493,7 +2513,7 @@ $("#d-per1").addEventListener("change", updateDepthLines);
 $("#d-per5").addEventListener("change", updateDepthLines);
 /* ---- kaartlegenda (diepte + wind), in/uitklapbaar ---- */
 function legendDepthSet(){ return depthLevelsWanted() ? "lines" : "off"; }
-let legendOpen = true;
+let legendOpen = !matchMedia("(max-width:640px)").matches;   // telefoon: standaard ingeklapt
 function updateLegend(){
   const box=$("#maplegend"); if(!box) return; let html="";
   if (zeechartView){
