@@ -2041,8 +2041,12 @@ function nmeaConnect(){
   if (nmea.ws){ try{nmea.ws.close();}catch(e){} nmea.ws=null; nmea.tryList=null; $("#pl-nmconn").textContent="verbind"; st.textContent="verbroken"; const el=$("#pl-src"); if(el) el.textContent="bron: GPS"; return; }
   if (!input){ st.textContent="vul een adres of IP in"; return; }
   if (location.protocol==="https:" && !/^wss:\/\//.test(input)){
-    const httpUrl="http://"+location.host+location.pathname;
-    st.innerHTML=`https blokkeert ws:// — open de <a href="${httpUrl}" style="color:var(--accent);font-weight:600">http-versie van deze site</a> en verbind daar.`;
+    if (/github\.io$/.test(location.hostname)){
+      st.textContent="https blokkeert ws://, en github.io kent geen http-versie. Dit gaat werken zodra de site op een eigen domein draait (met http toegestaan) — of gebruik een wss://-bron.";
+    } else {
+      const httpUrl="http://"+location.host+location.pathname;
+      st.innerHTML=`https blokkeert ws:// — open de <a href="${httpUrl}" style="color:var(--accent);font-weight:600">http-versie van deze site</a> en verbind daar.`;
+    }
     return;
   }
   localStorage.setItem("nmea_url", input);
