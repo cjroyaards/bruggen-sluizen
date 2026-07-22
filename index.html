@@ -197,8 +197,15 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 #curbar{position:absolute;z-index:1000;bottom:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--grid);border-radius:11px;box-shadow:0 2px 12px rgba(5,10,16,.2);padding:6px 11px;max-width:calc(100% - 24px)}
 #plotter{position:absolute;z-index:1001;top:12px;right:12px;background:var(--surface);border:1px solid var(--grid);border-radius:12px;box-shadow:0 2px 14px rgba(5,10,16,.25);padding:10px 12px;min-width:190px}
 #plotter input{width:100%;box-sizing:border-box;border:1px solid var(--grid);background:var(--surface);color:var(--ink);border-radius:7px;padding:5px 7px;font-size:12px}
+#pl-head{display:none;align-items:center;justify-content:space-between;gap:10px}
+#pl-mini{font-weight:750;font-variant-numeric:tabular-nums;font-size:16px;white-space:nowrap;overflow:hidden}
+#pl-toggle{border:1px solid var(--grid);background:var(--surface);color:var(--ink);border-radius:9px;padding:3px 16px;font-size:17px;cursor:pointer;flex:none}
 @media (max-width:640px){
-  #plotter{left:8px;right:8px;min-width:0;width:auto}
+  /* telefoonmodus: plotter als bottom-sheet, in/uitklapbaar via de kopregel */
+  #plotter{top:auto;bottom:0;left:0;right:0;min-width:0;width:auto;border-radius:16px 16px 0 0;border-bottom:none;box-shadow:0 -4px 18px rgba(5,10,16,.3);padding:9px 14px calc(9px + env(safe-area-inset-bottom))}
+  #pl-head{display:flex}
+  #plotter.sheet-collapsed #pl-body{display:none}
+  #pl-body{margin-top:7px}
   #plotter .pl-v{font-size:30px}
   #plotter.layout-1 .pl-v{font-size:44px}
   #plotter.layout-2 .pl-v{font-size:36px}
@@ -206,6 +213,11 @@ footer a{color:var(--brand-dim);text-decoration:underline}
   #plotter .pl-row button{font-size:15px;padding:8px 13px}
   #plotter input{font-size:15px;padding:8px}
   #windbox{left:8px;right:8px;width:auto !important}
+  /* NMEA-afhankelijke onderdelen verbergen op de telefoon tot de koppeling kan (eigen domein) */
+  #pl-nmea,#pl-windbtn{display:none}
+  #plotter .pl-grid>div:nth-child(2){display:none}                 /* DPT-cel (blijft zonder NMEA toch leeg) */
+  #plotter.layout-1 .pl-grid>div:nth-child(3){display:flex !important}        /* 1x2: SOG + COG */
+  #plotter.layout-2 .pl-grid>div:nth-child(5){display:flex !important}        /* 2x2: SOG/COG/DTW/BTW */
 }
 #plotter[hidden]{display:none}
 #plotter .pl-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 14px}
@@ -402,6 +414,11 @@ footer a{color:var(--brand-dim);text-decoration:underline}
       <button class="mapbtn" id="mb-plotter" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l4 9-4-2.5L8 12z"/><circle cx="12" cy="12" r="9"/></svg><span data-i18n="mb_plotter">Plotter</span></button>
     </div>
     <div id="plotter" hidden>
+      <div id="pl-head">
+        <span id="pl-mini">–</span>
+        <button id="pl-toggle" aria-label="plotter in/uitklappen">▾</button>
+      </div>
+      <div id="pl-body">
       <div class="pl-grid">
         <div><span class="pl-v" id="pl-sog">–</span><span class="pl-l">SOG kn</span></div>
         <div><span class="pl-v" id="pl-dpt">–</span><span class="pl-l">DPT m</span></div>
@@ -427,6 +444,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
         <div id="pl-nmstat" style="font-size:10px;color:var(--muted);margin-top:4px"></div>
       </div>
       <div style="font-size:9.5px;color:var(--muted);margin-top:7px;line-height:1.3" data-i18n="pl_disc">Indicatief — kaart niet voor navigatiedoeleinden.</div>
+      </div>
     </div>
     <div id="windbox" hidden>
       <div style="font-weight:700;font-size:12px;display:flex;justify-content:space-between"><span>NMEA-wind</span><span id="wb-close" style="cursor:pointer">✕</span></div>
@@ -1923,6 +1941,12 @@ function plUpdate(){
     if (plWpLine) plWpLine.setLatLngs([[fix.lat,fix.lon],plWp]);
   } else { S("pl-dtw","–"); S("pl-btw","–"); S("pl-ttw","–"); }
   S("pl-dpt", (nmea.depth!=null && Date.now()-nmea.depthT<15000) ? nmea.depth.toFixed(1) : "–");
+  // compacte strip voor de telefoon-bottom-sheet
+  const g=id=>{ const el=document.getElementById(id); return el?el.textContent:"–"; };
+  const parts=[ g("pl-sog")+" kn", g("pl-cog")+"°" ];
+  if (g("pl-dtw")!=="–") parts.push(g("pl-dtw")+" nm");
+  if (g("pl-dpt")!=="–") parts.push(g("pl-dpt")+" m");
+  S("pl-mini", parts.join(" · "));
 }
 function plSetWp(latlng){
   plWp=[latlng.lat,latlng.lng];
@@ -2196,12 +2220,27 @@ $("#pl-layout").onclick = ()=>{
   plApplyLayout(PL_LAYOUTS[(PL_LAYOUTS.indexOf(cur)+1)%3]);
 };
 plApplyLayout(localStorage.getItem("pl_layout")||"3");
+/* bottom-sheet in/uitklappen (telefoon) */
+function plApplySheet(collapsed){
+  $("#plotter").classList.toggle("sheet-collapsed", collapsed);
+  $("#pl-toggle").textContent = collapsed ? "▴" : "▾";
+  localStorage.setItem("pl_sheet", collapsed ? "1" : "0");
+  setTimeout(positionWindbox, 30);
+}
+$("#pl-toggle").onclick = ()=> plApplySheet(!$("#plotter").classList.contains("sheet-collapsed"));
+plApplySheet(localStorage.getItem("pl_sheet")==="1");
 /* windvenster: zelfde breedte, direct onder het plotterpaneel */
 function positionWindbox(){
   const w=$("#windbox"), p=$("#plotter");
   if (!w || w.hidden || !p || p.hidden) return;
-  w.style.top = (p.offsetTop + p.offsetHeight + 8) + "px";
-  w.style.width = p.offsetWidth + "px";
+  if (matchMedia("(max-width:640px)").matches){
+    // telefoon: bóven de bottom-sheet
+    w.style.top="auto"; w.style.bottom=(p.offsetHeight+10)+"px"; w.style.width="auto";
+  } else {
+    w.style.bottom="auto";
+    w.style.top = (p.offsetTop + p.offsetHeight + 8) + "px";
+    w.style.width = p.offsetWidth + "px";
+  }
 }
 $("#pl-windbtn").onclick = ()=>{ const w=$("#windbox"); w.hidden=!w.hidden; if(!w.hidden){ positionWindbox(); drawWindRose(); } };
 $("#wb-close").onclick = ()=>{ $("#windbox").hidden=true; };
