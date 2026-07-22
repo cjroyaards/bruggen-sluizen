@@ -199,13 +199,23 @@
     // (want.particles && !playing → canvas bevroren; pauze stopt de beweging zichtbaar)
     if (want.own) drawArrows();
   }
-  /* stroom op een punt (nu / per uur) voor de klik-info */
+  /* alle vier omliggende modelcellen moeten zee zijn — anders lekt de interpolatie tot ver boven land */
+  function seaCell4(lat, lon) {
+    if (!seaMask) return false;
+    const fi = (lat - GRID.lat0) / GRID.dLat, fj = (lon - GRID.lon0) / GRID.dLon, i0 = Math.floor(fi), j0 = Math.floor(fj);
+    if (i0 < 0 || j0 < 0 || i0 >= GRID.nLat - 1 || j0 >= GRID.nLon - 1) return false;
+    for (let di = 0; di <= 1; di++) for (let dj = 0; dj <= 1; dj++) if (!seaMask[(i0 + di) * GRID.nLon + (j0 + dj)]) return false;
+    return true;
+  }
+  /* stroom op een punt (nu / per uur) voor de klik-info — alleen op echte zee */
   function pointInfo(lat, lon, tf) {
+    if (!seaCell4(lat, lon)) return null;
     const uv = sampleUV(lat, lon, tf); if (!uv) return null;
     const u = uv[0], v = uv[1], kmh = Math.hypot(u, v);
     return { kmh, kn: kmh / 1.852, ms: kmh / 3.6, dirTo: (Math.atan2(u, v) * 180 / Math.PI + 360) % 360 };
   }
   function pointSeries(lat, lon) {
+    if (!seaCell4(lat, lon)) return null;
     const out = [];
     for (let t = 0; t < NHOURS; t++) { const uv = sampleUVi(lat, lon, t); out.push(uv ? { kmh: Math.hypot(uv[0], uv[1]), dirTo: (Math.atan2(uv[0], uv[1]) * 180 / Math.PI + 360) % 360 } : null); }
     return out;
