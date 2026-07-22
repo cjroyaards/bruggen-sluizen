@@ -1842,6 +1842,14 @@ function setZeeChart(on){
     // Gladde EMODnet-dieptevlakken (NL + UK-oostkust + Kanaal + België): licht gekleurde dieptezones
     if (encDepthGeo) drawSmoothDepth(encDepthGeo);
     else fetch("data/depth_smooth.geojson?v=20260722c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ encDepthGeo=gj; if(zeechartView) drawSmoothDepth(gj); }).catch(()=>{});
+    // Proef buitenland (EU-RIS-route): Duitse Rijn als waterlint uit de WSV Inland ENC (ELWIS, vrij gebruik)
+    if (!window.deWaterLayer){
+      fetch("data/de_water.geojson?v=20260722", {cache:"reload"}).then(r=>r.json()).then(gj=>{
+        window.deWaterLayer = L.geoJSON(gj, { pane:"depthPane", interactive:false,
+          style:{ stroke:true, color:"#5a7a96", weight:0.7, opacity:0.85, fill:true, fillColor:"#aacfe8", fillOpacity:0.9 } });
+        if (zeechartView) window.deWaterLayer.addTo(map);
+      }).catch(()=>{});
+    } else window.deWaterLayer.addTo(map);
     // Eigen kustlijn (COALNE) — bron: RWS Inland ENC (CC-0)
     if (coastGeo) drawCoast(coastGeo);
     else fetch("data/coast.geojson?v=20260722c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ coastGeo=gj; if(zeechartView) drawCoast(gj); }).catch(()=>{});
@@ -1852,6 +1860,7 @@ function setZeeChart(on){
       { maxZoom:18, pane:"seaPane", attribution:'© OpenSeaMap' });
     seaChartLayer.addTo(map);
   } else {
+    if (window.deWaterLayer) map.removeLayer(window.deWaterLayer);
     if (coastLayer){ map.removeLayer(coastLayer); coastLayer=null; }
     if (depthLineLayer){ map.removeLayer(depthLineLayer); depthLineLayer=null; }
     if (encDepthLayer){ map.removeLayer(encDepthLayer); encDepthLayer=null; }
