@@ -76,9 +76,10 @@ BOYSAW, BCNLAT/BCNCAR, LIGHTS. RWS-cellen zijn wekelijks vers en CC-0.
 
 ## Afspraken (belangrijk!)
 
-1. **Werk in een branch en maak een pull request** — niet rechtstreeks op
-   `main` pushen als er meer mensen bouwen. Alles op `main` staat ±5–10 min
-   later live (GitHub Pages, cache `max-age=600`).
+1. **Hoofdbouw loopt via Kees** (rechtstreeks op `main`). Bouw je mee, werk
+   dan **in een eigen branch en maak een pull request**; die kijken we na en
+   voegen we samen. Alles op `main` staat ±5–10 min later live
+   (GitHub Pages, cache `max-age=600`).
 2. **Buildstamp ophogen bij elke sitewijziging**: onderin `index.html` staat
    `<span id="buildstamp">bJJJJMMDD-N</span>`. Verhoog N (of de datum). Zo zie
    je op elk apparaat of je de nieuwste versie hebt. Data-/README-wijzigingen
