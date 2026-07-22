@@ -1841,7 +1841,7 @@ function setZeeChart(on){
     baseLight.addTo(map);
     // Gladde EMODnet-dieptevlakken (NL + UK-oostkust + Kanaal + België): licht gekleurde dieptezones
     if (encDepthGeo) drawSmoothDepth(encDepthGeo);
-    else fetch("data/depth_smooth.geojson?v=20260722c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ encDepthGeo=gj; if(zeechartView) drawSmoothDepth(gj); }).catch(()=>{});
+    else fetch("data/depth_smooth.geojson?v=20260722d", {cache:"reload"}).then(r=>r.json()).then(gj=>{ encDepthGeo=gj; if(zeechartView) drawSmoothDepth(gj); }).catch(()=>{});
     // Proef buitenland (EU-RIS-route): Duitse Rijn als waterlint uit de WSV Inland ENC (ELWIS, vrij gebruik)
     if (!window.deWaterLayer){
       fetch("data/de_water.geojson?v=20260722", {cache:"reload"}).then(r=>r.json()).then(gj=>{
