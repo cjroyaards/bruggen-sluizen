@@ -561,7 +561,7 @@ header{position:sticky}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-23</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-24</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -2370,12 +2370,12 @@ function drawBuoys(gj){
   });
 }
 function buoySync(){
-  const show = zeechartView && map && map.getZoom()>=11;
+  const show = zeechartView && map && map.getZoom()>=10;
   if (show && !buoyGeo && !buoyLoading){
     buoyLoading=true;
     fetch("data/buoys_nl.geojson?v=20260722",{cache:"force-cache"}).then(r=>r.json()).then(gj=>{
       buoyGeo=gj; buoyLoading=false; drawBuoys(gj); buoySync();
-    }).catch(()=>{ buoyLoading=false; });
+    }).catch(()=>{ buoyLoading=false; window.buoyFailed=true; if(seaChartLayer) seaChartLayer.redraw(); });
     return;
   }
   if (!buoyLayer) return;
@@ -2461,7 +2461,8 @@ function setZeeChart(on){
       const OsmSeaNoNL = L.TileLayer.extend({
         createTile: function(coords, done){
           const b=this._tileCoordsToBounds(coords);
-          if (b.getSouth()>=NLBOX[0] && b.getWest()>=NLBOX[1] && b.getNorth()<=NLBOX[2] && b.getEast()<=NLBOX[3]){
+          // alleen maskeren waar onze RWS-laag het overneemt: binnen NL én vanaf zoom 10 (en niet als die laag faalde)
+          if (!window.buoyFailed && coords.z>=10 && b.getSouth()>=NLBOX[0] && b.getWest()>=NLBOX[1] && b.getNorth()<=NLBOX[2] && b.getEast()<=NLBOX[3]){
             const t=document.createElement("div"); setTimeout(()=>done(null,t),0); return t;
           }
           return L.TileLayer.prototype.createTile.call(this, coords, done);
