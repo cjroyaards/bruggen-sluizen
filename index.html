@@ -1443,6 +1443,10 @@ function quickCls(o){
 function initMap(){
   if (map) return;
   map = L.map("map", {preferCanvas:true}).setView([52.2,5.3], 8);
+  // popups nooit onder de knoppenbalk/panelen: kaart schuift automatisch mee met ruime marges
+  L.Popup.prototype.options.autoPan = true;
+  L.Popup.prototype.options.autoPanPaddingTopLeft = L.point(72, 96);
+  L.Popup.prototype.options.autoPanPaddingBottomRight = L.point(84, 90);
   baseOSM = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19, attribution: "© OpenStreetMap"
   }).addTo(map);
@@ -2525,3 +2529,5 @@ loadData().then(()=>{
 </script>
 </body>
 </html>
+        <span class="k">Plotter &amp; NMEA koppelen</span><span>De plotter (knop in de zeekaartmodus) gebruikt standaard de GPS van je telefoon. Heb je aan boord een <b>wifi-gateway of multiplexer</b> (bijv. Yacht Devices YDWG-02, MiniPlex, Shipmodul, Vesper, of een SignalK-server), dan kun je de boordinstrumenten koppelen: open de plotter → knop <b>NMEA</b> → vul het WebSocket-adres in (meestal <code>ws://&lt;ip-van-de-gateway&gt;:poort</code>, poort vaak 2000 of 10110) → <b>verbind</b>. De plotter gebruikt dan positie/SOG/COG van de boord-GPS (RMC/VTG/GGA), de dieptemeter (DPT/DBT) en de windmeter (MWV — te zien in het windvenster met ware en schijnbare wind). Valt de verbinding weg, dan neemt de telefoon-GPS het automatisch over. <b>Let op:</b> browsers blokkeren onbeveiligde <code>ws://</code>-verbindingen vanaf een https-site; gebruik een gateway die <code>wss://</code> (TLS) ondersteunt of een SignalK-server met SSL.</span>
+        <span class="k">Plotter &amp; connecting NMEA</span><span>The plotter (button in nautical chart mode) uses your phone's GPS by default. If you have a <b>WiFi gateway or multiplexer</b> on board (e.g. Yacht Devices YDWG-02, MiniPlex, Shipmodul, Vesper, or a SignalK server), you can connect your instruments: open the plotter → <b>NMEA</b> button → enter the WebSocket address (usually <code>ws://&lt;gateway-ip&gt;:port</code>, often port 2000 or 10110) → <b>connect</b>. The plotter then uses the boat GPS for position/SOG/COG (RMC/VTG/GGA), the depth sounder (DPT/DBT) and the wind instrument (MWV — shown in the wind window with true and apparent wind). If the link drops, the phone GPS takes over automatically. <b>Note:</b> browsers block insecure <code>ws://</code> connections from an https site; use a gateway that supports <code>wss://</code> (TLS) or a SignalK server with SSL.</span>
