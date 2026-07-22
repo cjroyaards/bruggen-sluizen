@@ -204,6 +204,14 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 #plotter .pl-row{display:flex;gap:6px;margin-top:9px}
 #plotter .pl-row button{border:1px solid var(--grid);background:var(--surface);color:var(--ink);border-radius:8px;padding:4px 9px;cursor:pointer;font-size:12px}
 #plotter .pl-row button.arm{background:var(--accent);color:#fff;border-color:transparent}
+#plotter.layout-1 .pl-grid>div:nth-child(n+3){display:none}
+#plotter.layout-2 .pl-grid>div:nth-child(n+5){display:none}
+#plotter.layout-1 .pl-v{font-size:34px}
+#plotter.layout-2 .pl-v{font-size:27px}
+#windbox{position:absolute;z-index:1001;top:12px;right:230px;background:var(--surface);border:1px solid var(--grid);border-radius:12px;box-shadow:0 2px 14px rgba(5,10,16,.25);padding:10px 12px;text-align:center}
+#windbox[hidden]{display:none}
+#windbox .wb-nums{display:flex;gap:14px;justify-content:center;margin-top:6px;font-size:12px}
+#windbox .wb-nums b{font-size:16px}
 #curbar[hidden]{display:none}
 #maplegend{position:absolute;z-index:999;left:12px;bottom:14px;background:var(--surface);border:1px solid var(--grid);border-radius:9px;box-shadow:0 2px 10px rgba(5,10,16,.18);padding:7px 9px;font-size:11px;line-height:1.35;color:var(--ink);max-width:172px}
 #maplegend[hidden]{display:none}
@@ -377,11 +385,11 @@ footer a{color:var(--brand-dim);text-decoration:underline}
     <div id="plotter" hidden>
       <div class="pl-grid">
         <div><span class="pl-v" id="pl-sog">–</span><span class="pl-l">SOG kn</span></div>
+        <div><span class="pl-v" id="pl-dpt">–</span><span class="pl-l">DPT m</span></div>
         <div><span class="pl-v" id="pl-cog">–</span><span class="pl-l">COG °</span></div>
         <div><span class="pl-v" id="pl-dtw">–</span><span class="pl-l">DTW nm</span></div>
         <div><span class="pl-v" id="pl-btw">–</span><span class="pl-l">BTW °</span></div>
         <div><span class="pl-v" id="pl-ttw">–</span><span class="pl-l">TTW</span></div>
-        <div><span class="pl-v" id="pl-dpt">–</span><span class="pl-l">DPT m</span></div>
       </div>
       <div class="pl-row">
         <button id="pl-wp" data-i18n="pl_wp">WP: tik op de kaart</button>
@@ -390,12 +398,22 @@ footer a{color:var(--brand-dim);text-decoration:underline}
       </div>
       <div class="pl-row">
         <button id="pl-nmea">NMEA</button>
+        <button id="pl-layout" title="wissel layout 3×2 / 2×2 / 1×2">⊞ 3×2</button>
+        <button id="pl-windbtn" title="windvenster">wind</button>
         <span id="pl-src" style="font-size:10px;color:var(--muted);align-self:center">bron: GPS</span>
       </div>
       <div id="pl-nmeacfg" hidden style="margin-top:7px">
         <input id="pl-nmurl" placeholder="ws://192.168.4.1:2000" autocomplete="off">
         <div class="pl-row" style="margin-top:6px"><button id="pl-nmconn">verbind</button></div>
         <div id="pl-nmstat" style="font-size:10px;color:var(--muted);margin-top:4px"></div>
+      </div>
+    </div>
+    <div id="windbox" hidden>
+      <div style="font-weight:700;font-size:12px;display:flex;justify-content:space-between"><span>NMEA-wind</span><span id="wb-close" style="cursor:pointer">✕</span></div>
+      <canvas id="wb-rose" width="150" height="150"></canvas>
+      <div class="wb-nums">
+        <span style="color:#d64550">A <b id="wb-aws">–</b> kn · <span id="wb-awa">–</span>°</span>
+        <span style="color:#2a78d6">T <b id="wb-tws">–</b> kn · <span id="wb-twa">–</span>°</span>
       </div>
     </div>
     <div id="curbar" hidden>
@@ -1904,6 +1922,14 @@ function nmeaSentence(line){
     if (lat!=null&&lon!=null && Date.now()-nmea.last>2500) nmeaFeed({lat,lon,sogKn:null,cog:null});
   } else if (id==="DPT"){ if(f[1]){ nmea.depth=+f[1]; nmea.depthT=Date.now(); plUpdate(); } }
   else if (id==="DBT"){ if(f[3]){ nmea.depth=+f[3]; nmea.depthT=Date.now(); plUpdate(); } }
+  else if (id==="MWV" && f[5] && f[5][0]==="A"){
+    const ang=+f[1], spd=+f[3], u=f[4];
+    const kn = u==="N"?spd : u==="M"?spd*1.94384 : u==="K"?spd/1.852 : spd;
+    if (f[2]==="R"){ nmea.awa=ang; nmea.aws=kn; } else { nmea.twa=ang; nmea.tws=kn; }
+    nmea.windT=Date.now(); drawWindRose();
+  } else if (id==="VWR"){
+    const ang=+f[1]; if(!isNaN(ang)){ nmea.awa = f[2]==="L" ? 360-ang : ang; if(f[3]) nmea.aws=+f[3]; nmea.windT=Date.now(); drawWindRose(); }
+  }
 }
 function nmeaFeed(o){
   nmea.last=Date.now();
@@ -1915,6 +1941,41 @@ function nmeaFeed(o){
     else plBoat.setLatLng([o.lat,o.lon]);
   }
   plUpdate();
+}
+/* windroos: ware (blauw) en schijnbare (rood) wind t.o.v. de boeg (boeg = boven) */
+function drawWindRose(){
+  const cv=document.getElementById("wb-rose"); if(!cv || document.getElementById("windbox").hidden) return;
+  const g=cv.getContext("2d"), cx=75, cy=75, R=62;
+  g.clearRect(0,0,150,150);
+  const ink=getComputedStyle(document.body).getPropertyValue("--ink")||"#223";
+  g.strokeStyle="#8aa0b5"; g.lineWidth=1.2; g.beginPath(); g.arc(cx,cy,R,0,Math.PI*2); g.stroke();
+  g.font="9px system-ui"; g.fillStyle="#8aa0b5"; g.textAlign="center"; g.textBaseline="middle";
+  for(let a=0;a<360;a+=30){
+    const r1=a%90===0?R-7:R-4, rad=(a-90)*Math.PI/180;
+    g.beginPath(); g.moveTo(cx+Math.cos(rad)*r1, cy+Math.sin(rad)*r1); g.lineTo(cx+Math.cos(rad)*R, cy+Math.sin(rad)*R); g.stroke();
+    if(a%90===0) g.fillText(a===0?"0":a===90?"90":a===180?"180":"270", cx+Math.cos(rad)*(R-15), cy+Math.sin(rad)*(R-15));
+  }
+  // bootje (boeg omhoog)
+  g.fillStyle=ink.trim()||"#223"; g.beginPath(); g.moveTo(cx,cy-13); g.lineTo(cx+6,cy+11); g.lineTo(cx-6,cy+11); g.closePath(); g.fill();
+  const fresh = Date.now()-(nmea.windT||0) < 12000;
+  function arrow(ang,col){
+    if(ang==null||!fresh) return;
+    const rad=(ang-90)*Math.PI/180;
+    const x1=cx+Math.cos(rad)*R, y1=cy+Math.sin(rad)*R;       // van de rand (waar de wind vandaan komt)
+    const x2=cx+Math.cos(rad)*20, y2=cy+Math.sin(rad)*20;     // naar het midden
+    g.strokeStyle=col; g.lineWidth=3; g.lineCap="round";
+    g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke();
+    const ah=8, aa=Math.atan2(y2-y1,x2-x1);
+    g.beginPath(); g.moveTo(x2,y2);
+    g.lineTo(x2-ah*Math.cos(aa-0.4), y2-ah*Math.sin(aa-0.4));
+    g.moveTo(x2,y2); g.lineTo(x2-ah*Math.cos(aa+0.4), y2-ah*Math.sin(aa+0.4)); g.stroke();
+  }
+  arrow(nmea.twa,"#2a78d6"); arrow(nmea.awa,"#d64550");
+  const S=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  S("wb-aws", fresh&&nmea.aws!=null?nmea.aws.toFixed(1):"–");
+  S("wb-awa", fresh&&nmea.awa!=null?Math.round(nmea.awa):"–");
+  S("wb-tws", fresh&&nmea.tws!=null?nmea.tws.toFixed(1):"–");
+  S("wb-twa", fresh&&nmea.twa!=null?Math.round(nmea.twa):"–");
 }
 function nmeaConnect(){
   const url=($("#pl-nmurl").value||"").trim(), st=$("#pl-nmstat");
@@ -1934,6 +1995,7 @@ function togglePlotter(){
   const btn=$("#mb-plotter"), box=$("#plotter");
   if (plOn){
     plOn=false; box.hidden=true; btn.classList.remove("on");
+    const wb=$("#windbox"); if (wb) wb.hidden=true;
     if (plWatch!=null){ navigator.geolocation.clearWatch(plWatch); plWatch=null; }
     if (nmea.ws){ try{nmea.ws.close();}catch(e){} nmea.ws=null; }
     if (plBoat){ map.removeLayer(plBoat); plBoat=null; }
@@ -2020,6 +2082,22 @@ $("#pl-clearwp").onclick = plClearWp;
 $("#pl-close").onclick = togglePlotter;
 $("#pl-nmea").onclick = ()=>{ const c=$("#pl-nmeacfg"); c.hidden=!c.hidden; if(!c.hidden && !$("#pl-nmurl").value) $("#pl-nmurl").value = localStorage.getItem("nmea_url")||""; };
 $("#pl-nmconn").onclick = nmeaConnect;
+/* layout-wissel 3x2 -> 2x2 -> 1x2 (onthouden) */
+const PL_LAYOUTS=["3","2","1"];
+function plApplyLayout(n){
+  const p=$("#plotter"); p.classList.remove("layout-1","layout-2");
+  if(n!=="3") p.classList.add("layout-"+n);
+  $("#pl-layout").textContent = "⊞ "+(n==="3"?"3×2":n==="2"?"2×2":"1×2");
+  localStorage.setItem("pl_layout", n);
+}
+$("#pl-layout").onclick = ()=>{
+  const cur=localStorage.getItem("pl_layout")||"3";
+  plApplyLayout(PL_LAYOUTS[(PL_LAYOUTS.indexOf(cur)+1)%3]);
+};
+plApplyLayout(localStorage.getItem("pl_layout")||"3");
+/* windvenster */
+$("#pl-windbtn").onclick = ()=>{ const w=$("#windbox"); w.hidden=!w.hidden; if(!w.hidden) drawWindRose(); };
+$("#wb-close").onclick = ()=>{ $("#windbox").hidden=true; };
 let seaLayer = null, seaView = false, seaNoteShown = false;
 function setSea(on){
   seaView = on;
@@ -2244,7 +2322,7 @@ function updateDepthLines(){
   const levels = depthLevelsWanted();
   if (levels){
     if (depthGeo) drawDepth(depthGeo, levels);
-    else fetch("data/depth.geojson?v=20260721c", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{ depthGeo=gj; const lv=depthLevelsWanted(); if(lv){ if(depthLayer){map.removeLayer(depthLayer);depthLayer=null;} drawDepth(gj, lv); updateKaartBtn(); updateLegend(); } }).catch(()=>{});
+    else fetch("data/depth.geojson?v=20260723", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{ depthGeo=gj; const lv=depthLevelsWanted(); if(lv){ if(depthLayer){map.removeLayer(depthLayer);depthLayer=null;} drawDepth(gj, lv); updateKaartBtn(); updateLegend(); } }).catch(()=>{});
   }
   updateKaartBtn(); updateLegend();
 }
