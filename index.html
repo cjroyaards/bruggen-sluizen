@@ -1844,7 +1844,7 @@ function setZeeChart(on){
     else fetch("data/depth_smooth.geojson?v=20260722c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ encDepthGeo=gj; if(zeechartView) drawSmoothDepth(gj); }).catch(()=>{});
     // Eigen kustlijn (COALNE) — bron: RWS Inland ENC (CC-0)
     if (coastGeo) drawCoast(coastGeo);
-    else fetch("data/coast.geojson?v=20260722", {cache:"reload"}).then(r=>r.json()).then(gj=>{ coastGeo=gj; if(zeechartView) drawCoast(gj); }).catch(()=>{});
+    else fetch("data/coast.geojson?v=20260722c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ coastGeo=gj; if(zeechartView) drawCoast(gj); }).catch(()=>{});
     // Eigen dieptelijnen (DEPCNT) met nadruk op de 2 m-lijn — heel NL, zelf-gehost, offline
     if (depthLineGeo) drawDepthLines(depthLineGeo);
     else fetch("data/depth_lines.geojson?v=20260722", {cache:"reload"}).then(r=>r.json()).then(gj=>{ depthLineGeo=gj; if(zeechartView) drawDepthLines(gj); }).catch(()=>{});
