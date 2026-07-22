@@ -54,7 +54,9 @@
   const mctx = maskCanvas.getContext('2d', { willReadFrequently: true });
   function ensureMask(wantMask) {
     if (wantMask && !maskLayer && times) {
-      maskLayer = makeCmemsLayer('cmap:speed,vectorStyle:solid', 0, isoHour(times[Math.round(tFloat)]), { crossOrigin: 'anonymous' });
+      // maxZoom 19: voorbij het native bereik (13) schalen de tegels op — als alfamasker prima,
+      // anders is het masker bij diep inzoomen leeg en verdwijnen alle eigen pijlen
+      maskLayer = makeCmemsLayer('cmap:speed,vectorStyle:solid', 0, isoHour(times[Math.round(tFloat)]), { crossOrigin: 'anonymous', maxZoom: 19 });
       maskLayer.addTo(map); maskLayer.on('load', scheduleMaskRedraw);
     } else if (!wantMask && maskLayer) { map.removeLayer(maskLayer); maskLayer = null; maskData = null; }
   }
@@ -65,12 +67,14 @@
     if (maskCanvas.width !== sz.x || maskCanvas.height !== sz.y) { maskCanvas.width = sz.x; maskCanvas.height = sz.y; }
     mctx.clearRect(0, 0, sz.x, sz.y);
     const z = map.getZoom(), tiles = maskLayer._tiles || {};
+    let drawn = 0;
     for (const k in tiles) {
       const t = tiles[k]; if (!t || !t.el || !t.el.complete || t.el.naturalWidth === 0 || !t.coords) continue;
       const nw = map.unproject(L.point(t.coords.x * 256, t.coords.y * 256), t.coords.z);
       const p = map.latLngToContainerPoint(nw); const scale = 256 * Math.pow(2, z - t.coords.z);
-      try { mctx.drawImage(t.el, p.x, p.y, scale, scale); } catch (e) {}
+      try { mctx.drawImage(t.el, p.x, p.y, scale, scale); drawn++; } catch (e) {}
     }
+    if (!drawn) { maskData = null; return; }   // geen tegels → val terug op de grove zee-cellen i.p.v. alles maskeren
     try { maskData = mctx.getImageData(0, 0, sz.x, sz.y).data; maskW = sz.x; maskH = sz.y; } catch (e) { maskData = null; }
   }
 
