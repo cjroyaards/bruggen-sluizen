@@ -197,6 +197,16 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 #curbar{position:absolute;z-index:1000;bottom:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--grid);border-radius:11px;box-shadow:0 2px 12px rgba(5,10,16,.2);padding:6px 11px;max-width:calc(100% - 24px)}
 #plotter{position:absolute;z-index:1001;top:12px;right:12px;background:var(--surface);border:1px solid var(--grid);border-radius:12px;box-shadow:0 2px 14px rgba(5,10,16,.25);padding:10px 12px;min-width:190px}
 #plotter input{width:100%;box-sizing:border-box;border:1px solid var(--grid);background:var(--surface);color:var(--ink);border-radius:7px;padding:5px 7px;font-size:12px}
+@media (max-width:640px){
+  #plotter{left:8px;right:8px;min-width:0;width:auto}
+  #plotter .pl-v{font-size:30px}
+  #plotter.layout-1 .pl-v{font-size:44px}
+  #plotter.layout-2 .pl-v{font-size:36px}
+  #plotter .pl-l{font-size:12px}
+  #plotter .pl-row button{font-size:15px;padding:8px 13px}
+  #plotter input{font-size:15px;padding:8px}
+  #windbox{left:8px;right:8px;width:auto !important}
+}
 #plotter[hidden]{display:none}
 #plotter .pl-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 14px}
 #plotter .pl-grid>div{display:flex;flex-direction:column}
@@ -405,7 +415,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
         <span id="pl-src" style="font-size:10px;color:var(--muted);align-self:center">bron: GPS</span>
       </div>
       <div id="pl-nmeacfg" hidden style="margin-top:7px">
-        <input id="pl-nmurl" placeholder="ws://192.168.4.1:2000" autocomplete="off">
+        <input id="pl-nmurl" placeholder="ws://ip:3000/signalk/v1/stream" autocomplete="off">
         <div class="pl-row" style="margin-top:6px"><button id="pl-nmconn">verbind</button></div>
         <div id="pl-nmstat" style="font-size:10px;color:var(--muted);margin-top:4px"></div>
       </div>
@@ -1881,11 +1891,14 @@ function plUpdate(){
   if (!fix){ ["pl-sog","pl-cog","pl-dtw","pl-btw","pl-ttw"].forEach(i=>S(i,"–")); return; }
   // SOG/COG: uit de GPS als beschikbaar, anders uit de laatste fixes (>=8 s basislijn tegen ruis)
   let sog=fix.speed, cog=fix.heading;
-  if (sog==null || isNaN(sog) || cog==null || isNaN(cog)){
+  if ((sog==null || isNaN(sog) || cog==null || isNaN(cog)) && !fix.weak){
     for (let i=plFixes.length-2;i>=0;i--){
       const p=plFixes[i], dt=(fix.t-p.t)/1000;
+      if (p.weak) continue;                    // zwakke fixes niet gebruiken (wifi-sprongen → nepsnelheden)
       if (dt>=8){ const dist=plHaversine([p.lat,p.lon],[fix.lat,fix.lon]);
-        sog=dist/dt; cog=dist>3?plBearing([p.lat,p.lon],[fix.lat,fix.lon]):null; break; }
+        sog=dist/dt; cog=dist>3?plBearing([p.lat,p.lon],[fix.lat,fix.lon]):null;
+        if (sog*3600/NM>45){ sog=null; cog=null; }   // >45 kn = positieprong, geen echte snelheid
+        break; }
     }
   }
   const sogKn = sog!=null&&!isNaN(sog) ? sog*3600/NM : null;
@@ -1957,6 +1970,25 @@ function nmeaFeed(o){
   }
   plUpdate();
 }
+/* SignalK-delta's (JSON via WebSocket) → zelfde datastroom als NMEA-zinnen */
+const skState = { lat:null, lon:null, sog:null, cog:null };
+function signalkDelta(d){
+  const ups = d.updates || [];
+  let posDirty=false;
+  for (const u of ups) for (const v of (u.values||[])){
+    const p=v.path, val=v.value;
+    if (p==="navigation.position" && val && val.latitude!=null){ skState.lat=val.latitude; skState.lon=val.longitude; posDirty=true; }
+    else if (p==="navigation.speedOverGround" && val!=null){ skState.sog=val*1.94384; }         // m/s → kn
+    else if (p==="navigation.courseOverGroundTrue" && val!=null){ skState.cog=val*180/Math.PI; } // rad → °
+    else if ((p==="environment.depth.belowTransducer"||p==="environment.depth.belowSurface") && val!=null){ nmea.depth=val; nmea.depthT=Date.now(); plUpdate(); }
+    else if (p==="environment.wind.speedApparent" && val!=null){ nmea.aws=val*1.94384; nmea.windT=Date.now(); }
+    else if (p==="environment.wind.angleApparent" && val!=null){ nmea.awa=((val*180/Math.PI)+360)%360; nmea.windT=Date.now(); }
+    else if ((p==="environment.wind.speedTrue"||p==="environment.wind.speedOverGround") && val!=null){ nmea.tws=val*1.94384; nmea.windT=Date.now(); }
+    else if ((p==="environment.wind.angleTrueWater"||p==="environment.wind.angleTrueGround") && val!=null){ nmea.twa=((val*180/Math.PI)+360)%360; nmea.windT=Date.now(); }
+  }
+  if (posDirty && skState.lat!=null) nmeaFeed({lat:skState.lat, lon:skState.lon, sogKn:skState.sog, cog:skState.cog});
+  if (Date.now()-(nmea.windT||0)<2000) drawWindRose();
+}
 /* windroos: ware (blauw) en schijnbare (rood) wind t.o.v. de boeg (boeg = boven) */
 function drawWindRose(){
   const cv=document.getElementById("wb-rose"); if(!cv || document.getElementById("windbox").hidden) return;
@@ -2000,9 +2032,14 @@ function nmeaConnect(){
     localStorage.setItem("nmea_url", url);
     const ws=new WebSocket(url); nmea.ws=ws; st.textContent="verbinden…"; $("#pl-nmconn").textContent="verbreek";
     let buf="";
-    ws.onopen=()=>{ st.textContent="verbonden ✓"; };
-    ws.onmessage=ev=>{ if (typeof ev.data!=="string") return; buf+=ev.data; const lines=buf.split(/\r?\n/); buf=lines.pop(); for(const l of lines) nmeaSentence(l); };
-    ws.onerror=()=>{ st.textContent="fout — check adres. Let op: vanaf https blokkeert de browser ws:// (alleen wss:// of localhost)."; };
+    ws.onopen=()=>{ st.textContent="verbonden ✓";
+      try{ ws.send(JSON.stringify({context:"vessels.self",subscribe:[{path:"*"}]})); }catch(e){} };
+    ws.onmessage=ev=>{
+      if (typeof ev.data!=="string") return;
+      if (ev.data[0]==="{"){ try{ signalkDelta(JSON.parse(ev.data)); }catch(e){} return; }
+      buf+=ev.data; const lines=buf.split(/\r?\n/); buf=lines.pop(); for(const l of lines) nmeaSentence(l);
+    };
+    ws.onerror=()=>{ st.textContent="fout — geen WebSocket op dit adres. Let op: een kale TCP/UDP-poort van een gateway is géén WebSocket; gebruik een SignalK-server (ws://ip:3000/signalk/v1/stream) als brug. Vanaf https blokkeert de browser bovendien ws:// (alleen wss:// of localhost)."; };
     ws.onclose=()=>{ if(nmea.ws===ws){ nmea.ws=null; $("#pl-nmconn").textContent="verbind"; if(st.textContent==="verbonden ✓") st.textContent="verbroken"; const el=$("#pl-src"); if(el) el.textContent="bron: GPS"; } };
   }catch(e){ st.textContent="kan niet verbinden: "+e.message; nmea.ws=null; }
 }
@@ -2021,15 +2058,18 @@ function togglePlotter(){
   plOn=true; box.hidden=false; btn.classList.add("on");
   plWatch=navigator.geolocation.watchPosition(pos=>{
     if (Date.now()-nmea.last<5000) return;   // NMEA is leidend zolang die data levert
-    const el=$("#pl-src"); if(el) el.textContent="bron: GPS";
-    const c=pos.coords;
-    plFixes.push({lat:c.latitude,lon:c.longitude,speed:c.speed,heading:c.heading,t:pos.timestamp||Date.now()});
+    const c=pos.coords, acc=c.accuracy||9999;
+    const el=$("#pl-src");
+    // zwakke fix (wifi-plaatsbepaling, bijv. iPad zonder GPS): positie wel tonen, maar geen SOG/COG uit afleiden
+    const weak = acc>120;
+    if (el) el.textContent = weak ? `GPS zwak (±${Math.round(acc)} m)` : "bron: GPS";
+    plFixes.push({lat:c.latitude,lon:c.longitude,speed:weak?null:c.speed,heading:weak?null:c.heading,t:pos.timestamp||Date.now(),weak});
     if (plFixes.length>40) plFixes.shift();
     const ll=[c.latitude,c.longitude];
     if (!plBoat){ plBoat=L.circleMarker(ll,{radius:8,color:"#fff",weight:2.5,fillColor:"#0e7a5f",fillOpacity:1}).addTo(map); map.setView(ll,14); }
     else plBoat.setLatLng(ll);
     plUpdate();
-  }, err=>{ alert((LANG==="en"?"Position failed: ":"Kon locatie niet bepalen: ")+err.message); togglePlotter(); },
+  }, err=>{ const el=$("#pl-src"); if(el) el.textContent=(LANG==="en"?"no GPS — use NMEA":"geen GPS — gebruik NMEA"); },
   {enableHighAccuracy:true, maximumAge:2000});
 }
 
@@ -2532,5 +2572,5 @@ loadData().then(()=>{
 </script>
 </body>
 </html>
-        <span class="k">Plotter &amp; NMEA koppelen</span><span>De plotter (knop in de zeekaartmodus) gebruikt standaard de GPS van je telefoon. Heb je aan boord een <b>wifi-gateway of multiplexer</b> (bijv. Yacht Devices YDWG-02, MiniPlex, Shipmodul, Vesper, of een SignalK-server), dan kun je de boordinstrumenten koppelen: open de plotter → knop <b>NMEA</b> → vul het WebSocket-adres in (meestal <code>ws://&lt;ip-van-de-gateway&gt;:poort</code>, poort vaak 2000 of 10110) → <b>verbind</b>. De plotter gebruikt dan positie/SOG/COG van de boord-GPS (RMC/VTG/GGA), de dieptemeter (DPT/DBT) en de windmeter (MWV — te zien in het windvenster met ware en schijnbare wind). Valt de verbinding weg, dan neemt de telefoon-GPS het automatisch over. <b>Let op:</b> browsers blokkeren onbeveiligde <code>ws://</code>-verbindingen vanaf een https-site; gebruik een gateway die <code>wss://</code> (TLS) ondersteunt of een SignalK-server met SSL.</span>
-        <span class="k">Plotter &amp; connecting NMEA</span><span>The plotter (button in nautical chart mode) uses your phone's GPS by default. If you have a <b>WiFi gateway or multiplexer</b> on board (e.g. Yacht Devices YDWG-02, MiniPlex, Shipmodul, Vesper, or a SignalK server), you can connect your instruments: open the plotter → <b>NMEA</b> button → enter the WebSocket address (usually <code>ws://&lt;gateway-ip&gt;:port</code>, often port 2000 or 10110) → <b>connect</b>. The plotter then uses the boat GPS for position/SOG/COG (RMC/VTG/GGA), the depth sounder (DPT/DBT) and the wind instrument (MWV — shown in the wind window with true and apparent wind). If the link drops, the phone GPS takes over automatically. <b>Note:</b> browsers block insecure <code>ws://</code> connections from an https site; use a gateway that supports <code>wss://</code> (TLS) or a SignalK server with SSL.</span>
+        <span class="k">Plotter &amp; NMEA koppelen</span><span>De plotter (knop in de zeekaartmodus) gebruikt standaard de GPS van je telefoon. Heb je aan boord een <b>wifi-gateway of multiplexer</b> (bijv. Yacht Devices YDWG-02, MiniPlex, Shipmodul, Vesper, of een SignalK-server), dan kun je de boordinstrumenten koppelen. <b>Belangrijk:</b> de kale TCP- of UDP-poort van zo'n gateway is géén WebSocket en werkt niet rechtstreeks in een browser. De brug is een gratis <b>SignalK-server</b> (draait op een Raspberry Pi, boordcomputer of oude telefoon; leest je gateway via TCP in en serveert WebSocket). Open dan de plotter → knop <b>NMEA</b> → vul in: <code>ws://&lt;ip-signalk&gt;:3000/signalk/v1/stream</code> → <b>verbind</b>. Gateways met een eigen WebSocket-uitgang werken ook direct. De plotter gebruikt dan positie/SOG/COG van de boord-GPS (RMC/VTG/GGA), de dieptemeter (DPT/DBT) en de windmeter (MWV — te zien in het windvenster met ware en schijnbare wind). Valt de verbinding weg, dan neemt de telefoon-GPS het automatisch over. <b>Let op:</b> browsers blokkeren onbeveiligde <code>ws://</code>-verbindingen vanaf een https-site; gebruik een gateway die <code>wss://</code> (TLS) ondersteunt of een SignalK-server met SSL.</span>
+        <span class="k">Plotter &amp; connecting NMEA</span><span>The plotter (button in nautical chart mode) uses your phone's GPS by default. If you have a <b>WiFi gateway or multiplexer</b> on board (e.g. Yacht Devices YDWG-02, MiniPlex, Shipmodul, Vesper, or a SignalK server), you can connect your instruments. <b>Important:</b> a gateway's raw TCP or UDP port is <i>not</i> a WebSocket and cannot be reached from a browser. The bridge is a free <b>SignalK server</b> (runs on a Raspberry Pi, boat computer or old phone; reads your gateway over TCP and serves WebSocket). Then open the plotter → <b>NMEA</b> → enter <code>ws://&lt;signalk-ip&gt;:3000/signalk/v1/stream</code> → <b>connect</b>. Gateways with a native WebSocket output also work directly. The plotter then uses the boat GPS for position/SOG/COG (RMC/VTG/GGA), the depth sounder (DPT/DBT) and the wind instrument (MWV — shown in the wind window with true and apparent wind). If the link drops, the phone GPS takes over automatically. <b>Note:</b> browsers block insecure <code>ws://</code> connections from an https site; use a gateway that supports <code>wss://</code> (TLS) or a SignalK server with SSL.</span>
