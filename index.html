@@ -561,7 +561,7 @@ header{position:sticky}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-29</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-30</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1050,7 +1050,7 @@ function scheduleTable(per, highlightToday){
     html += `<div class="srow${isToday?" today":""}"><div class="sday">${groupLabel(g)}</div><div class="swins">${winsHTML(g.rules, isToday, n.min)}</div></div>`;
   }
   html += `</div>`;
-  if (per[2]) html += `<div class="p-note">${esc(per[2])}</div>`;
+  if (per[2]) html += `<div class="p-note">${esc(xen(per[2]))}</div>`;
   return html;
 }
 /* ---------- getijden (Open-Meteo, live) ---------- */
