@@ -433,7 +433,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
         <span class="k">Diepte — actualiteit</span><span>EMODnet brengt het DTM ongeveer eens per twee jaar uit (…, 2020, 2022, 2024); de 2024-versie verscheen in maart 2025. Het is dus een samengesteld, periodiek bijgewerkt model — geen live meting.</span>
         <span class="k">Diepte — nauwkeurigheid</span><span>EMODnet bouwt het DTM uit duizenden ingemeten surveys (akoestisch, lidar, satelliet). Elke bron is via CDI/Sextant-metadata herleidbaar, en per rastercel wordt bijgehouden welke bron is gebruikt, hoeveel metingen zijn meegenomen en of de cel ge-interpoleerd is. Bronnen die niet aan de QA/QC-eisen voldoen vallen af. De nauwkeurigheid verschilt per gebied — dicht bemeten kustzones zijn betrouwbaarder dan dunbemeten open zee.</span>
         <span class="k">VTS-sectoren (Scheldemond)</span><span>De marifoon-/VHF-sectoren volgen de officiële GNB VHF-sectorenkaart (vts-scheldt.net): estuariumgrenzen op de echte tonnen, buitenaanloop op de brochure-punten. Kanalen, namen en telefoon uit de GNB-brochure. De Maas-aanloop (01/02/03) staat op de Reeds-afstanden; overige zeewaartse grenzen zijn bij benadering. <b>Indicatief — niet voor navigatie</b>; controleer de exacte grenzen op de zeekaart. Nood/oproep Kustwacht: VHF 16 · DSC 70. In elke sector-popup staat uitleg over meldplicht en bereikbaarheidsplicht.</span>
-        <span class="k">Zeekaartmodus</span><span>Onze eigen zeekaartlaag: <b>gladgestreken dieptevlakken</b> in lichte zeekaartkleuren uit <b>EMODnet Bathymetry</b> (dekt NL, de Engelse oostkust, het Kanaal en België; droogvallend in groen), met daaroverheen de <b>kustlijn en dieptelijnen</b> uit de officiële <b>RWS Inland ENC</b> (CC-0) — de <b>2 m-lijn nadrukkelijk in rood</b> als veiligheidscontour. Alles zelf verwerkt en zelf-gehost, dus het werkt <b>offline</b>. Zeekaart-symbolen van OpenSeaMap; ondergrond © CARTO/OpenStreetMap. <b>Indicatief — niet voor navigatie.</b></span>
+        <span class="k">Zeekaartmodus</span><span>Onze eigen zeekaartlaag: <b>gladgestreken dieptevlakken</b> in lichte zeekaartkleuren uit <b>EMODnet Bathymetry</b> (dekt NL, de Engelse oostkust, het Kanaal en België; droogvallend in groen), met daaroverheen de <b>kustlijn en dieptelijnen</b> uit de officiële <b>RWS Inland ENC</b> (CC-0) — de <b>2 m-lijn</b> iets zwaarder aangezet als veiligheidscontour. In de afgesloten delta-wateren (Grevelingen, Haringvliet, Volkerak, Hollands Diep) tonen we geen zeevlakken maar de fijnmazige ENC-dieptelijnen. Alles zelf verwerkt en zelf-gehost, dus het werkt <b>offline</b>. Zeekaart-symbolen van OpenSeaMap; ondergrond © CARTO/OpenStreetMap. <b>Indicatief — niet voor navigatie.</b></span>
         <span class="k">Kaartondergrond</span><span>© OpenStreetMap-bijdragers.</span>
       </div>
       <p style="color:var(--muted);font-size:12.5px">Hoogtes uit verschillende bronnen hebben verschillende nulvlakken (NAP, kaartnul/LAT, gemiddeld zeeniveau) en zijn niet zomaar met elkaar of met kaartdieptes te verrekenen.</p>
@@ -1821,7 +1821,7 @@ function drawSmoothDepth(gj){
 }
 function depthLineStyle(f){
   const v = f.properties.v;
-  if (v === 2) return { color:"#cc3322", weight:1.5, opacity:0.95 };   // 2 m-lijn: nadrukkelijk (veiligheidscontour)
+  if (v === 2) return { color:"#3a7fae", weight:1.0, opacity:0.85 };   // 2 m-lijn: iets zwaarder, rustig blauw
   if (v === 5) return { color:"#4f93c0", weight:0.7, opacity:0.8 };
   return { color:"#7fb0d2", weight:0.5, opacity:0.7 };                 // overige isobaten dun
 }
@@ -1841,7 +1841,7 @@ function setZeeChart(on){
     baseLight.addTo(map);
     // Gladde EMODnet-dieptevlakken (NL + UK-oostkust + Kanaal + België): licht gekleurde dieptezones
     if (encDepthGeo) drawSmoothDepth(encDepthGeo);
-    else fetch("data/depth_smooth.geojson?v=20260722d", {cache:"reload"}).then(r=>r.json()).then(gj=>{ encDepthGeo=gj; if(zeechartView) drawSmoothDepth(gj); }).catch(()=>{});
+    else fetch("data/depth_smooth.geojson?v=20260722e", {cache:"reload"}).then(r=>r.json()).then(gj=>{ encDepthGeo=gj; if(zeechartView) drawSmoothDepth(gj); }).catch(()=>{});
     // Proef buitenland (EU-RIS-route): Duitse Rijn als waterlint uit de WSV Inland ENC (ELWIS, vrij gebruik)
     if (!window.deWaterLayer){
       fetch("data/de_water.geojson?v=20260722", {cache:"reload"}).then(r=>r.json()).then(gj=>{
@@ -1937,9 +1937,14 @@ document.querySelectorAll('input[name="depthset"]').forEach(r=> r.addEventListen
 function legendDepthSet(){ const r=document.querySelector('input[name="depthset"]:checked'); return r?r.value:"off"; }
 function updateLegend(){
   const box=$("#maplegend"); if(!box) return; let html="";
-  if (zeechartView && chartDepthLayer!=null){
+  if (zeechartView){
     html+=`<div class="lg-t">${LANG==="en"?"Depth (m · LAT)":"Diepte (m · LAT)"}</div>`;
-    [[(LANG==="en"?"drying":"droogvallend"),"#bcd6a8"],["0–2","#6aa8cf"],["2–5","#93c3e0"],["5–10","#bfdcef"],["10–20","#e3f0f8"]].forEach(([lab,c])=>{ html+=`<div class="lg-row"><span class="lg-sw" style="background:${c};border:1px solid #cbd5dd"></span>${lab}${/\d/.test(lab)?" m":""}</div>`; });
+    [[(LANG==="en"?"drying":"droogvallend"),"#cfe3c5"],["0–2","#7fb8dc"],["2–5","#a3cce8"],["5–10","#c3def1"],["10–15","#d9eaf7"],["15–20","#e7f2fa"],["&gt;20","#f2f8fc"]].forEach(([lab,c])=>{ html+=`<div class="lg-row"><span class="lg-sw" style="background:${c};border:1px solid #cbd5dd"></span>${lab}${/\d/.test(lab)?" m":""}</div>`; });
+    html+=`<div class="lg-t">${LANG==="en"?"Lines":"Lijnen"}</div>`;
+    html+=`<div class="lg-row"><span class="lg-ln" style="border-top:2px solid #3a7fae"></span>${LANG==="en"?"2 m contour (NL)":"2 m-lijn (NL)"}</div>`;
+    html+=`<div class="lg-row"><span class="lg-ln" style="border-top:1px solid #7fb0d2"></span>${LANG==="en"?"depth contours (NL, fine)":"dieptelijnen (NL, fijnmazig)"}</div>`;
+    html+=`<div class="lg-row"><span class="lg-ln" style="border-top:1px solid #6b5a38"></span>${LANG==="en"?"coast / bank":"kust / oever"}</div>`;
+    html+=`<div class="lg-row" style="color:var(--muted);font-size:10px">${LANG==="en"?"Shading: EMODnet · lines: RWS ENC · not for navigation":"Vlakken: EMODnet · lijnen: RWS ENC · niet voor navigatie"}</div>`;
   }
   const dval=legendDepthSet();
   if (depthLayer!=null && dval!=="off"){
@@ -2028,7 +2033,7 @@ function applyStaticLang(){
         <span class="k">Depth — how current</span><span>EMODnet releases the DTM roughly every two years (…, 2020, 2022, 2024); the 2024 version appeared in March 2025. It is a compiled, periodically updated model — not a live measurement.</span>
         <span class="k">Depth — accuracy</span><span>EMODnet builds the DTM from thousands of surveys (acoustic, lidar, satellite). Every source is traceable through CDI/Sextant metadata, and each grid cell records which source was used, how many soundings went in, and whether the cell was interpolated. Sources failing the QA/QC criteria are dropped. Accuracy varies by area — densely surveyed coastal zones are more reliable than sparsely surveyed open sea.</span>
         <span class="k">VTS sectors (Scheldemond)</span><span>The VHF sectors follow the official GNB VHF-sector chart (vts-scheldt.net): estuary limits on the real buoys, outer approaches on the brochure points. Channels, names and phone from the GNB brochure. The Maas approach (01/02/03) uses the Reeds distances; other seaward limits are approximate. <b>Indicative — not for navigation</b>; check exact limits on the chart. Distress/calling Coastguard: VHF 16 · DSC 70. Each sector popup explains the reporting and reachability duties.</span>
-        <span class="k">Nautical chart mode</span><span>Our own nautical layer: <b>smoothed depth shading</b> in light chart colours from <b>EMODnet Bathymetry</b> (covers NL, the English east coast, the Channel and Belgium; drying areas in green), overlaid with the <b>coastline and depth contours</b> from the official <b>RWS Inland ENC</b> (CC-0) — the <b>2 m line emphasised in red</b> as a safety contour. All processed and self-hosted, so it works <b>offline</b>. Chart symbols from OpenSeaMap; base © CARTO/OpenStreetMap. <b>Indicative — not for navigation.</b></span>
+        <span class="k">Nautical chart mode</span><span>Our own nautical layer: <b>smoothed depth shading</b> in light chart colours from <b>EMODnet Bathymetry</b> (covers NL, the English east coast, the Channel and Belgium; drying areas in green), overlaid with the <b>coastline and depth contours</b> from the official <b>RWS Inland ENC</b> (CC-0) — the <b>2 m line</b> slightly emphasised as a safety contour. In the enclosed delta waters (Grevelingen, Haringvliet, Volkerak, Hollands Diep) we show the fine ENC depth contours instead of sea shading. All processed and self-hosted, so it works <b>offline</b>. Chart symbols from OpenSeaMap; base © CARTO/OpenStreetMap. <b>Indicative — not for navigation.</b></span>
         <span class="k">Base map</span><span>© OpenStreetMap contributors.</span>
       </div>
       <p style="color:var(--muted);font-size:12.5px">Heights from different sources use different datums (NAP, chart datum/LAT, mean sea level) and cannot simply be combined with each other or with charted depths.</p>
