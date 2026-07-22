@@ -194,7 +194,8 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 .dropmenu label input{accent-color:var(--accent);width:16px;height:16px}
 .dropmenu .dm-note{font-size:11.5px;color:var(--muted);margin-top:5px;min-height:0}
 #curbar{position:absolute;z-index:1000;bottom:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--grid);border-radius:11px;box-shadow:0 2px 12px rgba(5,10,16,.2);padding:6px 11px;max-width:calc(100% - 24px)}
-#plotter{position:absolute;z-index:1001;top:64px;right:12px;background:var(--surface);border:1px solid var(--grid);border-radius:12px;box-shadow:0 2px 14px rgba(5,10,16,.25);padding:10px 12px;min-width:190px}
+#plotter{position:absolute;z-index:1001;top:12px;right:12px;background:var(--surface);border:1px solid var(--grid);border-radius:12px;box-shadow:0 2px 14px rgba(5,10,16,.25);padding:10px 12px;min-width:190px}
+#plotter input{width:100%;box-sizing:border-box;border:1px solid var(--grid);background:var(--surface);color:var(--ink);border-radius:7px;padding:5px 7px;font-size:12px}
 #plotter[hidden]{display:none}
 #plotter .pl-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 14px}
 #plotter .pl-grid>div{display:flex;flex-direction:column}
@@ -371,7 +372,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
         </div>
       </div>
       <button class="mapbtn" id="mb-locate"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="2.2"/></svg><span data-i18n="mb_locate">Volg mij</span></button>
-      <button class="mapbtn" id="mb-plotter"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l4 9-4-2.5L8 12z"/><circle cx="12" cy="12" r="9"/></svg><span data-i18n="mb_plotter">Plotter</span></button>
+      <button class="mapbtn" id="mb-plotter" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l4 9-4-2.5L8 12z"/><circle cx="12" cy="12" r="9"/></svg><span data-i18n="mb_plotter">Plotter</span></button>
     </div>
     <div id="plotter" hidden>
       <div class="pl-grid">
@@ -380,11 +381,21 @@ footer a{color:var(--brand-dim);text-decoration:underline}
         <div><span class="pl-v" id="pl-dtw">–</span><span class="pl-l">DTW nm</span></div>
         <div><span class="pl-v" id="pl-btw">–</span><span class="pl-l">BTW °</span></div>
         <div><span class="pl-v" id="pl-ttw">–</span><span class="pl-l">TTW</span></div>
+        <div><span class="pl-v" id="pl-dpt">–</span><span class="pl-l">DPT m</span></div>
       </div>
       <div class="pl-row">
         <button id="pl-wp" data-i18n="pl_wp">WP: tik op de kaart</button>
         <button id="pl-clearwp" data-i18n="pl_clearwp">wis WP</button>
         <button id="pl-close">✕</button>
+      </div>
+      <div class="pl-row">
+        <button id="pl-nmea">NMEA</button>
+        <span id="pl-src" style="font-size:10px;color:var(--muted);align-self:center">bron: GPS</span>
+      </div>
+      <div id="pl-nmeacfg" hidden style="margin-top:7px">
+        <input id="pl-nmurl" placeholder="ws://192.168.4.1:2000" autocomplete="off">
+        <div class="pl-row" style="margin-top:6px"><button id="pl-nmconn">verbind</button></div>
+        <div id="pl-nmstat" style="font-size:10px;color:var(--muted);margin-top:4px"></div>
       </div>
     </div>
     <div id="curbar" hidden>
@@ -1422,7 +1433,7 @@ function initMap(){
   map.createPane("iencPane");  map.getPane("iencPane").style.zIndex = 300;
   map.createPane("encPane");   map.getPane("encPane").style.zIndex = 320;
   map.createPane("seaPane");   map.getPane("seaPane").style.zIndex = 350;
-  cluster = L.markerClusterGroup({chunkedLoading:true, disableClusteringAtZoom:14, maxClusterRadius:55});
+  cluster = L.markerClusterGroup(clusterOpts());
   buildMarkers();
   map.addLayer(cluster);
   buildStremLayer();
@@ -1738,6 +1749,19 @@ function buildHarbourLayer(){
   }
   harbLayerH.addTo(map); harbLayerG.addTo(map);
 }
+/* clusteren alleen op de landkaart; in zeekaartmodus individuele (aanklikbare) stippen zonder telbollen */
+function clusterOpts(){
+  return zeechartView
+    ? {chunkedLoading:true, maxClusterRadius:0, spiderfyOnMaxZoom:true}
+    : {chunkedLoading:true, disableClusteringAtZoom:14, maxClusterRadius:55};
+}
+function rebuildCluster(){
+  if (!cluster || !map) return;
+  map.removeLayer(cluster);
+  cluster = L.markerClusterGroup(clusterOpts());
+  map.addLayer(cluster);
+  buildMarkers();
+}
 function buildMarkers(){
   cluster.clearLayers();
   const ms = [];
@@ -1832,6 +1856,7 @@ function plUpdate(){
     } else S("pl-ttw","–");
     if (plWpLine) plWpLine.setLatLngs([[fix.lat,fix.lon],plWp]);
   } else { S("pl-dtw","–"); S("pl-btw","–"); S("pl-ttw","–"); }
+  S("pl-dpt", (nmea.depth!=null && Date.now()-nmea.depthT<15000) ? nmea.depth.toFixed(1) : "–");
 }
 function plSetWp(latlng){
   plWp=[latlng.lat,latlng.lng];
@@ -1848,11 +1873,57 @@ function plClearWp(){
   if (plWpLine){ map.removeLayer(plWpLine); plWpLine=null; }
   plUpdate();
 }
+/* ---- NMEA 0183 via WebSocket (bijv. wifi-gateway/multiplexer aan boord) ---- */
+const nmea = { ws:null, last:0, depth:null, depthT:0 };
+function nmeaLat(v,h){ if(!v) return null; const d=Math.floor(+v/100), m=+v-d*100; let x=d+m/60; return (h==="S"||h==="W") ? -x : x; }
+function nmeaSentence(line){
+  line=line.trim(); if(!line || (line[0]!=="$" && line[0]!=="!")) return;
+  const star=line.indexOf("*"); if(star>0) line=line.slice(0,star);
+  const f=line.split(","), id=f[0].slice(-3);
+  if (id==="RMC" && f[2]==="A"){
+    const lat=nmeaLat(f[3],f[4]), lon=nmeaLat(f[5],f[6]);
+    if (lat==null||lon==null) return;
+    nmeaFeed({lat,lon, sogKn:f[7]?+f[7]:null, cog:f[8]?+f[8]:null});
+  } else if (id==="VTG"){
+    const last=plFixes[plFixes.length-1];
+    if (last && Date.now()-nmea.last<6000){ if(f[5]) last.speed=(+f[5])*NM/3600; if(f[1]) last.heading=+f[1]; plUpdate(); }
+  } else if (id==="GGA"){
+    const lat=nmeaLat(f[2],f[3]), lon=nmeaLat(f[4],f[5]);
+    if (lat!=null&&lon!=null && Date.now()-nmea.last>2500) nmeaFeed({lat,lon,sogKn:null,cog:null});
+  } else if (id==="DPT"){ if(f[1]){ nmea.depth=+f[1]; nmea.depthT=Date.now(); plUpdate(); } }
+  else if (id==="DBT"){ if(f[3]){ nmea.depth=+f[3]; nmea.depthT=Date.now(); plUpdate(); } }
+}
+function nmeaFeed(o){
+  nmea.last=Date.now();
+  const el=$("#pl-src"); if(el) el.textContent="bron: NMEA";
+  plFixes.push({lat:o.lat,lon:o.lon,speed:o.sogKn!=null?o.sogKn*NM/3600:null,heading:o.cog,t:Date.now()});
+  if (plFixes.length>40) plFixes.shift();
+  if (map){
+    if (!plBoat){ plBoat=L.circleMarker([o.lat,o.lon],{radius:8,color:"#fff",weight:2.5,fillColor:"#0e7a5f",fillOpacity:1}).addTo(map); map.setView([o.lat,o.lon],14); }
+    else plBoat.setLatLng([o.lat,o.lon]);
+  }
+  plUpdate();
+}
+function nmeaConnect(){
+  const url=($("#pl-nmurl").value||"").trim(), st=$("#pl-nmstat");
+  if (nmea.ws){ try{nmea.ws.close();}catch(e){} nmea.ws=null; $("#pl-nmconn").textContent="verbind"; st.textContent="verbroken"; const el=$("#pl-src"); if(el) el.textContent="bron: GPS"; return; }
+  if (!url){ st.textContent="vul een ws://-adres in"; return; }
+  try{
+    localStorage.setItem("nmea_url", url);
+    const ws=new WebSocket(url); nmea.ws=ws; st.textContent="verbinden…"; $("#pl-nmconn").textContent="verbreek";
+    let buf="";
+    ws.onopen=()=>{ st.textContent="verbonden ✓"; };
+    ws.onmessage=ev=>{ if (typeof ev.data!=="string") return; buf+=ev.data; const lines=buf.split(/\r?\n/); buf=lines.pop(); for(const l of lines) nmeaSentence(l); };
+    ws.onerror=()=>{ st.textContent="fout — check adres. Let op: vanaf https blokkeert de browser ws:// (alleen wss:// of localhost)."; };
+    ws.onclose=()=>{ if(nmea.ws===ws){ nmea.ws=null; $("#pl-nmconn").textContent="verbind"; if(st.textContent==="verbonden ✓") st.textContent="verbroken"; const el=$("#pl-src"); if(el) el.textContent="bron: GPS"; } };
+  }catch(e){ st.textContent="kan niet verbinden: "+e.message; nmea.ws=null; }
+}
 function togglePlotter(){
   const btn=$("#mb-plotter"), box=$("#plotter");
   if (plOn){
     plOn=false; box.hidden=true; btn.classList.remove("on");
     if (plWatch!=null){ navigator.geolocation.clearWatch(plWatch); plWatch=null; }
+    if (nmea.ws){ try{nmea.ws.close();}catch(e){} nmea.ws=null; }
     if (plBoat){ map.removeLayer(plBoat); plBoat=null; }
     plClearWp(); plFixes=[]; window.plotterArmWp=false;
     return;
@@ -1860,6 +1931,8 @@ function togglePlotter(){
   if (!navigator.geolocation){ alert(LANG==="en"?"Geolocation not available.":"Geolocatie niet beschikbaar in deze browser."); return; }
   plOn=true; box.hidden=false; btn.classList.add("on");
   plWatch=navigator.geolocation.watchPosition(pos=>{
+    if (Date.now()-nmea.last<5000) return;   // NMEA is leidend zolang die data levert
+    const el=$("#pl-src"); if(el) el.textContent="bron: GPS";
     const c=pos.coords;
     plFixes.push({lat:c.latitude,lon:c.longitude,speed:c.speed,heading:c.heading,t:pos.timestamp||Date.now()});
     if (plFixes.length>40) plFixes.shift();
@@ -1933,6 +2006,8 @@ $("#mb-plotter").onclick = ()=>{
 $("#pl-wp").onclick = ()=>{ window.plotterArmWp=!window.plotterArmWp; $("#pl-wp").classList.toggle("arm", window.plotterArmWp); };
 $("#pl-clearwp").onclick = plClearWp;
 $("#pl-close").onclick = togglePlotter;
+$("#pl-nmea").onclick = ()=>{ const c=$("#pl-nmeacfg"); c.hidden=!c.hidden; if(!c.hidden && !$("#pl-nmurl").value) $("#pl-nmurl").value = localStorage.getItem("nmea_url")||""; };
+$("#pl-nmconn").onclick = nmeaConnect;
 let seaLayer = null, seaView = false, seaNoteShown = false;
 function setSea(on){
   seaView = on;
@@ -2008,6 +2083,10 @@ function setZeeChart(on){
     if (baseLight && map.hasLayer(baseLight)) map.removeLayer(baseLight);
     if (baseOSM && !map.hasLayer(baseOSM)) baseOSM.addTo(map);
   }
+  // plotter alleen in zeekaartmodus; clusters alleen op de landkaart
+  const pb=$("#mb-plotter"); if (pb) pb.style.display = on ? "" : "none";
+  if (!on && typeof plOn!=="undefined" && plOn) togglePlotter();
+  rebuildCluster();
   updateKaartBtn(); if (window.updateLegend) updateLegend();
 }
 /* ---- mapbar-dropdowns openen/sluiten ---- */
@@ -2081,8 +2160,9 @@ function updateDepthLines(){
 }
 $("#d-per1").addEventListener("change", updateDepthLines);
 $("#d-per5").addEventListener("change", updateDepthLines);
-/* ---- kaartlegenda (diepte + wind) ---- */
+/* ---- kaartlegenda (diepte + wind), in/uitklapbaar ---- */
 function legendDepthSet(){ return depthLevelsWanted() ? "lines" : "off"; }
+let legendOpen = true;
 function updateLegend(){
   const box=$("#maplegend"); if(!box) return; let html="";
   if (zeechartView){
@@ -2108,7 +2188,12 @@ function updateLegend(){
     html+=`<div class="lg-t">${LANG==="en"?"Wind (kn · Bft)":"Wind (kn · Bft)"}</div>`;
     [["1–3 · 1","#a9d9f0"],["7–10 · 3","#78c46b"],["11–16 · 4","#c3dd4e"],["17–21 · 5","#f2d43d"],["22–27 · 6","#f6a63c"],["28–33 · 7","#ee6f3a"],["34–40 · 8","#e0463f"],["≥41 · 9+","#cf3670"]].forEach(([lab,c])=>{ html+=`<div class="lg-row"><span class="lg-sw" style="background:${c}"></span>${lab}</div>`; });
   }
-  box.innerHTML=html; box.hidden=!html;
+  if (html){
+    const hd = `<div class="lg-hd" style="cursor:pointer;font-weight:700;display:flex;justify-content:space-between;gap:10px;user-select:none"><span>${LANG==="en"?"Legend":"Legenda"}</span><span>${legendOpen?"▾":"▸"}</span></div>`;
+    box.innerHTML = hd + (legendOpen ? html : "");
+    box.querySelector(".lg-hd").onclick = ()=>{ legendOpen=!legendOpen; updateLegend(); };
+    box.hidden = false;
+  } else { box.innerHTML=""; box.hidden=true; }
 }
 window.updateLegend = updateLegend;
 
