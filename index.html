@@ -194,6 +194,15 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 .dropmenu label input{accent-color:var(--accent);width:16px;height:16px}
 .dropmenu .dm-note{font-size:11.5px;color:var(--muted);margin-top:5px;min-height:0}
 #curbar{position:absolute;z-index:1000;bottom:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--grid);border-radius:11px;box-shadow:0 2px 12px rgba(5,10,16,.2);padding:6px 11px;max-width:calc(100% - 24px)}
+#plotter{position:absolute;z-index:1001;top:64px;right:12px;background:var(--surface);border:1px solid var(--grid);border-radius:12px;box-shadow:0 2px 14px rgba(5,10,16,.25);padding:10px 12px;min-width:190px}
+#plotter[hidden]{display:none}
+#plotter .pl-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 14px}
+#plotter .pl-grid>div{display:flex;flex-direction:column}
+#plotter .pl-v{font-size:22px;font-weight:750;font-variant-numeric:tabular-nums;line-height:1.15}
+#plotter .pl-l{font-size:10px;color:var(--muted);letter-spacing:.4px}
+#plotter .pl-row{display:flex;gap:6px;margin-top:9px}
+#plotter .pl-row button{border:1px solid var(--grid);background:var(--surface);color:var(--ink);border-radius:8px;padding:4px 9px;cursor:pointer;font-size:12px}
+#plotter .pl-row button.arm{background:var(--accent);color:#fff;border-color:transparent}
 #curbar[hidden]{display:none}
 #maplegend{position:absolute;z-index:999;left:12px;bottom:14px;background:var(--surface);border:1px solid var(--grid);border-radius:9px;box-shadow:0 2px 10px rgba(5,10,16,.18);padding:7px 9px;font-size:11px;line-height:1.35;color:var(--ink);max-width:172px}
 #maplegend[hidden]{display:none}
@@ -367,6 +376,21 @@ footer a{color:var(--brand-dim);text-decoration:underline}
         </div>
       </div>
       <button class="mapbtn" id="mb-locate"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="2.2"/></svg><span data-i18n="mb_locate">Volg mij</span></button>
+      <button class="mapbtn" id="mb-plotter"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l4 9-4-2.5L8 12z"/><circle cx="12" cy="12" r="9"/></svg><span data-i18n="mb_plotter">Plotter</span></button>
+    </div>
+    <div id="plotter" hidden>
+      <div class="pl-grid">
+        <div><span class="pl-v" id="pl-sog">–</span><span class="pl-l">SOG kn</span></div>
+        <div><span class="pl-v" id="pl-cog">–</span><span class="pl-l">COG °</span></div>
+        <div><span class="pl-v" id="pl-dtw">–</span><span class="pl-l">DTW nm</span></div>
+        <div><span class="pl-v" id="pl-btw">–</span><span class="pl-l">BTW °</span></div>
+        <div><span class="pl-v" id="pl-ttw">–</span><span class="pl-l">TTW</span></div>
+      </div>
+      <div class="pl-row">
+        <button id="pl-wp" data-i18n="pl_wp">WP: tik op de kaart</button>
+        <button id="pl-clearwp" data-i18n="pl_clearwp">wis WP</button>
+        <button id="pl-close">✕</button>
+      </div>
     </div>
     <div id="curbar" hidden>
       <button id="cur-play" title="Afspelen">▶</button>
@@ -1519,6 +1543,7 @@ function initCurrents(){
   $("#cur-play").addEventListener("click", ()=>{ const p=!isPlaying(); Currents.setPlaying(p); Wind.setPlaying(p); $("#cur-play").textContent = p?"❚❚":"▶"; });
   // klik op zee → stroom- en/of wind-info (met doorklik naar detailpaneel)
   map.on("click", e=>{
+    if (window.plotterArmWp) return;   // klik zet een waypoint, geen popup
     if (!Currents.anyOn() && !Wind.anyOn()) return;
     let parts = [];
     if (Currents.anyOn()){
@@ -1531,7 +1556,8 @@ function initCurrents(){
     if (Wind.anyOn()){
       const w = Wind.pointNow(e.latlng.lat, e.latlng.lng);
       if (w){ const card = curDirCardinal(w.dirFrom);
-        parts.push(`<div><b>${w.kn.toFixed(0)} kn</b> ${LANG==="en"?"wind":"wind"} · ${LANG==="en"?"Bft":"Bft"} ${w.bft} · ${LANG==="en"?"from":"uit"} ${card.abbr} (${Math.round(w.dirFrom)}°) <span style="display:inline-block;transform:rotate(${(w.dirFrom+180)%360}deg)">↑</span></div>`);
+        parts.push(`<div><b>${w.kn.toFixed(0)} kn</b> ${LANG==="en"?"wind":"wind"} · ${LANG==="en"?"Bft":"Bft"} ${w.bft} · ${LANG==="en"?"from":"uit"} ${card.abbr} (${Math.round(w.dirFrom)}°) <span style="display:inline-block;transform:rotate(${(w.dirFrom+180)%360}deg)">↑</span><br>
+          <a href="#" class="windDetail" data-lat="${e.latlng.lat}" data-lon="${e.latlng.lng}" style="color:var(--accent);font-weight:600">${LANG==="en"?"wind details →":"wind-details →"}</a></div>`);
       } else if (!Wind.isLoaded()) parts.push(`<div style="color:var(--muted)">${LANG==="en"?"Loading wind data…":"Winddata laden…"}</div>`);
     }
     if (!parts.length) return;
@@ -1542,7 +1568,41 @@ function initCurrents(){
   document.addEventListener("click", e=>{
     const d = e.target.closest(".curDetail");
     if (d){ e.preventDefault(); map.closePopup(); openCurrentDetail(+d.dataset.lat, +d.dataset.lon); }
+    const wd = e.target.closest(".windDetail");
+    if (wd){ e.preventDefault(); map.closePopup(); openWindDetail(+wd.dataset.lat, +wd.dataset.lon); }
   });
+}
+/* winddetail-paneel: verwachting per uur voor een aangeklikt punt (zelfde opzet als stroming) */
+function openWindDetail(lat, lon){
+  panelRefresh = ()=>openWindDetail(lat, lon);
+  const now = Wind.pointNow(lat, lon);
+  const series = Wind.pointSeries(lat, lon);
+  const times = Wind.getTimes();
+  const T = k => LANG==="en" ? k.en : k.nl;
+  const card = now ? curDirCardinal(now.dirFrom) : null;
+  let rows = "";
+  if (series && times){
+    const nowIdx = Math.round(Wind.getTFloat());
+    for (let i=nowIdx; i<Math.min(nowIdx+13, series.length); i++){
+      const s = series[i]; if (!s) continue;
+      const ms = times[i]*1000, c = curDirCardinal(s.dirFrom);
+      rows += `<tr${i===nowIdx?' style="font-weight:650"':''}><td>${fmtClock(ms)}</td><td>${s.kn.toFixed(0)} kn</td><td>Bft ${s.bft}</td><td><span class="dircell">${c.abbr} ${Math.round(s.dirFrom)}°${dirArrow((s.dirFrom+180)%360,15)}</span></td></tr>`;
+    }
+  }
+  $("#panel").innerHTML = `
+    <button class="p-close" id="pclose">${T({nl:"sluiten ✕",en:"close ✕"})}</button>
+    <div class="p-h">${T({nl:"Wind",en:"Wind"})}</div>
+    <div class="p-sub">${lat.toFixed(4)}, ${lon.toFixed(4)}</div>
+    ${now ? `<div class="p-sec" style="margin-top:6px"><h3>${T({nl:"Nu",en:"Now"})}</h3>
+      <p style="margin:0;font-size:15px"><b>${now.kn.toFixed(0)} knopen</b> (Bft ${now.bft} · ${now.ms.toFixed(1)} m/s)<br>
+      ${T({nl:"uit het",en:"from the"})} <b>${card.word}</b> (${Math.round(now.dirFrom)}°) ${dirArrow((now.dirFrom+180)%360,20)}</p>
+      <div class="tlegend" style="margin-top:6px">${curFmtLabel(Wind.getTFloat())}</div></div>`
+      : `<div class="p-note">${T({nl:"Geen winddata op dit punt.",en:"No wind data here."})}</div>`}
+    ${rows ? `<div class="p-sec"><h3>${T({nl:"Verwachting (12 uur)",en:"Forecast (12 h)"})}</h3>
+      <table class="times" style="font-size:13px"><tr style="color:var(--muted)"><td>${T({nl:"tijd",en:"time"})} (${tzShort()})</td><td>${T({nl:"snelheid",en:"speed"})}</td><td>Bft</td><td>${T({nl:"uit",en:"from"})}</td></tr>${rows}</table></div>` : ""}
+    <div class="p-note">${T({nl:"Windverwachting op 10 m (Open-Meteo, GFS/ICON). Pijl wijst met de wind mee.",en:"10 m wind forecast (Open-Meteo, GFS/ICON). Arrow points downwind."})}</div>`;
+  $("#panel").classList.add("open"); $("#ovl").classList.add("open");
+  $("#pclose").onclick = closeDetail;
 }
 /* pijl die de kant op wijst waar de stroom heen gaat (dirTo); 0° = noord = omhoog */
 function dirArrow(deg, size){
@@ -1739,6 +1799,83 @@ function toggleLocate(){
   }, err=>{ btn.classList.remove("on"); watchId=null; alert("Kon locatie niet bepalen: "+err.message); }, {enableHighAccuracy:true, maximumAge:5000});
 }
 
+/* ---------- Plotter: SOG/COG/DTW/BTW/TTW met waypoint ---------- */
+let plWatch=null, plBoat=null, plWp=null, plWpMarker=null, plWpLine=null, plFixes=[], plOn=false;
+window.plotterArmWp=false;
+const NM=1852;
+function plHaversine(a,b){ const R=6371000,d=Math.PI/180;
+  const dLat=(b[0]-a[0])*d, dLon=(b[1]-a[1])*d, la1=a[0]*d, la2=b[0]*d;
+  const h=Math.sin(dLat/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h)); }
+function plBearing(a,b){ const d=Math.PI/180;
+  const y=Math.sin((b[1]-a[1])*d)*Math.cos(b[0]*d);
+  const x=Math.cos(a[0]*d)*Math.sin(b[0]*d)-Math.sin(a[0]*d)*Math.cos(b[0]*d)*Math.cos((b[1]-a[1])*d);
+  return (Math.atan2(y,x)*180/Math.PI+360)%360; }
+function plUpdate(){
+  const fix = plFixes[plFixes.length-1];
+  const S=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  if (!fix){ ["pl-sog","pl-cog","pl-dtw","pl-btw","pl-ttw"].forEach(i=>S(i,"–")); return; }
+  // SOG/COG: uit de GPS als beschikbaar, anders uit de laatste fixes (>=8 s basislijn tegen ruis)
+  let sog=fix.speed, cog=fix.heading;
+  if (sog==null || isNaN(sog) || cog==null || isNaN(cog)){
+    for (let i=plFixes.length-2;i>=0;i--){
+      const p=plFixes[i], dt=(fix.t-p.t)/1000;
+      if (dt>=8){ const dist=plHaversine([p.lat,p.lon],[fix.lat,fix.lon]);
+        sog=dist/dt; cog=dist>3?plBearing([p.lat,p.lon],[fix.lat,fix.lon]):null; break; }
+    }
+  }
+  const sogKn = sog!=null&&!isNaN(sog) ? sog*3600/NM : null;
+  S("pl-sog", sogKn!=null ? sogKn.toFixed(1) : "–");
+  S("pl-cog", cog!=null&&!isNaN(cog) ? String(Math.round(cog)).padStart(3,"0") : "–");
+  if (plWp){
+    const dtw=plHaversine([fix.lat,fix.lon],plWp), btw=plBearing([fix.lat,fix.lon],plWp);
+    S("pl-dtw",(dtw/NM).toFixed(dtw/NM<10?2:1));
+    S("pl-btw",String(Math.round(btw)).padStart(3,"0"));
+    if (sogKn!=null && sogKn>0.3){
+      const sec=dtw/(sogKn*NM/3600), h=Math.floor(sec/3600), m=Math.round((sec%3600)/60);
+      S("pl-ttw", h>99 ? ">99u" : `${h}:${String(m).padStart(2,"0")}`);
+    } else S("pl-ttw","–");
+    if (plWpLine) plWpLine.setLatLngs([[fix.lat,fix.lon],plWp]);
+  } else { S("pl-dtw","–"); S("pl-btw","–"); S("pl-ttw","–"); }
+}
+function plSetWp(latlng){
+  plWp=[latlng.lat,latlng.lng];
+  if (!plWpMarker){
+    plWpMarker=L.marker(plWp,{icon:L.divIcon({className:"",html:'<div style="font-size:22px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))">🚩</div>',iconAnchor:[3,20]})}).addTo(map);
+    plWpLine=L.polyline([plWp,plWp],{color:"#d64550",weight:2,dashArray:"6 6",opacity:.85}).addTo(map);
+  } else plWpMarker.setLatLng(plWp);
+  window.plotterArmWp=false; const b=$("#pl-wp"); if(b) b.classList.remove("arm");
+  plUpdate();
+}
+function plClearWp(){
+  plWp=null;
+  if (plWpMarker){ map.removeLayer(plWpMarker); plWpMarker=null; }
+  if (plWpLine){ map.removeLayer(plWpLine); plWpLine=null; }
+  plUpdate();
+}
+function togglePlotter(){
+  const btn=$("#mb-plotter"), box=$("#plotter");
+  if (plOn){
+    plOn=false; box.hidden=true; btn.classList.remove("on");
+    if (plWatch!=null){ navigator.geolocation.clearWatch(plWatch); plWatch=null; }
+    if (plBoat){ map.removeLayer(plBoat); plBoat=null; }
+    plClearWp(); plFixes=[]; window.plotterArmWp=false;
+    return;
+  }
+  if (!navigator.geolocation){ alert(LANG==="en"?"Geolocation not available.":"Geolocatie niet beschikbaar in deze browser."); return; }
+  plOn=true; box.hidden=false; btn.classList.add("on");
+  plWatch=navigator.geolocation.watchPosition(pos=>{
+    const c=pos.coords;
+    plFixes.push({lat:c.latitude,lon:c.longitude,speed:c.speed,heading:c.heading,t:pos.timestamp||Date.now()});
+    if (plFixes.length>40) plFixes.shift();
+    const ll=[c.latitude,c.longitude];
+    if (!plBoat){ plBoat=L.circleMarker(ll,{radius:8,color:"#fff",weight:2.5,fillColor:"#0e7a5f",fillOpacity:1}).addTo(map); map.setView(ll,14); }
+    else plBoat.setLatLng(ll);
+    plUpdate();
+  }, err=>{ alert((LANG==="en"?"Position failed: ":"Kon locatie niet bepalen: ")+err.message); togglePlotter(); },
+  {enableHighAccuracy:true, maximumAge:2000});
+}
+
 /* ---------- events & init ---------- */
 function switchView(v){
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on", t.dataset.v===v));
@@ -1794,6 +1931,13 @@ document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeDetail(); $
 $("#q").addEventListener("focus", updateDrop);
 window.addEventListener("resize", setHeaderH);
 $("#mb-locate").onclick = toggleLocate;
+$("#mb-plotter").onclick = ()=>{
+  if (!plOn && map && !map.__plWpClick){ map.__plWpClick=true; map.on("click", e=>{ if (window.plotterArmWp && plOn) plSetWp(e.latlng); }); }
+  togglePlotter();
+};
+$("#pl-wp").onclick = ()=>{ window.plotterArmWp=!window.plotterArmWp; $("#pl-wp").classList.toggle("arm", window.plotterArmWp); };
+$("#pl-clearwp").onclick = plClearWp;
+$("#pl-close").onclick = togglePlotter;
 let seaLayer = null, seaView = false, seaNoteShown = false;
 function setSea(on){
   seaView = on;
@@ -1966,7 +2110,7 @@ window.updateLegend = updateLegend;
 
 const STATIC_EN = {
   tab_kaart:"Map", tab_fav:"Favourites", tab_strem:"Closures",
-  mb_locate:"Follow me",
+  mb_locate:"Follow me", mb_plotter:"Plotter", pl_wp:"WP: tap the map", pl_clearwp:"clear WP",
   mb_objs:"Bridges & locks", dm_objs:"On the map", o_bedien:"Operable", o_vast:"Non-operable", o_strem:"Closures", o_harb:"Coastal harbours (UK/BE)",
   mb_tide:"Tide, current & wind", dm_tide:"Tide", t_stations:"Tide stations",
   dm_wind:"Wind (Open-Meteo, GFS/ICON)", w_arrows:"Wind arrows (Beaufort)", w_part:"Wind particles", w_color:"Wind colour (speed)",
