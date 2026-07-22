@@ -2033,7 +2033,8 @@ function nmeaCandidates(input){
   const host=m[1], path=m[2];
   if (path) return [u];
   const bare=host.replace(/:\d+$/,"");
-  return [host+"/ws", host, bare+":3000/signalk/v1/stream"];
+  // volgorde: YDWG Web Gauges (/ws) · iKommunicate/SignalK op poort 80 · kale host · SignalK-server (:3000)
+  return [host+"/ws", host+"/signalk/v1/stream", host, bare+":3000/signalk/v1/stream"];
 }
 function nmeaConnect(){
   const input=($("#pl-nmurl").value||"").trim(), st=$("#pl-nmstat");
