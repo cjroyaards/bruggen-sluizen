@@ -2046,9 +2046,51 @@ function drawCoast(gj){
   coastLayer = L.geoJSON(gj, { pane:"depthLinePane", interactive:false,
     style: { color:"#6b5a38", weight:0.9, opacity:0.9 } }).addTo(map);
 }
+/* ---- hover-info voor OpenSeaMap-symbolen (zelfde OSM-brondata, via Overpass) ---- */
+let smLayer=null, smSeen=new Set(), smTimer=null, smHooked=false;
+const SM_NL={buoy_lateral:"laterale ton",buoy_cardinal:"kardinale ton",buoy_special_purpose:"ton (bijzonder)",buoy_safe_water:"veiligwaterton",buoy_isolated_danger:"gevarenton",beacon_lateral:"lateraal baken",beacon_cardinal:"kardinaal baken",beacon_special_purpose:"baken",beacon_isolated_danger:"gevarenbaken",light_minor:"licht",light_major:"vuurtoren",light_vessel:"lichtschip",light_float:"lichtboei",harbour:"haven",anchorage:"ankergebied",mooring:"meerplaats",wreck:"wrak",rock:"rots",platform:"platform",radar_transponder:"racon",fog_signal:"mistsein",notice:"scheepvaartbord",gate:"keersluis"};
+const SM_KLEUR={red:"rood",green:"groen",yellow:"geel",black:"zwart",white:"wit",orange:"oranje",blue:"blauw"};
+function seamarkLabel(t){
+  const g=k=>t["seamark:"+k];
+  const type=g("type")||"";
+  const name=g("name")||t.name||"";
+  let s = SM_NL[type] || type.replace(/_/g," ");
+  const col=g(type+":colour");
+  if (col) s+=" · "+col.split(";").map(c=>SM_KLEUR[c]||c).join("/");
+  const lc=g("light:character")||g("light:1:character");
+  if (lc){
+    const per=g("light:period")||g("light:1:period");
+    const lcol=(g("light:colour")||g("light:1:colour")||"").split(";")[0];
+    s+=` · ${lc}${lcol?"."+(lcol[0]||"").toUpperCase():""}${per?" "+per+"s":""}`;
+  }
+  return (name?`<b>${esc(name)}</b><br>`:"")+esc(s).replace(/&lt;b&gt;|&lt;\/b&gt;/g,"");
+}
+function loadSeamarks(){
+  if (!zeechartView || !map || map.getZoom()<12) return;
+  const b=map.getBounds();
+  if ((b.getEast()-b.getWest())>0.7) return;
+  const q=`[out:json][timeout:25];node["seamark:type"](${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()});out 500;`;
+  fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:q})
+    .then(r=>r.json()).then(d=>{
+      if (!zeechartView || !smLayer) return;
+      for (const el of (d.elements||[])){
+        if (smSeen.has(el.id) || !el.tags) continue;
+        smSeen.add(el.id);
+        const html=seamarkLabel(el.tags);
+        const m=L.circleMarker([el.lat,el.lon],{radius:10,opacity:0,fillOpacity:0,interactive:true});
+        m.bindTooltip(html,{direction:"top",offset:[0,-8],className:"vts-lbl"});
+        m.bindPopup(html);
+        smLayer.addLayer(m);
+      }
+    }).catch(()=>{});
+}
 function setZeeChart(on){
   zeechartView = on;
   if (on){
+    if (!smLayer) smLayer=L.layerGroup();
+    smLayer.addTo(map);
+    if (!smHooked){ smHooked=true; map.on("moveend zoomend",()=>{ clearTimeout(smTimer); smTimer=setTimeout(loadSeamarks,900); }); }
+    setTimeout(loadSeamarks,600);
     if (!baseLight) baseLight = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
       { maxZoom:19, subdomains:"abcd", attribution:'© OpenStreetMap © CARTO' });
     if (map.hasLayer(baseOSM)) map.removeLayer(baseOSM);
@@ -2074,6 +2116,7 @@ function setZeeChart(on){
       { maxZoom:18, pane:"seaPane", attribution:'© OpenSeaMap' });
     seaChartLayer.addTo(map);
   } else {
+    if (smLayer) map.removeLayer(smLayer);
     if (window.deWaterLayer) map.removeLayer(window.deWaterLayer);
     if (coastLayer){ map.removeLayer(coastLayer); coastLayer=null; }
     if (depthLineLayer){ map.removeLayer(depthLineLayer); depthLineLayer=null; }
