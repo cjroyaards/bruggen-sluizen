@@ -578,7 +578,7 @@ header{position:sticky}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-33</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-34</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1725,6 +1725,17 @@ function initCurrents(){
   });
 }
 /* winddetail-paneel: verwachting per uur voor een aangeklikt punt (zelfde opzet als stroming) */
+/* windkleur per snelheid (knopen), à la Windfinder: blauw → groen → geel → oranje → rood → paars */
+const WINDRAMP=[[0,[238,247,252]],[3,[205,233,248]],[6,[168,220,184]],[10,[127,208,127]],[14,[242,227,92]],[18,[245,183,62]],[22,[239,124,57]],[27,[224,68,68]],[33,[184,57,143]],[40,[122,45,143]]];
+function windCellStyle(kn){
+  let a=WINDRAMP[0], b=WINDRAMP[WINDRAMP.length-1];
+  for (let k=0;k<WINDRAMP.length-1;k++) if (kn>=WINDRAMP[k][0] && kn<=WINDRAMP[k+1][0]){ a=WINDRAMP[k]; b=WINDRAMP[k+1]; break; }
+  if (kn>=WINDRAMP[WINDRAMP.length-1][0]) a=b;
+  const f = a===b ? 0 : (kn-a[0])/(b[0]-a[0]);
+  const c = a[1].map((x,i)=>Math.round(x+(b[1][i]-x)*f));
+  const fg = kn>=25 ? "#fff" : "#1c2126";
+  return `background:rgb(${c[0]},${c[1]},${c[2]});color:${fg}`;
+}
 function openWindDetail(lat, lon){
   panelRefresh = ()=>openWindDetail(lat, lon);
   const now = Wind.pointNow(lat, lon);
@@ -1743,7 +1754,8 @@ function openWindDetail(lat, lon){
         const ms = times[i]*1000, c = curDirCardinal(s.dirFrom);
         const day = dayFmt.format(new Date(ms));
         if (day !== lastDay){ rows += `<tr><td colspan="4" style="font-weight:700;padding-top:7px;color:var(--accent)">${day}</td></tr>`; lastDay = day; }
-        rows += `<tr${i===nowIdx?' style="font-weight:650"':''}><td>${fmtClock(ms)}</td><td>${s.kn.toFixed(0)} kn</td><td>Bft ${s.bft}</td><td><span class="dircell">${c.abbr} ${Math.round(s.dirFrom)}°${dirArrow((s.dirFrom+180)%360,15)}</span></td></tr>`;
+        const wc = windCellStyle(s.kn);
+        rows += `<tr${i===nowIdx?' style="font-weight:650"':''}><td>${fmtClock(ms)}</td><td style="${wc};border-radius:4px 0 0 4px">${s.kn.toFixed(0)} kn</td><td style="${wc};border-radius:0 4px 4px 0">Bft ${s.bft}</td><td><span class="dircell">${c.abbr} ${Math.round(s.dirFrom)}°${dirArrow((s.dirFrom+180)%360,15)}</span></td></tr>`;
       }
       i += (i < nowIdx+24 ? 1 : 3);   // eerste etmaal per uur, daarna per 3 uur
     }
@@ -1753,7 +1765,7 @@ function openWindDetail(lat, lon){
     <div class="p-h">${T({nl:"Wind",en:"Wind"})}</div>
     <div class="p-sub">${lat.toFixed(4)}, ${lon.toFixed(4)}</div>
     ${now ? `<div class="p-sec" style="margin-top:6px"><h3>${T({nl:"Nu",en:"Now"})}</h3>
-      <p style="margin:0;font-size:15px"><b>${now.kn.toFixed(0)} knopen</b> (Bft ${now.bft} · ${now.ms.toFixed(1)} m/s)<br>
+      <p style="margin:0;font-size:15px"><b style="${now?windCellStyle(now.kn):""};padding:1px 7px;border-radius:5px">${now.kn.toFixed(0)} knopen</b> (Bft ${now.bft} · ${now.ms.toFixed(1)} m/s)<br>
       ${T({nl:"uit het",en:"from the"})} <b>${card.word}</b> (${Math.round(now.dirFrom)}°) ${dirArrow((now.dirFrom+180)%360,20)}</p>
       <div class="tlegend" style="margin-top:6px">${curFmtLabel(Wind.getTFloat())}</div></div>`
       : `<div class="p-note">${T({nl:"Geen winddata op dit punt.",en:"No wind data here."})}</div>`}
