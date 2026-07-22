@@ -209,7 +209,7 @@ header{position:sticky}
 #pl-head{display:none;align-items:center;justify-content:space-between;gap:10px}
 #pl-mini{font-weight:750;font-variant-numeric:tabular-nums;font-size:16px;white-space:nowrap;overflow:hidden}
 #pl-toggle{border:1px solid var(--grid);background:var(--surface);color:var(--ink);border-radius:9px;padding:3px 16px;font-size:17px;cursor:pointer;flex:none}
-@media (max-width:640px){
+@media (max-width:640px), (max-height:500px) and (orientation:landscape) and (pointer:coarse){
   /* telefoonmodus: plotter als bottom-sheet, in/uitklapbaar via de kopregel */
   #plotter{top:auto;bottom:0;left:0;right:0;min-width:0;width:auto;border-radius:16px 16px 0 0;border-bottom:none;box-shadow:0 -4px 18px rgba(5,10,16,.3);padding:9px 14px calc(9px + env(safe-area-inset-bottom))}
   #pl-head{display:flex}
@@ -268,7 +268,7 @@ header{position:sticky}
 #maplegend .lg-row{display:flex;align-items:center;gap:6px;white-space:nowrap}
 #maplegend .lg-sw{width:16px;height:10px;border-radius:2px;flex:none}
 #maplegend .lg-ln{width:16px;height:0;border-top-width:2.4px;border-top-style:solid;flex:none}
-@media (max-width:640px){#maplegend{left:auto;right:8px;bottom:auto;top:12px;font-size:10.5px;max-width:150px;max-height:60vh;overflow-y:auto}}
+@media (max-width:640px), (max-height:500px) and (orientation:landscape) and (pointer:coarse){#maplegend{left:auto;right:8px;bottom:auto;top:12px;font-size:10.5px;max-width:150px;max-height:60vh;overflow-y:auto}}
 #curbar button{border:1px solid var(--grid);background:var(--surface);color:var(--ink);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:13px}
 #curbar #cur-play{background:var(--accent);color:#fff;border-color:transparent;min-width:40px}
 #curbar .step{min-width:34px;font-weight:650;font-variant-numeric:tabular-nums}
@@ -300,7 +300,7 @@ header{position:sticky}
 .leaflet-popup-content b{font-size:14px}
 .pop-open{color:var(--accent);cursor:pointer;font-weight:600}
 /* ---- mobiel: grotere letters en tikdoelen ---- */
-@media (max-width:640px){
+@media (max-width:640px), (max-height:500px) and (orientation:landscape) and (pointer:coarse){
   body{font-size:16.5px;line-height:1.55}
   .oplace{display:none}
   .kv{grid-template-columns:118px 1fr;font-size:15.5px;gap:6px 10px}
@@ -561,7 +561,7 @@ header{position:sticky}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-17</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-18</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -2150,6 +2150,7 @@ function togglePlotter(){
   }
   if (!navigator.geolocation){ alert(LANG==="en"?"Geolocation not available.":"Geolocatie niet beschikbaar in deze browser."); return; }
   plOn=true; box.hidden=false; btn.classList.add("on");
+  plApplySheet(false);   // altijd uitgeklapt openen
   plWatch=navigator.geolocation.watchPosition(pos=>{
     if (Date.now()-nmea.last<5000) return;   // NMEA is leidend zolang die data levert
     const c=pos.coords, acc=c.accuracy||9999;
@@ -2259,7 +2260,7 @@ plApplySheet(localStorage.getItem("pl_sheet")==="1");
 function positionWindbox(){
   const w=$("#windbox"), p=$("#plotter");
   if (!w || w.hidden || !p || p.hidden) return;
-  if (matchMedia("(max-width:640px)").matches){
+  if (matchMedia("(max-width:640px), (max-height:500px) and (orientation:landscape) and (pointer:coarse)").matches){
     // telefoon: bóven de bottom-sheet
     w.style.top="auto"; w.style.bottom=(p.offsetHeight+10)+"px"; w.style.width="auto";
   } else {
@@ -2443,7 +2444,7 @@ document.addEventListener("click", e=>{ if (!e.target.closest(".mapbar .dropwrap
   if (!e.target.closest(".mapbar")) document.querySelector(".mapbar").classList.remove("open"); });
 $("#mb-menu").addEventListener("click", e=>{ e.stopPropagation(); document.querySelector(".mapbar").classList.toggle("open"); });
 /* telefoon: tijdzone- en taalknoppen verhuizen naar het ⋮-menu (zelfde elementen, dus alles blijft werken) */
-const hdMq = matchMedia("(max-width:640px)");
+const hdMq = matchMedia("(max-width:640px), (max-height:500px) and (orientation:landscape) and (pointer:coarse)");
 function layoutHeader(){
   const menu=$("#hd-menu"), top=document.querySelector(".h-top");
   const tz=$("#tzBtn"), ls=document.querySelector(".langsw"), more=$("#hd-more");
@@ -2518,7 +2519,7 @@ $("#d-per1").addEventListener("change", updateDepthLines);
 $("#d-per5").addEventListener("change", updateDepthLines);
 /* ---- kaartlegenda (diepte + wind), in/uitklapbaar ---- */
 function legendDepthSet(){ return depthLevelsWanted() ? "lines" : "off"; }
-let legendOpen = !matchMedia("(max-width:640px)").matches;   // telefoon: standaard ingeklapt
+let legendOpen = !matchMedia("(max-width:640px), (max-height:500px) and (orientation:landscape) and (pointer:coarse)").matches;   // telefoon: standaard ingeklapt
 function updateLegend(){
   const box=$("#maplegend"); if(!box) return; let html="";
   if (zeechartView){
