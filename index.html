@@ -1841,7 +1841,7 @@ function setZeeChart(on){
     baseLight.addTo(map);
     // Gladde EMODnet-dieptevlakken (NL + UK-oostkust + Kanaal + België): licht gekleurde dieptezones
     if (encDepthGeo) drawSmoothDepth(encDepthGeo);
-    else fetch("data/depth_smooth.geojson?v=20260722", {cache:"reload"}).then(r=>r.json()).then(gj=>{ encDepthGeo=gj; if(zeechartView) drawSmoothDepth(gj); }).catch(()=>{});
+    else fetch("data/depth_smooth.geojson?v=20260722c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ encDepthGeo=gj; if(zeechartView) drawSmoothDepth(gj); }).catch(()=>{});
     // Eigen kustlijn (COALNE) — bron: RWS Inland ENC (CC-0)
     if (coastGeo) drawCoast(coastGeo);
     else fetch("data/coast.geojson?v=20260722", {cache:"reload"}).then(r=>r.json()).then(gj=>{ coastGeo=gj; if(zeechartView) drawCoast(gj); }).catch(()=>{});
