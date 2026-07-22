@@ -2069,8 +2069,17 @@ function seamarkLabel(t){
   }
   return (name?`<b>${esc(name)}</b><br>`:"")+esc(s).replace(/&lt;b&gt;|&lt;\/b&gt;/g,"");
 }
+function smVisible(){
+  // hover-doelen alleen als de OpenSeaMap-tonnen echt zichtbaar zijn (laag aan + voldoende ingezoomd)
+  return zeechartView && map && map.getZoom()>=13 && seaChartLayer && map.hasLayer(seaChartLayer);
+}
+function smSync(){
+  if (!smLayer || !map) return;
+  if (smVisible()){ if (!map.hasLayer(smLayer)) smLayer.addTo(map); }
+  else if (map.hasLayer(smLayer)) map.removeLayer(smLayer);
+}
 function loadSeamarks(){
-  if (!zeechartView || !map || map.getZoom()<12) return;
+  if (!smVisible()) return;
   const b=map.getBounds();
   if ((b.getEast()-b.getWest())>0.7) return;
   const q=`[out:json][timeout:25];node["seamark:type"](${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()});out 500;`;
@@ -2092,9 +2101,8 @@ function setZeeChart(on){
   zeechartView = on;
   if (on){
     if (!smLayer) smLayer=L.layerGroup();
-    smLayer.addTo(map);
-    if (!smHooked){ smHooked=true; map.on("moveend zoomend",()=>{ clearTimeout(smTimer); smTimer=setTimeout(loadSeamarks,900); }); }
-    setTimeout(loadSeamarks,600);
+    if (!smHooked){ smHooked=true; map.on("moveend zoomend",()=>{ smSync(); clearTimeout(smTimer); smTimer=setTimeout(loadSeamarks,900); }); }
+    setTimeout(()=>{ smSync(); loadSeamarks(); },600);
     if (!baseLight) baseLight = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
       { maxZoom:19, subdomains:"abcd", attribution:'© OpenStreetMap © CARTO' });
     if (map.hasLayer(baseOSM)) map.removeLayer(baseOSM);
