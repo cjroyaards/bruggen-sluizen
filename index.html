@@ -188,6 +188,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 .mapbar{position:absolute;z-index:1000;top:12px;left:54px;display:flex;gap:6px;flex-wrap:wrap}
 .mapbtn{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--grid);border-radius:8px;padding:6px 12px;font-size:13px;font-weight:550;color:var(--ink2);cursor:pointer;box-shadow:0 1px 5px rgba(0,0,0,.14)}
 .mapbtn.on{background:var(--brand);border-color:var(--brand);color:#fff}
+#mb-menu{display:none}
 .dropwrap{position:relative}
 .dropmenu{position:absolute;top:calc(100% + 5px);left:0;z-index:1002;background:var(--surface);border:1px solid var(--grid);border-radius:10px;box-shadow:0 6px 22px rgba(5,10,16,.22);padding:9px 11px;min-width:186px}
 .dropmenu .dm-t{font-weight:650;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
@@ -206,18 +207,26 @@ footer a{color:var(--brand-dim);text-decoration:underline}
   #pl-head{display:flex}
   #plotter.sheet-collapsed #pl-body{display:none}
   #pl-body{margin-top:7px}
-  #plotter .pl-v{font-size:30px}
-  #plotter.layout-1 .pl-v{font-size:44px}
-  #plotter.layout-2 .pl-v{font-size:36px}
-  #plotter .pl-l{font-size:12px}
-  #plotter .pl-row button{font-size:15px;padding:8px 13px}
+  #plotter .pl-l{font-size:11px}
+  #plotter .pl-row button{font-size:14px;padding:7px 12px}
   #plotter input{font-size:15px;padding:8px}
   #windbox{left:8px;right:8px;width:auto !important}
-  /* NMEA-afhankelijke onderdelen verbergen op de telefoon tot de koppeling kan (eigen domein) */
-  #pl-nmea,#pl-windbtn{display:none}
-  #plotter .pl-grid>div:nth-child(2){display:none}                 /* DPT-cel (blijft zonder NMEA toch leeg) */
-  #plotter.layout-1 .pl-grid>div:nth-child(3){display:flex !important}        /* 1x2: SOG + COG */
-  #plotter.layout-2 .pl-grid>div:nth-child(5){display:flex !important}        /* 2x2: SOG/COG/DTW/BTW */
+  /* telefoon: vaste 2x2 (SOG/COG/DTW/TTW), geen layoutkeuze, geen NMEA/wind tot de koppeling kan */
+  #pl-nmea,#pl-windbtn,#pl-layout,#pl-src{display:none !important}
+  #plotter .pl-grid{gap:4px 14px}
+  #plotter .pl-grid>div:nth-child(2),#plotter .pl-grid>div:nth-child(5){display:none !important}   /* DPT, BTW */
+  #plotter .pl-grid>div:nth-child(1),#plotter .pl-grid>div:nth-child(3),
+  #plotter .pl-grid>div:nth-child(4),#plotter .pl-grid>div:nth-child(6){display:flex !important}   /* SOG/COG/DTW/TTW */
+  #plotter .pl-v{font-size:26px !important}
+  #pl-body{margin-top:5px}
+  /* mapbar: alles achter één menuknop; Volg mij en Plotter als los icoon */
+  #mb-menu{display:flex}
+  .mapbar .dropwrap{display:none}
+  .mapbar.open .dropwrap{display:block}
+  .mapbar.open{flex-direction:column;align-items:stretch}
+  .mapbar.open .dropwrap .mapbtn{width:100%;justify-content:flex-start}
+  #mb-locate span,#mb-plotter span{display:none}
+  #mb-locate,#mb-plotter{padding:8px 11px}
 }
 #plotter[hidden]{display:none}
 #plotter .pl-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 14px}
@@ -369,6 +378,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
   <div id="loading">Gegevens laden…</div>
   <section id="v-kaart" hidden style="position:relative">
     <div class="mapbar">
+      <button class="mapbtn" id="mb-menu" aria-label="menu"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
       <div class="dropwrap">
         <button class="mapbtn on" id="mb-objs"><svg class="ic" viewBox="0 0 24 24"><path d="M4 17V9M20 17V9M4 12h16M8 12V8a4 4 0 0 1 8 0v4"/></svg><span data-i18n="mb_objs">Bruggen &amp; sluizen</span> ▾</button>
         <div id="objmenu" class="dropmenu" hidden>
@@ -2413,7 +2423,9 @@ document.querySelectorAll(".mapbar .dropwrap > .mapbtn").forEach(btn=>{
     menu.hidden = !opening;
   });
 });
-document.addEventListener("click", e=>{ if (!e.target.closest(".mapbar .dropwrap")) document.querySelectorAll(".mapbar .dropmenu").forEach(m=> m.hidden = true); });
+document.addEventListener("click", e=>{ if (!e.target.closest(".mapbar .dropwrap")) document.querySelectorAll(".mapbar .dropmenu").forEach(m=> m.hidden = true);
+  if (!e.target.closest(".mapbar")) document.querySelector(".mapbar").classList.remove("open"); });
+$("#mb-menu").addEventListener("click", e=>{ e.stopPropagation(); document.querySelector(".mapbar").classList.toggle("open"); });
 /* 1) Bruggen & sluizen */
 function updateObjs(){ showBedien=$("#obj-bedien").checked; showVast=$("#obj-vast").checked; $("#mb-objs").classList.toggle("on", showBedien||showVast); buildMarkers(); }
 $("#obj-bedien").addEventListener("change", updateObjs);
