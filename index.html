@@ -360,18 +360,13 @@ footer a{color:var(--brand-dim);text-decoration:underline}
       <div class="dropwrap">
         <button class="mapbtn" id="mb-kaart"><svg class="ic" viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg><span data-i18n="mb_kaart">Kaart</span> ▾</button>
         <div id="kaartmenu" class="dropmenu" hidden>
-          <label style="font-weight:700"><input type="checkbox" id="k-zeekaart"> <span data-i18n="k_zeekaart">Zeekaartmodus</span></label>
-          <div class="dm-note" data-i18n="k_zeekaart_note">Gladde dieptevlakken (NL, UK-oostkust, Kanaal, België) + kustlijn & dieptelijnen met 2 m-lijn + OpenSeaMap.</div>
-          <div class="dm-t" data-i18n="dm_layers">Losse lagen</div>
-          <label><input type="checkbox" id="k-sea"> <span data-i18n="k_sea">Zeekaart (OpenSeaMap)</span></label>
+          <label style="font-weight:700"><input type="radio" name="kmode" value="land" id="k-land" checked> <span data-i18n="k_land">Landkaartmodus</span></label>
+          <label style="font-weight:700"><input type="radio" name="kmode" value="zee" id="k-zeekaart"> <span data-i18n="k_zeekaart">Zeekaartmodus</span></label>
+          <div class="dm-note" data-i18n="k_zeekaart_note">Gladde dieptevlakken (NL, UK-oostkust, Kanaal, België, Duitse Bocht) + kustlijn & dieptelijnen + OpenSeaMap.</div>
           <label><input type="checkbox" id="k-vts"> <span data-i18n="k_vts">VTS-sectoren</span></label>
           <div class="dm-t" data-i18n="dm_depth">Diepte (EMODnet)</div>
-          <label><input type="radio" name="depthset" value="off" checked> <span data-i18n="ds_off">Uit</span></label>
-          <label><input type="radio" name="depthset" value="fill"> <span data-i18n="ds_fill">Gearceerd — ondiep gekleurd</span></label>
-          <label><input type="radio" name="depthset" value="standaard"> <span data-i18n="ds_std">Standaard — 2 / 5 / 10 / 20 m</span></label>
-          <label><input type="radio" name="depthset" value="ondiep"> <span data-i18n="ds_shal">Ondiep — 1 / 2 / 3 / 5 m</span></label>
-          <label><input type="radio" name="depthset" value="per1"> <span data-i18n="ds_1">Fijne lijnen — per 1 m</span></label>
-          <label><input type="radio" name="depthset" value="per5"> <span data-i18n="ds_5">Per 5 m — 5 t/m 30 m</span></label>
+          <label><input type="checkbox" id="d-per1"> <span data-i18n="ds_1">Fijne lijnen — per 1 m (1–10 m)</span></label>
+          <label><input type="checkbox" id="d-per5"> <span data-i18n="ds_5">Fijne lijnen — per 5 m (5–30 m)</span></label>
           <div class="dm-note" data-i18n="ds_note">EMODnet · t.o.v. kaartnul (LAT) · niet voor navigatie</div>
         </div>
       </div>
@@ -2034,9 +2029,15 @@ $("#obj-strem").addEventListener("change", ()=>{ showStrem=$("#obj-strem").check
 $("#obj-harb").addEventListener("change", ()=>{ if(!harbLayerH) return; $("#obj-harb").checked ? harbLayerH.addTo(map) : map.removeLayer(harbLayerH); });
 /* 2) Getij: getijstations (stroming-checkboxes via initCurrents) */
 $("#tide-stations").addEventListener("change", ()=>{ if(!harbLayerG) return; $("#tide-stations").checked ? harbLayerG.addTo(map) : map.removeLayer(harbLayerG); });
-/* 3) Kaart: zeekaart + VTS (diepte via depthset-radios) */
-$("#k-zeekaart").addEventListener("change", ()=> setZeeChart($("#k-zeekaart").checked));
-$("#k-sea").addEventListener("change", ()=> setSea($("#k-sea").checked));
+/* 3) Kaart: land-/zeekaartmodus (radio), VTS-checkbox (standaard aan in zeekaartmodus), fijne dieptelijnen als losse toggles */
+function applyKmode(){
+  const zee = $("#k-zeekaart").checked;
+  setZeeChart(zee);
+  $("#k-vts").checked = zee;      // standaard: VTS aan bij zeekaart, uit bij landkaart (daarna vrij aan te passen)
+  setVts(zee);
+}
+$("#k-land").addEventListener("change", applyKmode);
+$("#k-zeekaart").addEventListener("change", applyKmode);
 $("#k-vts").addEventListener("change", ()=> setVts($("#k-vts").checked));
 const DEPTHSETS = { standaard:[2,5,10,20], ondiep:[1,2,3,5], per1:[1,2,3,4,5,6,7,8,9,10], per2:[2,4,6,8,10,12,14,16,18,20], per5:[5,10,15,20,25,30] };
 let depthGeo = null, depthLayer = null, depthFillGeo = null;
@@ -2064,21 +2065,24 @@ function drawDepth(gj, levels){
     style: f => ({ color: depthColor(f.properties.d), weight: f.properties.d<=3?1.4:(f.properties.d>=20?1.2:1), opacity:.9 }),
     onEachFeature: (f,l)=> l.bindTooltip(f.properties.d+" m", {sticky:true, className:"vts-lbl"}) }).addTo(map);
 }
-function setDepth(set){
+function depthLevelsWanted(){
+  const l1 = $("#d-per1") && $("#d-per1").checked, l5 = $("#d-per5") && $("#d-per5").checked;
+  if (!l1 && !l5) return null;
+  return new Set([...(l1?DEPTHSETS.per1:[]), ...(l5?DEPTHSETS.per5:[])]);
+}
+function updateDepthLines(){
   if (depthLayer){ map.removeLayer(depthLayer); depthLayer=null; }
-  if (set==="fill"){
-    if (depthFillGeo) drawDepthFill(depthFillGeo);
-    else fetch("data/depth_fill.geojson?v=20260721c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ depthFillGeo=gj; if($("#kaartmenu") && document.querySelector('input[name="depthset"]:checked').value==="fill"){ drawDepthFill(gj); updateKaartBtn(); updateLegend(); } }).catch(()=>{});
-  } else if (set!=="off"){
-    const levels = new Set(DEPTHSETS[set] || DEPTHSETS.standaard);
+  const levels = depthLevelsWanted();
+  if (levels){
     if (depthGeo) drawDepth(depthGeo, levels);
-    else fetch("data/depth.geojson?v=20260721c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ depthGeo=gj; if($("#kaartmenu") && document.querySelector('input[name="depthset"]:checked').value===set){ drawDepth(gj, levels); updateKaartBtn(); updateLegend(); } }).catch(()=>{});
+    else fetch("data/depth.geojson?v=20260721c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ depthGeo=gj; const lv=depthLevelsWanted(); if(lv){ if(depthLayer){map.removeLayer(depthLayer);depthLayer=null;} drawDepth(gj, lv); updateKaartBtn(); updateLegend(); } }).catch(()=>{});
   }
   updateKaartBtn(); updateLegend();
 }
-document.querySelectorAll('input[name="depthset"]').forEach(r=> r.addEventListener("change", ()=> setDepth(document.querySelector('input[name="depthset"]:checked').value)));
+$("#d-per1").addEventListener("change", updateDepthLines);
+$("#d-per5").addEventListener("change", updateDepthLines);
 /* ---- kaartlegenda (diepte + wind) ---- */
-function legendDepthSet(){ const r=document.querySelector('input[name="depthset"]:checked'); return r?r.value:"off"; }
+function legendDepthSet(){ return depthLevelsWanted() ? "lines" : "off"; }
 function updateLegend(){
   const box=$("#maplegend"); if(!box) return; let html="";
   if (zeechartView){
@@ -2115,9 +2119,9 @@ const STATIC_EN = {
   mb_tide:"Tide, current & wind", dm_tide:"Tide", t_stations:"Tide stations",
   dm_wind:"Wind (Open-Meteo, GFS/ICON)", w_arrows:"Wind arrows (Beaufort)", w_part:"Wind particles", w_color:"Wind colour (speed)",
   mb_kaart:"Map", dm_layers:"Separate layers", k_sea:"Sea chart (OpenSeaMap)", k_vts:"VTS sectors",
-  k_zeekaart:"Nautical chart mode", k_zeekaart_note:"Smooth depth shading (NL, UK east coast, Channel, Belgium) + coastline & depth contours with 2 m line + OpenSeaMap.",
+  k_land:"Land map mode", k_zeekaart:"Nautical chart mode", k_zeekaart_note:"Smooth depth shading (NL, UK east coast, Channel, Belgium, German Bight) + coastline & depth contours + OpenSeaMap.",
   dm_title:"Tidal current (Copernicus)", dm_arrows:"Copernicus arrows (sharp)", dm_own:"Own arrows (smooth)", dm_particles:"Particle animation", dm_color:"Colour layer (speed)", cur_now:"Now",
-  dm_depth:"Depth (EMODnet)", ds_off:"Off", ds_fill:"Shaded — shallows coloured", ds_std:"Standard — 2 / 5 / 10 / 20 m", ds_shal:"Shallow — 1 / 2 / 3 / 5 m", ds_1:"Every 1 m — 1 to 10 m", ds_2:"Every 2 m — 2 to 20 m", ds_5:"Every 5 m — 5 to 30 m", ds_note:"EMODnet · rel. to chart datum (LAT) · not for navigation",
+  dm_depth:"Depth (EMODnet)", ds_off:"Off", ds_fill:"Shaded — shallows coloured", ds_std:"Standard — 2 / 5 / 10 / 20 m", ds_shal:"Shallow — 1 / 2 / 3 / 5 m", ds_1:"Fine lines — every 1 m (1–10 m)", ds_5:"Fine lines — every 5 m (5–30 m)", ds_note:"EMODnet · rel. to chart datum (LAT) · not for navigation",
 };
 function applyStaticLang(){
   document.querySelectorAll(".langbtn").forEach(b=> b.classList.toggle("on", b.dataset.lang===LANG));
