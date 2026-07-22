@@ -561,7 +561,7 @@ header{position:sticky}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-24</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-25</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -2350,20 +2350,92 @@ function buoyTip(p){
   if (p.l) parts.push(p.l);
   return (p.n?`<b>${esc(p.n)}</b><br>`:"")+esc(parts.join(" · "))+`<br><span style="color:var(--muted);font-size:10px">RWS ENC (wekelijks)</span>`;
 }
+/* zeekaart-achtige symbolen, getekend op canvas (snel genoeg voor 9000+ tekens) */
+const BuoySym = L.CircleMarker.extend({ _updatePath: function(){ this._renderer._updateBuoySymbol(this); } });
+L.Canvas.include({ _updateBuoySymbol: function(layer){
+  if (layer._empty && layer._empty()) return;
+  const p=layer._point, ctx=this._ctx, o=layer.options, s=o.symSize||7;
+  const x=p.x, y=p.y, fill=o.fillColor, edge=o.color;
+  ctx.save(); ctx.lineWidth=1.4; ctx.strokeStyle=edge; ctx.fillStyle=fill;
+  const stem=o.beacon? s*0.9 : 0;
+  if (stem){ ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+stem); ctx.stroke(); }
+  switch(o.sym){
+    case "cone":   // spitse ton (SB, groen): driehoek punt omhoog
+      ctx.beginPath(); ctx.moveTo(x,y-s); ctx.lineTo(x+s*0.9,y+s*0.7); ctx.lineTo(x-s*0.9,y+s*0.7); ctx.closePath(); ctx.fill(); ctx.stroke(); break;
+    case "can":    // stompe ton (BB, rood): rechthoek
+      ctx.beginPath(); ctx.rect(x-s*0.75,y-s*0.8,s*1.5,s*1.6); ctx.fill(); ctx.stroke(); break;
+    case "sphere": // bolton
+      ctx.beginPath(); ctx.arc(x,y,s*0.8,0,Math.PI*2); ctx.fill(); ctx.stroke(); break;
+    case "safe":   // veiligwater: bol, links rood / rechts wit
+      ctx.beginPath(); ctx.arc(x,y,s*0.85,Math.PI/2,Math.PI*1.5); ctx.closePath(); ctx.fillStyle=BUOY_HEX.rood; ctx.fill();
+      ctx.beginPath(); ctx.arc(x,y,s*0.85,-Math.PI/2,Math.PI/2); ctx.closePath(); ctx.fillStyle="#fff"; ctx.fill();
+      ctx.beginPath(); ctx.arc(x,y,s*0.85,0,Math.PI*2); ctx.stroke(); break;
+    case "isolated": // gevarenton: zwarte spar met rode band + 2 bollen als topteken
+      ctx.fillStyle="#26262b"; ctx.beginPath(); ctx.rect(x-s*0.35,y-s*0.9,s*0.7,s*1.8); ctx.fill();
+      ctx.fillStyle=BUOY_HEX.rood; ctx.fillRect(x-s*0.35,y-s*0.2,s*0.7,s*0.45);
+      ctx.fillStyle="#26262b"; ctx.beginPath(); ctx.arc(x,y-s*1.25,s*0.28,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x,y-s*1.85,s*0.28,0,Math.PI*2); ctx.fill(); break;
+    case "x":      // bijzondere ton (geel) met x-topteken
+      ctx.beginPath(); ctx.arc(x,y,s*0.62,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.lineWidth=1.6; ctx.strokeStyle="#8a7a00";
+      ctx.beginPath(); ctx.moveTo(x-s*0.55,y-s*1.5); ctx.lineTo(x+s*0.55,y-s*0.6);
+      ctx.moveTo(x+s*0.55,y-s*1.5); ctx.lineTo(x-s*0.55,y-s*0.6); ctx.stroke(); break;
+    case "card_n": case "card_s": case "card_e": case "card_w": { // kardinaal: gele spar + zwart dubbel topteken
+      ctx.fillStyle=BUOY_HEX.geel; ctx.beginPath(); ctx.rect(x-s*0.32,y-s*0.7,s*0.64,s*1.5); ctx.fill(); ctx.strokeRect(x-s*0.32,y-s*0.7,s*0.64,s*1.5);
+      ctx.fillStyle="#111";
+      const tri=(cy,up)=>{ ctx.beginPath(); if(up){ ctx.moveTo(x,cy-s*0.45); ctx.lineTo(x+s*0.5,cy+s*0.25); ctx.lineTo(x-s*0.5,cy+s*0.25);} else { ctx.moveTo(x,cy+s*0.25); ctx.lineTo(x+s*0.5,cy-s*0.45); ctx.lineTo(x-s*0.5,cy-s*0.45);} ctx.closePath(); ctx.fill(); };
+      const a=y-s*1.15, b=y-s*1.95;
+      if (o.sym==="card_n"){ tri(b,true); tri(a,true); }
+      else if (o.sym==="card_s"){ tri(b,false); tri(a,false); }
+      else if (o.sym==="card_e"){ tri(b,true); tri(a,false); }
+      else { tri(b,false); tri(a,true); }
+      break; }
+    case "light":  // lichtschittering (magenta druppel, zeekaartstijl)
+      ctx.fillStyle="rgba(214,72,150,.85)";
+      ctx.beginPath(); ctx.moveTo(x,y);
+      ctx.quadraticCurveTo(x+s*1.1,y-s*0.5,x+s*1.5,y-s*1.4);
+      ctx.quadraticCurveTo(x+s*0.3,y-s*0.9,x,y); ctx.fill();
+      ctx.fillStyle="#7a2d5a"; ctx.beginPath(); ctx.arc(x,y,1.6,0,Math.PI*2); ctx.fill(); break;
+    default:
+      ctx.beginPath(); ctx.arc(x,y,s*0.6,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
+}});
+function buoySymbol(p){
+  const k=p.k||"", c=p.c||"";
+  if (p.t==="LIGHTS") return "light";
+  if (p.t==="BOYCAR"||p.t==="BCNCAR"){
+    if (k==="noord") return "card_n";
+    if (k==="zuid") return "card_s";
+    if (k==="oost") return "card_e";
+    if (k==="west") return "card_w";
+    return "card_n";
+  }
+  if (p.t==="BOYISD") return "isolated";
+  if (p.t==="BOYSAW") return "safe";
+  if (p.t==="BOYSPP"||p.t==="BCNSPP") return "x";
+  if (p.t==="BOYLAT"||p.t==="BCNLAT"){
+    if (k==="stuurboord"||k==="voorkeur SB"||c.startsWith("groen")) return "cone";
+    return "can";
+  }
+  return "sphere";
+}
 function drawBuoys(gj){
   buoyLayer=L.geoJSON(gj,{
     pointToLayer:(f,ll)=>{
-      const p=f.properties, light=p.t==="LIGHTS";
+      const p=f.properties;
       const cols=(p.c||"").split("/");
-      let fill=BUOY_HEX[cols[0]]|| (light?"#e8a400":"#9aa4ae");
-      if (!p.c && p.k){   // kleur ontbreekt: afleiden uit de categorie (lateraal: BB rood / SB groen)
+      let fill=BUOY_HEX[cols[0]]||"#9aa4ae";
+      if (!p.c && p.k){
         if (p.k==="bakboord"||p.k==="voorkeur BB") fill=BUOY_HEX.rood;
         else if (p.k==="stuurboord"||p.k==="voorkeur SB") fill=BUOY_HEX.groen;
       }
-      const edge=cols[1]?(BUOY_HEX[cols[1]]||"#223"):"#223";
-      const m=L.circleMarker(ll,{pane:"seaPane",radius:light?3.5:6,weight:light?1.2:2,color:edge,fillColor:fill,fillOpacity:.95});
+      if ((p.t==="BOYSPP"||p.t==="BCNSPP") && !p.c) fill=BUOY_HEX.geel;
+      const edge="#223";
+      const m=new BuoySym(ll,{pane:"seaPane",radius:8,weight:1.4,color:edge,fillColor:fill,fillOpacity:.95,
+        sym:buoySymbol(p), symSize:7, beacon:p.t.startsWith("BCN")});
       const tip=buoyTip(p);
-      m.bindTooltip(tip,{direction:"top",offset:[0,-6],className:"vts-lbl"});
+      m.bindTooltip(tip,{direction:"top",offset:[0,-10],className:"vts-lbl"});
       m.bindPopup(tip);
       return m;
     }
