@@ -1377,7 +1377,7 @@ function closeDetail(){ $("#panel").classList.remove("open"); $("#ovl").classLis
 
 /* ---------- kaart ---------- */
 let map=null, cluster=null, stremLayer=null, meMarker=null, watchId=null, showBedien=true, showVast=true, showStrem=false;
-let baseOSM=null, baseLight=null, iencLayer=null, seaChartLayer=null, chartDepthLayer=null, chartDepthGeo=null, zeechartView=false, rwsBathy=null, rws1m=null, chartLinesLayer=null;
+let baseOSM=null, baseLight=null, iencLayer=null, seaChartLayer=null, chartDepthLayer=null, chartDepthGeo=null, zeechartView=false, rwsBathy=null, rws1m=null, chartLinesLayer=null, encDepthLayer=null, encDepthGeo=null;
 function markerColor(o){
   const st = o._mapcls || (o._mapcls = quickCls(o));
   return {good:"#0ca30c", warn:"#fab219", ser:"#ec835a", crit:"#d03b3b", mut:"#898781", open:"#2a78d6"}[st];
@@ -1401,6 +1401,7 @@ function initMap(){
   map.createPane("bathyPane"); map.getPane("bathyPane").style.zIndex = 270;
   map.createPane("depthLinePane"); map.getPane("depthLinePane").style.zIndex = 265;
   map.createPane("iencPane");  map.getPane("iencPane").style.zIndex = 300;
+  map.createPane("encPane");   map.getPane("encPane").style.zIndex = 320;
   map.createPane("seaPane");   map.getPane("seaPane").style.zIndex = 350;
   cluster = L.markerClusterGroup({chunkedLoading:true, disableClusteringAtZoom:14, maxClusterRadius:55});
   buildMarkers();
@@ -1809,6 +1810,23 @@ function setSea(on){
   updateKaartBtn();
 }
 /* ---- Zeekaartmodus: lichte ondergrond + officiële RWS-iENC-zeekaart + OpenSeaMap ---- */
+/* Eigen ENC-dieptevlakken (uit RWS Inland ENC, zelf verwerkt) — continue blauwe zeekaartschaal.
+   d = representatieve diepte (m t.o.v. LAT) per dieptezone; b=0 = droogvallend. */
+function encDepthColor(d, b){
+  if (b===0) return "#cfe8c8";                 // droogvallend = zeekaart-groen
+  if (d<=1)  return "#dcecf6";
+  if (d<=2)  return "#c2e0f2";
+  if (d<=3)  return "#a2d0ea";
+  if (d<=5)  return "#79bce0";
+  if (d<=8)  return "#4f9fd0";
+  if (d<=12) return "#2f7fbc";
+  if (d<=20) return "#1c5fa0";
+  return "#0f4680";
+}
+function drawEncDepth(gj){
+  encDepthLayer = L.geoJSON(gj, { pane:"encPane", interactive:false,
+    style: f => ({ stroke:false, fill:true, fillColor: encDepthColor(f.properties.d, f.properties.b), fillOpacity:0.92 }) }).addTo(map);
+}
 function setZeeChart(on){
   zeechartView = on;
   if (on){
@@ -1816,6 +1834,9 @@ function setZeeChart(on){
       { maxZoom:19, subdomains:"abcd", attribution:'© OpenStreetMap © CARTO' });
     if (map.hasLayer(baseOSM)) map.removeLayer(baseOSM);
     baseLight.addTo(map);
+    // Eigen, zelf-gehoste ENC-dieptevlakken (Zeeland + Waddenzee) — bron: RWS Inland ENC (CC-0), werkt offline
+    if (encDepthGeo) drawEncDepth(encDepthGeo);
+    else fetch("data/enc_depth.geojson?v=20260722", {cache:"reload"}).then(r=>r.json()).then(gj=>{ encDepthGeo=gj; if(zeechartView) drawEncDepth(gj); }).catch(()=>{});
     // Officiële RWS-iENC-zeekaart in de schone "Standard"-stand (geen ZOC-kwaliteitswaas): vector-dieptevlakken,
     // droogvallende platen, dieptelijnen, tonnen en dieptecijfers — live van RWS, crisp getekend i.p.v. gebakken raster.
     if (!iencLayer) iencLayer = L.tileLayer.wms("https://geo.rijkswaterstaat.nl/arcgis/rest/services/ENC/mcs_inland/MapServer/exts/MaritimeChartService/WMSServer",
@@ -1826,6 +1847,7 @@ function setZeeChart(on){
       { maxZoom:18, pane:"seaPane", attribution:'© OpenSeaMap' });
     seaChartLayer.addTo(map);
   } else {
+    if (encDepthLayer){ map.removeLayer(encDepthLayer); encDepthLayer=null; }
     if (iencLayer) map.removeLayer(iencLayer);
     if (seaChartLayer) map.removeLayer(seaChartLayer);
     if (baseLight && map.hasLayer(baseLight)) map.removeLayer(baseLight);
