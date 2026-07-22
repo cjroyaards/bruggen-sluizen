@@ -352,7 +352,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
         <button class="mapbtn" id="mb-kaart"><svg class="ic" viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg><span data-i18n="mb_kaart">Kaart</span> ▾</button>
         <div id="kaartmenu" class="dropmenu" hidden>
           <label style="font-weight:700"><input type="checkbox" id="k-zeekaart"> <span data-i18n="k_zeekaart">Zeekaartmodus</span></label>
-          <div class="dm-note" data-i18n="k_zeekaart_note">Lichte ondergrond + eigen kustlijn & dieptelijnen (2 m-lijn nadrukkelijk) voor heel NL + OpenSeaMap-symbolen.</div>
+          <div class="dm-note" data-i18n="k_zeekaart_note">Gladde dieptevlakken (NL, UK-oostkust, Kanaal, België) + kustlijn & dieptelijnen met 2 m-lijn + OpenSeaMap.</div>
           <div class="dm-t" data-i18n="dm_layers">Losse lagen</div>
           <label><input type="checkbox" id="k-sea"> <span data-i18n="k_sea">Zeekaart (OpenSeaMap)</span></label>
           <label><input type="checkbox" id="k-vts"> <span data-i18n="k_vts">VTS-sectoren</span></label>
@@ -433,7 +433,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
         <span class="k">Diepte — actualiteit</span><span>EMODnet brengt het DTM ongeveer eens per twee jaar uit (…, 2020, 2022, 2024); de 2024-versie verscheen in maart 2025. Het is dus een samengesteld, periodiek bijgewerkt model — geen live meting.</span>
         <span class="k">Diepte — nauwkeurigheid</span><span>EMODnet bouwt het DTM uit duizenden ingemeten surveys (akoestisch, lidar, satelliet). Elke bron is via CDI/Sextant-metadata herleidbaar, en per rastercel wordt bijgehouden welke bron is gebruikt, hoeveel metingen zijn meegenomen en of de cel ge-interpoleerd is. Bronnen die niet aan de QA/QC-eisen voldoen vallen af. De nauwkeurigheid verschilt per gebied — dicht bemeten kustzones zijn betrouwbaarder dan dunbemeten open zee.</span>
         <span class="k">VTS-sectoren (Scheldemond)</span><span>De marifoon-/VHF-sectoren volgen de officiële GNB VHF-sectorenkaart (vts-scheldt.net): estuariumgrenzen op de echte tonnen, buitenaanloop op de brochure-punten. Kanalen, namen en telefoon uit de GNB-brochure. De Maas-aanloop (01/02/03) staat op de Reeds-afstanden; overige zeewaartse grenzen zijn bij benadering. <b>Indicatief — niet voor navigatie</b>; controleer de exacte grenzen op de zeekaart. Nood/oproep Kustwacht: VHF 16 · DSC 70. In elke sector-popup staat uitleg over meldplicht en bereikbaarheidsplicht.</span>
-        <span class="k">Zeekaartmodus</span><span>Onze eigen zeekaartlaag voor heel Nederland: <b>kustlijn en dieptelijnen (isobaten)</b>, met de <b>2 m-lijn nadrukkelijk in rood</b> als veiligheidscontour. Verwerkt uit de officiële <b>RWS Inland ENC</b> (CC-0/publiek domein) tot vectorlijnen — zelf-gehost, dus het werkt <b>offline</b> en heeft geen live dienst nodig. Zeekaart-symbolen (tonnen, lichten) van OpenSeaMap; lichte ondergrond © CARTO/OpenStreetMap. <b>Indicatief — niet voor navigatie.</b></span>
+        <span class="k">Zeekaartmodus</span><span>Onze eigen zeekaartlaag: <b>gladgestreken dieptevlakken</b> in lichte zeekaartkleuren uit <b>EMODnet Bathymetry</b> (dekt NL, de Engelse oostkust, het Kanaal en België; droogvallend in groen), met daaroverheen de <b>kustlijn en dieptelijnen</b> uit de officiële <b>RWS Inland ENC</b> (CC-0) — de <b>2 m-lijn nadrukkelijk in rood</b> als veiligheidscontour. Alles zelf verwerkt en zelf-gehost, dus het werkt <b>offline</b>. Zeekaart-symbolen van OpenSeaMap; ondergrond © CARTO/OpenStreetMap. <b>Indicatief — niet voor navigatie.</b></span>
         <span class="k">Kaartondergrond</span><span>© OpenStreetMap-bijdragers.</span>
       </div>
       <p style="color:var(--muted);font-size:12.5px">Hoogtes uit verschillende bronnen hebben verschillende nulvlakken (NAP, kaartnul/LAT, gemiddeld zeeniveau) en zijn niet zomaar met elkaar of met kaartdieptes te verrekenen.</p>
@@ -1809,8 +1809,16 @@ function setSea(on){
   } else if (seaLayer){ map.removeLayer(seaLayer); }
   updateKaartBtn();
 }
-/* ---- Zeekaartmodus: lichte ondergrond + eigen ENC-kustlijn & dieptelijnen (2 m nadruk) + OpenSeaMap ----
-   Bron: RWS Inland ENC (CC-0), zelf verwerkt tot vectorlijnen — zelf-gehost, werkt offline. */
+/* ---- Zeekaartmodus: lichte ondergrond + gladde EMODnet-dieptevlakken (NL/UK/BE/zee) +
+   eigen ENC-kustlijn & dieptelijnen (2 m nadruk) + OpenSeaMap ----
+   Bronnen: EMODnet Bathymetry (gladgestreken kleurvlakken) en RWS Inland ENC (CC-0, vectorlijnen) —
+   alles zelf verwerkt en zelf-gehost, werkt offline. */
+const SMOOTH_COL = { w:"#cfe3c5", b0:"#7fb8dc", b2:"#a3cce8", b5:"#c3def1", b10:"#d9eaf7", b15:"#e7f2fa", b20:"#f2f8fc" };
+function drawSmoothDepth(gj){
+  // cumulatief getekend: ondiep eerst, dieper eroverheen — geen naden/slivers
+  encDepthLayer = L.geoJSON(gj, { pane:"depthPane", interactive:false,
+    style: f => ({ stroke:false, fill:true, fillColor: SMOOTH_COL[f.properties.t]||"#e7f2fa", fillOpacity:1 }) }).addTo(map);
+}
 function depthLineStyle(f){
   const v = f.properties.v;
   if (v === 2) return { color:"#cc3322", weight:1.5, opacity:0.95 };   // 2 m-lijn: nadrukkelijk (veiligheidscontour)
@@ -1831,6 +1839,9 @@ function setZeeChart(on){
       { maxZoom:19, subdomains:"abcd", attribution:'© OpenStreetMap © CARTO' });
     if (map.hasLayer(baseOSM)) map.removeLayer(baseOSM);
     baseLight.addTo(map);
+    // Gladde EMODnet-dieptevlakken (NL + UK-oostkust + Kanaal + België): licht gekleurde dieptezones
+    if (encDepthGeo) drawSmoothDepth(encDepthGeo);
+    else fetch("data/depth_smooth.geojson?v=20260722", {cache:"reload"}).then(r=>r.json()).then(gj=>{ encDepthGeo=gj; if(zeechartView) drawSmoothDepth(gj); }).catch(()=>{});
     // Eigen kustlijn (COALNE) — bron: RWS Inland ENC (CC-0)
     if (coastGeo) drawCoast(coastGeo);
     else fetch("data/coast.geojson?v=20260722", {cache:"reload"}).then(r=>r.json()).then(gj=>{ coastGeo=gj; if(zeechartView) drawCoast(gj); }).catch(()=>{});
@@ -1946,7 +1957,7 @@ const STATIC_EN = {
   mb_tide:"Tide, current & wind", dm_tide:"Tide", t_stations:"Tide stations",
   dm_wind:"Wind (Open-Meteo, GFS/ICON)", w_arrows:"Wind arrows (Beaufort)", w_part:"Wind particles", w_color:"Wind colour (speed)",
   mb_kaart:"Map", dm_layers:"Separate layers", k_sea:"Sea chart (OpenSeaMap)", k_vts:"VTS sectors",
-  k_zeekaart:"Nautical chart mode", k_zeekaart_note:"Light base + our own coastline & depth contours (2 m line emphasised) for all of NL + OpenSeaMap symbols.",
+  k_zeekaart:"Nautical chart mode", k_zeekaart_note:"Smooth depth shading (NL, UK east coast, Channel, Belgium) + coastline & depth contours with 2 m line + OpenSeaMap.",
   dm_title:"Tidal current (Copernicus)", dm_arrows:"Copernicus arrows (sharp)", dm_own:"Own arrows (smooth)", dm_particles:"Particle animation", dm_color:"Colour layer (speed)", cur_now:"Now",
   dm_depth:"Depth (EMODnet)", ds_off:"Off", ds_fill:"Shaded — shallows coloured", ds_std:"Standard — 2 / 5 / 10 / 20 m", ds_shal:"Shallow — 1 / 2 / 3 / 5 m", ds_1:"Every 1 m — 1 to 10 m", ds_2:"Every 2 m — 2 to 20 m", ds_5:"Every 5 m — 5 to 30 m", ds_note:"EMODnet · rel. to chart datum (LAT) · not for navigation",
 };
@@ -2008,7 +2019,7 @@ function applyStaticLang(){
         <span class="k">Depth — how current</span><span>EMODnet releases the DTM roughly every two years (…, 2020, 2022, 2024); the 2024 version appeared in March 2025. It is a compiled, periodically updated model — not a live measurement.</span>
         <span class="k">Depth — accuracy</span><span>EMODnet builds the DTM from thousands of surveys (acoustic, lidar, satellite). Every source is traceable through CDI/Sextant metadata, and each grid cell records which source was used, how many soundings went in, and whether the cell was interpolated. Sources failing the QA/QC criteria are dropped. Accuracy varies by area — densely surveyed coastal zones are more reliable than sparsely surveyed open sea.</span>
         <span class="k">VTS sectors (Scheldemond)</span><span>The VHF sectors follow the official GNB VHF-sector chart (vts-scheldt.net): estuary limits on the real buoys, outer approaches on the brochure points. Channels, names and phone from the GNB brochure. The Maas approach (01/02/03) uses the Reeds distances; other seaward limits are approximate. <b>Indicative — not for navigation</b>; check exact limits on the chart. Distress/calling Coastguard: VHF 16 · DSC 70. Each sector popup explains the reporting and reachability duties.</span>
-        <span class="k">Nautical chart mode</span><span>Our own nautical layer for the whole of the Netherlands: <b>coastline and depth contours (isobaths)</b>, with the <b>2 m line emphasised in red</b> as a safety contour. Processed from the official <b>RWS Inland ENC</b> (CC-0/public domain) into vector lines — self-hosted, so it works <b>offline</b> with no live service needed. Chart symbols (buoys, lights) from OpenSeaMap; light base © CARTO/OpenStreetMap. <b>Indicative — not for navigation.</b></span>
+        <span class="k">Nautical chart mode</span><span>Our own nautical layer: <b>smoothed depth shading</b> in light chart colours from <b>EMODnet Bathymetry</b> (covers NL, the English east coast, the Channel and Belgium; drying areas in green), overlaid with the <b>coastline and depth contours</b> from the official <b>RWS Inland ENC</b> (CC-0) — the <b>2 m line emphasised in red</b> as a safety contour. All processed and self-hosted, so it works <b>offline</b>. Chart symbols from OpenSeaMap; base © CARTO/OpenStreetMap. <b>Indicative — not for navigation.</b></span>
         <span class="k">Base map</span><span>© OpenStreetMap contributors.</span>
       </div>
       <p style="color:var(--muted);font-size:12.5px">Heights from different sources use different datums (NAP, chart datum/LAT, mean sea level) and cannot simply be combined with each other or with charted depths.</p>
