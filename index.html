@@ -2024,24 +2024,56 @@ function drawWindRose(){
   S("wb-tws", fresh&&nmea.tws!=null?nmea.tws.toFixed(1):"–");
   S("wb-twa", fresh&&nmea.twa!=null?Math.round(nmea.twa):"–");
 }
+function nmeaCandidates(input){
+  // accepteer ook een kaal IP: dan de bekende endpoints proberen (YDWG Web Gauges: /ws · SignalK: :3000/...)
+  let u=input.trim();
+  if (!/^wss?:\/\//.test(u)) u="ws://"+u;
+  const m=u.match(/^(wss?:\/\/[^\/]+)(\/.*)?$/);
+  if (!m) return [u];
+  const host=m[1], path=m[2];
+  if (path) return [u];
+  const bare=host.replace(/:\d+$/,"");
+  return [host+"/ws", host, bare+":3000/signalk/v1/stream"];
+}
 function nmeaConnect(){
-  const url=($("#pl-nmurl").value||"").trim(), st=$("#pl-nmstat");
-  if (nmea.ws){ try{nmea.ws.close();}catch(e){} nmea.ws=null; $("#pl-nmconn").textContent="verbind"; st.textContent="verbroken"; const el=$("#pl-src"); if(el) el.textContent="bron: GPS"; return; }
-  if (!url){ st.textContent="vul een ws://-adres in"; return; }
-  try{
-    localStorage.setItem("nmea_url", url);
-    const ws=new WebSocket(url); nmea.ws=ws; st.textContent="verbinden…"; $("#pl-nmconn").textContent="verbreek";
-    let buf="";
-    ws.onopen=()=>{ st.textContent="verbonden ✓";
-      try{ ws.send(JSON.stringify({context:"vessels.self",subscribe:[{path:"*"}]})); }catch(e){} };
-    ws.onmessage=ev=>{
-      if (typeof ev.data!=="string") return;
-      if (ev.data[0]==="{"){ try{ signalkDelta(JSON.parse(ev.data)); }catch(e){} return; }
-      buf+=ev.data; const lines=buf.split(/\r?\n/); buf=lines.pop(); for(const l of lines) nmeaSentence(l);
-    };
-    ws.onerror=()=>{ st.textContent="fout — geen WebSocket op dit adres. Let op: een kale TCP/UDP-poort van een gateway is géén WebSocket; gebruik een SignalK-server (ws://ip:3000/signalk/v1/stream) als brug. Vanaf https blokkeert de browser bovendien ws:// (alleen wss:// of localhost)."; };
-    ws.onclose=()=>{ if(nmea.ws===ws){ nmea.ws=null; $("#pl-nmconn").textContent="verbind"; if(st.textContent==="verbonden ✓") st.textContent="verbroken"; const el=$("#pl-src"); if(el) el.textContent="bron: GPS"; } };
-  }catch(e){ st.textContent="kan niet verbinden: "+e.message; nmea.ws=null; }
+  const input=($("#pl-nmurl").value||"").trim(), st=$("#pl-nmstat");
+  if (nmea.ws){ try{nmea.ws.close();}catch(e){} nmea.ws=null; nmea.tryList=null; $("#pl-nmconn").textContent="verbind"; st.textContent="verbroken"; const el=$("#pl-src"); if(el) el.textContent="bron: GPS"; return; }
+  if (!input){ st.textContent="vul een adres of IP in"; return; }
+  if (location.protocol==="https:" && !/^wss:\/\//.test(input)){
+    const httpUrl="http://"+location.host+location.pathname;
+    st.innerHTML=`https blokkeert ws:// — open de <a href="${httpUrl}" style="color:var(--accent);font-weight:600">http-versie van deze site</a> en verbind daar.`;
+    return;
+  }
+  localStorage.setItem("nmea_url", input);
+  nmea.tryList = nmeaCandidates(input);
+  nmeaTryNext(st);
+}
+function nmeaTryNext(st){
+  const url = nmea.tryList && nmea.tryList.shift();
+  if (!url){ st.textContent="geen WebSocket gevonden op dit adres. Een kale TCP/UDP-poort werkt niet in een browser — YDWG-02: firmware met Web Gauges heeft ws://<ip>/ws (zelfde data als Server #1); anders SignalK (ws://ip:3000/signalk/v1/stream) als brug."; nmea.ws=null; $("#pl-nmconn").textContent="verbind"; return; }
+  st.textContent="proberen: "+url+" …";
+  let ws;
+  try{ ws=new WebSocket(url); }catch(e){ nmeaTryNext(st); return; }
+  nmea.ws=ws; $("#pl-nmconn").textContent="verbreek";
+  let opened=false, buf="";
+  const giveUp=setTimeout(()=>{ if(!opened){ try{ws.close();}catch(e){} } }, 4000);
+  ws.onopen=()=>{ opened=true; clearTimeout(giveUp); st.textContent="verbonden ✓ "+url;
+    try{ ws.send(JSON.stringify({context:"vessels.self",subscribe:[{path:"*"}]})); }catch(e){} };
+  ws.onmessage=ev=>{
+    if (typeof ev.data!=="string") return;
+    if (ev.data[0]==="{"){ try{ signalkDelta(JSON.parse(ev.data)); }catch(e){} return; }
+    buf+=ev.data; const lines=buf.split(/\r?\n/); buf=lines.pop(); for(const l of lines) nmeaSentence(l);
+  };
+  ws.onerror=()=>{};
+  ws.onclose=()=>{
+    clearTimeout(giveUp);
+    if (nmea.ws!==ws) return;
+    nmea.ws=null;
+    if (!opened && nmea.tryList && nmea.tryList.length){ nmeaTryNext(st); return; }
+    $("#pl-nmconn").textContent="verbind";
+    if (opened){ st.textContent="verbroken"; const el=$("#pl-src"); if(el) el.textContent="bron: GPS"; }
+    else nmeaTryNext(st);   // lijst leeg → nette eindmelding
+  };
 }
 function togglePlotter(){
   const btn=$("#mb-plotter"), box=$("#plotter");
@@ -2572,5 +2604,5 @@ loadData().then(()=>{
 </script>
 </body>
 </html>
-        <span class="k">Plotter &amp; NMEA koppelen</span><span>De plotter (knop in de zeekaartmodus) gebruikt standaard de GPS van je telefoon. Heb je aan boord een <b>wifi-gateway of multiplexer</b> (bijv. Yacht Devices YDWG-02, MiniPlex, Shipmodul, Vesper, of een SignalK-server), dan kun je de boordinstrumenten koppelen. <b>Belangrijk:</b> de kale TCP- of UDP-poort van zo'n gateway is géén WebSocket en werkt niet rechtstreeks in een browser. De brug is een gratis <b>SignalK-server</b> (draait op een Raspberry Pi, boordcomputer of oude telefoon; leest je gateway via TCP in en serveert WebSocket). Open dan de plotter → knop <b>NMEA</b> → vul in: <code>ws://&lt;ip-signalk&gt;:3000/signalk/v1/stream</code> → <b>verbind</b>. Gateways met een eigen WebSocket-uitgang werken ook direct. De plotter gebruikt dan positie/SOG/COG van de boord-GPS (RMC/VTG/GGA), de dieptemeter (DPT/DBT) en de windmeter (MWV — te zien in het windvenster met ware en schijnbare wind). Valt de verbinding weg, dan neemt de telefoon-GPS het automatisch over. <b>Let op:</b> browsers blokkeren onbeveiligde <code>ws://</code>-verbindingen vanaf een https-site; gebruik een gateway die <code>wss://</code> (TLS) ondersteunt of een SignalK-server met SSL.</span>
-        <span class="k">Plotter &amp; connecting NMEA</span><span>The plotter (button in nautical chart mode) uses your phone's GPS by default. If you have a <b>WiFi gateway or multiplexer</b> on board (e.g. Yacht Devices YDWG-02, MiniPlex, Shipmodul, Vesper, or a SignalK server), you can connect your instruments. <b>Important:</b> a gateway's raw TCP or UDP port is <i>not</i> a WebSocket and cannot be reached from a browser. The bridge is a free <b>SignalK server</b> (runs on a Raspberry Pi, boat computer or old phone; reads your gateway over TCP and serves WebSocket). Then open the plotter → <b>NMEA</b> → enter <code>ws://&lt;signalk-ip&gt;:3000/signalk/v1/stream</code> → <b>connect</b>. Gateways with a native WebSocket output also work directly. The plotter then uses the boat GPS for position/SOG/COG (RMC/VTG/GGA), the depth sounder (DPT/DBT) and the wind instrument (MWV — shown in the wind window with true and apparent wind). If the link drops, the phone GPS takes over automatically. <b>Note:</b> browsers block insecure <code>ws://</code> connections from an https site; use a gateway that supports <code>wss://</code> (TLS) or a SignalK server with SSL.</span>
+        <span class="k">Plotter &amp; NMEA koppelen</span><span>De plotter (knop in de zeekaartmodus) gebruikt standaard de GPS van je telefoon. Heb je aan boord een <b>wifi-gateway of multiplexer</b> (bijv. Yacht Devices YDWG-02, MiniPlex, Shipmodul, Vesper, of een SignalK-server), dan kun je de boordinstrumenten koppelen. <b>Belangrijk:</b> de kale TCP- of UDP-poort van zo'n gateway is géén WebSocket en werkt niet rechtstreeks in een browser. De brug is een gratis <b>SignalK-server</b> (draait op een Raspberry Pi, boordcomputer of oude telefoon; leest je gateway via TCP in en serveert WebSocket). Open dan de plotter → knop <b>NMEA</b> → vul in: <code>ws://&lt;ip-signalk&gt;:3000/signalk/v1/stream</code> → <b>verbind</b>. <b>Yacht Devices YDWG-02:</b> recente firmware (met Web Gauges) heeft wél een eigen WebSocket — vul gewoon het IP van de gateway in, wij proberen automatisch <code>ws://&lt;ip&gt;/ws</code> (zelfde data als Server #1; zet die op NMEA 0183). Belangrijk: verbind dan via de <b>http-versie</b> van deze site (https blokkeert ws://) — de app wijst je vanzelf de weg. De plotter gebruikt dan positie/SOG/COG van de boord-GPS (RMC/VTG/GGA), de dieptemeter (DPT/DBT) en de windmeter (MWV — te zien in het windvenster met ware en schijnbare wind). Valt de verbinding weg, dan neemt de telefoon-GPS het automatisch over. <b>Let op:</b> browsers blokkeren onbeveiligde <code>ws://</code>-verbindingen vanaf een https-site; gebruik een gateway die <code>wss://</code> (TLS) ondersteunt of een SignalK-server met SSL.</span>
+        <span class="k">Plotter &amp; connecting NMEA</span><span>The plotter (button in nautical chart mode) uses your phone's GPS by default. If you have a <b>WiFi gateway or multiplexer</b> on board (e.g. Yacht Devices YDWG-02, MiniPlex, Shipmodul, Vesper, or a SignalK server), you can connect your instruments. <b>Important:</b> a gateway's raw TCP or UDP port is <i>not</i> a WebSocket and cannot be reached from a browser. The bridge is a free <b>SignalK server</b> (runs on a Raspberry Pi, boat computer or old phone; reads your gateway over TCP and serves WebSocket). Then open the plotter → <b>NMEA</b> → enter <code>ws://&lt;signalk-ip&gt;:3000/signalk/v1/stream</code> → <b>connect</b>. <b>Yacht Devices YDWG-02:</b> recent firmware (with Web Gauges) does have its own WebSocket — just enter the gateway IP and we automatically try <code>ws://&lt;ip&gt;/ws</code> (same data as Server #1; set it to NMEA 0183). Important: connect via the <b>http version</b> of this site (https blocks ws://) — the app will point the way. The plotter then uses the boat GPS for position/SOG/COG (RMC/VTG/GGA), the depth sounder (DPT/DBT) and the wind instrument (MWV — shown in the wind window with true and apparent wind). If the link drops, the phone GPS takes over automatically. <b>Note:</b> browsers block insecure <code>ws://</code> connections from an https site; use a gateway that supports <code>wss://</code> (TLS) or a SignalK server with SSL.</span>
