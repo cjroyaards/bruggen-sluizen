@@ -373,6 +373,7 @@ header{position:sticky}
       <button class="langbtn" data-lang="nl" title="Nederlands"><svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#21468B"/><rect width="30" height="13.3" fill="#fff"/><rect width="30" height="6.7" fill="#AE1C28"/></svg></button>
       <button class="langbtn" data-lang="en" title="English"><svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#012169"/><path d="M0 0l30 20M30 0L0 20" stroke="#fff" stroke-width="4"/><path d="M0 0l30 20M30 0L0 20" stroke="#C8102E" stroke-width="2"/><path d="M15 0v20M0 10h30" stroke="#fff" stroke-width="7"/><path d="M15 0v20M0 10h30" stroke="#C8102E" stroke-width="4"/></svg></button>
     </span>
+    <a id="bridgeBtn" class="hbtn" href="bridge.html" style="text-decoration:none;line-height:1.3;font-size:12px;font-weight:650">NMEA-brug</a>
     <button id="hd-more" class="hbtn" aria-label="meer instellingen"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></button>
     <div id="hd-menu" hidden></div>
   </div>
@@ -561,7 +562,7 @@ header{position:sticky}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-21</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-22</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -2337,8 +2338,55 @@ function smSync(){
   if (smVisible()){ if (!map.hasLayer(smLayer)) smLayer.addTo(map); }
   else if (map.hasLayer(smLayer)) map.removeLayer(smLayer);
 }
+/* ---- officiële NL-betonning uit de RWS ENC (wekelijks vers) — vervangt OpenSeaMap binnen NL ---- */
+const NLBOX=[51.2,3.4,53.62,7.3];   // [zuid,west,noord,oost]
+function inNL(lat,lng){ return lat>NLBOX[0]&&lat<NLBOX[2]&&lng>NLBOX[1]&&lng<NLBOX[3]; }
+let buoyLayer=null, buoyGeo=null, buoyLoading=false;
+const BUOY_NL={BOYLAT:"laterale ton",BOYCAR:"kardinale ton",BOYSPP:"ton (bijzonder)",BOYISD:"gevarenton",BOYSAW:"veiligwaterton",BCNLAT:"lateraal baken",BCNCAR:"kardinaal baken",BCNSPP:"baken",LIGHTS:"licht"};
+const BUOY_HEX={rood:"#d23c32",groen:"#1d9048",geel:"#e3c400",zwart:"#26262b",wit:"#f2f2f2",blauw:"#2a63c8",oranje:"#f07d1e",bruin:"#8a5a2b",grijs:"#888",violet:"#b04bd0",amber:"#e8a400"};
+function buoyTip(p){
+  const parts=[BUOY_NL[p.t]||p.t];
+  if (p.k) parts.push(p.k);
+  if (p.c) parts.push(p.c);
+  if (p.l) parts.push(p.l);
+  return (p.n?`<b>${esc(p.n)}</b><br>`:"")+esc(parts.join(" · "))+`<br><span style="color:var(--muted);font-size:10px">RWS ENC (wekelijks)</span>`;
+}
+function drawBuoys(gj){
+  buoyLayer=L.geoJSON(gj,{
+    pointToLayer:(f,ll)=>{
+      const p=f.properties, light=p.t==="LIGHTS";
+      const cols=(p.c||"").split("/");
+      let fill=BUOY_HEX[cols[0]]|| (light?"#e8a400":"#9aa4ae");
+      if (!p.c && p.k){   // kleur ontbreekt: afleiden uit de categorie (lateraal: BB rood / SB groen)
+        if (p.k==="bakboord"||p.k==="voorkeur BB") fill=BUOY_HEX.rood;
+        else if (p.k==="stuurboord"||p.k==="voorkeur SB") fill=BUOY_HEX.groen;
+      }
+      const edge=cols[1]?(BUOY_HEX[cols[1]]||"#223"):"#223";
+      const m=L.circleMarker(ll,{pane:"seaPane",radius:light?3.5:6,weight:light?1.2:2,color:edge,fillColor:fill,fillOpacity:.95});
+      const tip=buoyTip(p);
+      m.bindTooltip(tip,{direction:"top",offset:[0,-6],className:"vts-lbl"});
+      m.bindPopup(tip);
+      return m;
+    }
+  });
+}
+function buoySync(){
+  const show = zeechartView && map && map.getZoom()>=11;
+  if (show && !buoyGeo && !buoyLoading){
+    buoyLoading=true;
+    fetch("data/buoys_nl.geojson?v=20260722",{cache:"force-cache"}).then(r=>r.json()).then(gj=>{
+      buoyGeo=gj; buoyLoading=false; drawBuoys(gj); buoySync();
+    }).catch(()=>{ buoyLoading=false; });
+    return;
+  }
+  if (!buoyLayer) return;
+  if (show && !map.hasLayer(buoyLayer)) buoyLayer.addTo(map);
+  if (!show && map.hasLayer(buoyLayer)) map.removeLayer(buoyLayer);
+}
 function loadSeamarks(){
   if (!smVisible()) return;
+  const c=map.getCenter();
+  if (inNL(c.lat,c.lng)) return;   // in NL levert onze eigen ENC-laag de hover-info
   const b=map.getBounds();
   if ((b.getEast()-b.getWest())>0.7) return;
   const q=`[out:json][timeout:25];node["seamark:type"](${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()});out 500;`;
@@ -2386,7 +2434,7 @@ function setZeeChart(on){
     for (const k in depthRegionLayers){ const l=depthRegionLayers[k]; if (l && l!=="loading") l.addTo(map); }
     setTimeout(loadDepthRegions, 400);
     if (!smLayer) smLayer=L.layerGroup();
-    if (!smHooked){ smHooked=true; map.on("moveend zoomend",()=>{ smSync(); clearTimeout(smTimer); smTimer=setTimeout(loadSeamarks,900); }); }
+    if (!smHooked){ smHooked=true; map.on("moveend zoomend",()=>{ smSync(); buoySync(); clearTimeout(smTimer); smTimer=setTimeout(loadSeamarks,900); }); }
     setTimeout(()=>{ smSync(); loadSeamarks(); },600);
     if (!baseLight) baseLight = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
       { maxZoom:19, subdomains:"abcd", attribution:'© OpenStreetMap © CARTO' });
@@ -2409,11 +2457,25 @@ function setZeeChart(on){
     // Eigen dieptelijnen (DEPCNT) met nadruk op de 2 m-lijn — heel NL, zelf-gehost, offline
     if (depthLineGeo) drawDepthLines(depthLineGeo);
     else fetch("data/depth_lines.geojson?v=20260722b", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{ depthLineGeo=gj; if(zeechartView) drawDepthLines(gj); }).catch(()=>{});
-    if (!seaChartLayer) seaChartLayer = L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",
-      { maxZoom:18, pane:"seaPane", attribution:'© OpenSeaMap' });
+    if (!seaChartLayer){
+      // OpenSeaMap alleen buiten NL: binnen NL toont onze eigen officiële RWS-ENC-betonning
+      const OsmSeaNoNL = L.TileLayer.extend({
+        createTile: function(coords, done){
+          const b=this._tileCoordsToBounds(coords);
+          if (b.getSouth()>=NLBOX[0] && b.getWest()>=NLBOX[1] && b.getNorth()<=NLBOX[2] && b.getEast()<=NLBOX[3]){
+            const t=document.createElement("div"); setTimeout(()=>done(null,t),0); return t;
+          }
+          return L.TileLayer.prototype.createTile.call(this, coords, done);
+        }
+      });
+      seaChartLayer = new OsmSeaNoNL("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",
+        { maxZoom:18, pane:"seaPane", attribution:'© OpenSeaMap (buiten NL) · betonning NL: RWS ENC' });
+    }
     seaChartLayer.addTo(map);
+    buoySync();
   } else {
     for (const k in depthRegionLayers){ const l=depthRegionLayers[k]; if (l && l!=="loading") map.removeLayer(l); }
+    if (buoyLayer && map.hasLayer(buoyLayer)) map.removeLayer(buoyLayer);
     if (smLayer) map.removeLayer(smLayer);
     if (window.deWaterLayer) map.removeLayer(window.deWaterLayer);
     if (coastLayer){ map.removeLayer(coastLayer); coastLayer=null; }
@@ -2449,8 +2511,9 @@ function layoutHeader(){
   const menu=$("#hd-menu"), top=document.querySelector(".h-top");
   const tz=$("#tzBtn"), ls=document.querySelector(".langsw"), more=$("#hd-more");
   const tabs=document.querySelector(".tabs"), stamp=$("#datastamp");
-  if (hdMq.matches){ menu.appendChild(tabs); menu.appendChild(tz); menu.appendChild(ls); }
-  else { top.insertBefore(tabs, stamp); top.insertBefore(tz, more); top.insertBefore(ls, more); menu.hidden=true; }
+  const br=$("#bridgeBtn");
+  if (hdMq.matches){ menu.appendChild(tabs); menu.appendChild(tz); menu.appendChild(br); menu.appendChild(ls); }
+  else { top.insertBefore(tabs, stamp); top.insertBefore(tz, more); top.insertBefore(br, more); top.insertBefore(ls, more); menu.hidden=true; }
 }
 hdMq.addEventListener ? hdMq.addEventListener("change", layoutHeader) : hdMq.addListener(layoutHeader);
 layoutHeader();

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenPilot — NMEA-brug</title>
+<style>
+:root{--brand:#122b42;--ink:#1c2733;--muted:#5c6b7a;--grid:#d7dee5;--accent:#2a78d6}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,sans-serif;color:var(--ink);background:#f6f8fa}
+header{background:var(--brand);color:#fff;padding:14px 20px;font-weight:750;letter-spacing:.1em}
+header a{color:#9fc0e8;text-decoration:none;font-weight:550;letter-spacing:0;float:right}
+main{max-width:660px;margin:0 auto;padding:22px 18px 50px}
+h1{font-size:21px;margin:10px 0 4px}
+h2{font-size:16px;margin:22px 0 6px}
+.dl{display:inline-block;background:var(--accent);color:#fff;border-radius:9px;padding:9px 16px;text-decoration:none;font-weight:650;margin:4px 8px 4px 0}
+.dl.sec{background:#fff;color:var(--ink);border:1px solid var(--grid)}
+code,pre{background:#eef2f6;border-radius:6px;padding:2px 6px;font-size:13.5px}
+pre{padding:10px 12px;overflow-x:auto}
+.note{background:#fff8e6;border:1px solid #eadfb8;border-radius:9px;padding:10px 13px;font-size:13.5px;margin:14px 0}
+li{margin:6px 0}
+</style>
+</head>
+<body>
+<header>NMEA-BRUG <a href="index.html">← terug naar de kaart</a></header>
+<main>
+<h1>Boordinstrumenten koppelen via de NMEA-brug</h1>
+<p>Heeft je gateway alleen een <b>TCP- of UDP-poort</b> (zoals de Digital Yacht NavLink2/WLN10 of een YDWG zonder Web Gauges)? Browsers kunnen daar niet rechtstreeks bij. Deze mini-brug — één klein programma, niets te installeren behalve Python — leest je gateway uit en geeft de data door als WebSocket waar OpenPilot wél bij kan.</p>
+
+<h2>1 · Download (zet beide in dezelfde map, bijv. Downloads)</h2>
+<p>
+<a class="dl" href="nmea-bridge.py" download>nmea-bridge.py — de brug</a>
+<a class="dl sec" href="nmea-brug.command" download>starter voor Mac</a>
+<a class="dl sec" href="nmea-brug.bat" download>starter voor Windows</a>
+</p>
+
+<h2>2 · Start</h2>
+<p><b>Mac:</b> dubbelklik <code>nmea-brug.command</code>. Blokkeert macOS het ("niet-geverifieerde ontwikkelaar")? Rechtsklik → Open → Open. <b>Windows:</b> installeer eenmalig <a href="https://www.python.org/downloads/">Python</a> (vink "Add to PATH" aan) en dubbelklik <code>nmea-brug.bat</code>.</p>
+<p>Vul het IP en de poort van je gateway in (bijv. <code>192.168.0.80</code> en <code>1456</code>). Liever de terminal? Dan direct:</p>
+<pre>python3 nmea-bridge.py --tcp 192.168.0.80:1456
+python3 nmea-bridge.py --udp 2000</pre>
+<p>Gelukt als je ziet: <code>[brug] gateway verbonden ✓</code>.</p>
+
+<h2>3 · Verbind in OpenPilot</h2>
+<p>Zeekaartmodus → <b>Plotter</b> → <b>NMEA</b> → vul in <code>ws://localhost:8100</code> → verbind. SOG/COG, diepte en wind komen dan van je boordinstrumenten.</p>
+
+<div class="note"><b>Let op:</b> <code>ws://localhost:8100</code> werkt alleen als de brug op <i>dezelfde computer</i> draait als je browser (Chrome, Edge of Firefox). Verbinden vanaf een <i>ander</i> apparaat (bijv. iPad → laptop-brug) kan pas als de site via http bereikbaar is — dat komt met het eigen domein. Je computer en de gateway moeten op hetzelfde (boot)netwerk zitten.</div>
+
+<p style="color:var(--muted);font-size:13px">Stoppen: Ctrl-C (of het venster sluiten). De brug herstelt de gateway-verbinding automatisch en kan meerdere schermen tegelijk bedienen. Indicatief — niet voor navigatiedoeleinden.</p>
+</main>
+</body>
+</html>
