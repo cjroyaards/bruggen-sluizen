@@ -1836,7 +1836,7 @@ function setZeeChart(on){
     baseLight.addTo(map);
     // Eigen, zelf-gehoste ENC-dieptevlakken (Zeeland + Waddenzee) — bron: RWS Inland ENC (CC-0), werkt offline
     if (encDepthGeo) drawEncDepth(encDepthGeo);
-    else fetch("data/enc_depth.geojson?v=20260722", {cache:"reload"}).then(r=>r.json()).then(gj=>{ encDepthGeo=gj; if(zeechartView) drawEncDepth(gj); }).catch(()=>{});
+    else fetch("data/enc_depth.geojson?v=20260722b", {cache:"reload"}).then(r=>r.json()).then(gj=>{ encDepthGeo=gj; if(zeechartView) drawEncDepth(gj); }).catch(()=>{});
     // Officiële RWS-iENC-zeekaart in de schone "Standard"-stand (geen ZOC-kwaliteitswaas): vector-dieptevlakken,
     // droogvallende platen, dieptelijnen, tonnen en dieptecijfers — live van RWS, crisp getekend i.p.v. gebakken raster.
     if (!iencLayer) iencLayer = L.tileLayer.wms("https://geo.rijkswaterstaat.nl/arcgis/rest/services/ENC/mcs_inland/MapServer/exts/MaritimeChartService/WMSServer",
