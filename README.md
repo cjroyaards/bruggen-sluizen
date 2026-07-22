@@ -1,5 +1,8 @@
 # ⛵ Bruggen & Sluizen
 
+**Meebouwen?** Lees eerst [BOUWGIDS.md](BOUWGIDS.md) — architectuur, datapijplijnen en afspraken (branches/PR's, buildstamp, testen).
+
+
 Persoonlijke website met de bedieningstijden van alle bedienbare bruggen en sluizen
 in Nederland, plus doorvaarthoogtes, marifoonkanalen, telefoonnummers, actuele
 stremmingen en een kaart.
