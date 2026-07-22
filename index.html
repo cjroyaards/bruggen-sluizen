@@ -422,7 +422,6 @@ header{position:sticky}
         <div id="kaartmenu" class="dropmenu" hidden>
           <label style="font-weight:700"><input type="radio" name="kmode" value="land" id="k-land" checked> <span data-i18n="k_land">Landkaartmodus</span></label>
           <label style="font-weight:700"><input type="radio" name="kmode" value="zee" id="k-zeekaart"> <span data-i18n="k_zeekaart">Zeekaartmodus</span></label>
-          <div class="dm-note" data-i18n="k_zeekaart_note">Gladde dieptevlakken (NL, UK-oostkust, Kanaal, België, Duitse Bocht) + kustlijn & dieptelijnen + OpenSeaMap.</div>
           <label><input type="checkbox" id="k-vts"> <span data-i18n="k_vts">VTS-sectoren</span></label>
           <label><input type="checkbox" id="obj-harb" checked> <span data-i18n="o_harb">Havens</span></label>
           <div class="dm-t" data-i18n="dm_depth">Diepte (EMODnet)</div>
@@ -561,7 +560,7 @@ header{position:sticky}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-30</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-31</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -677,6 +676,17 @@ async function loadData(){
         lat:v.lat, lon:v.lon, vhf:[], tel:"", uk:v});
     }
   }
+  // dubbele bronrecords (zelfde type, zelfde plek, zelfde vaarweg) ontdubbelen — o.a. Brug 11 A'dam, Lanaken/Neerharen
+  const dedup=new Map();
+  DATA.objs = DATA.objs.filter(o=>{
+    if (o.t!=="B" && o.t!=="S") return true;
+    const k=o.t+"|"+o.lat.toFixed(5)+"|"+o.lon.toFixed(5)+"|"+(o.fw||"");
+    const prev=dedup.get(k);
+    if (!prev){ dedup.set(k,o); return true; }
+    if ((o.n||"").length>(prev.n||"").length) prev.n=o.n;   // meest beschrijvende naam bewaren
+    if (o.open && !prev.open){ prev.open=o.open; prev.ot=o.ot; }
+    return false;
+  });
   if (LANG==="en") for (const o of DATA.objs) o.n = enName(o.n);
 }
 
@@ -1901,7 +1911,7 @@ function buildMarkers(){
     const icon = L.divIcon({ className:"", iconSize:[box,box], iconAnchor:[box/2,box/2],
       html:`<span class="mk"><i style="width:${d}px;height:${d}px;background:${markerColor(o)}"></i></span>` });
     const m = L.marker([o.lat, o.lon], {icon});
-    m.bindPopup(`<b>${esc(o.n)}</b><br>${o.t==="B"?"brug":"sluis"}${o.c?" · "+esc(o.c):""}<br><span class="pop-open" data-open="${o.t}${o.id}">${T("details →")}</span>`);
+    m.bindPopup(`<b>${esc(o.n)}</b><br>${T(o.t==="B"?"brug":"sluis")}${o.c?" · "+esc(o.c):""}<br><span class="pop-open" data-open="${o.t}${o.id}">${T("details →")}</span>`);
     ms.push(m);
   }
   cluster.addLayers(ms);
@@ -2709,7 +2719,7 @@ const STATIC_EN = {
   mb_tide:"Tide, current & wind", dm_tide:"Tide", t_stations:"Tide stations",
   dm_wind:"Wind (Open-Meteo, GFS/ICON)", w_arrows:"Wind arrows (Beaufort)", w_part:"Wind particles", w_color:"Wind colour (speed)",
   mb_kaart:"Map", dm_layers:"Separate layers", k_sea:"Sea chart (OpenSeaMap)", k_vts:"VTS sectors",
-  k_land:"Land map mode", k_zeekaart:"Nautical chart mode", k_zeekaart_note:"Smooth depth shading (NL, UK east coast, Channel, Belgium, German Bight) + coastline & depth contours + OpenSeaMap.",
+  k_land:"Land map mode", k_zeekaart:"Nautical chart mode",
   dm_title:"Tidal current (Copernicus)", dm_arrows:"Copernicus arrows (sharp)", dm_own:"Own arrows (smooth)", dm_particles:"Particle animation", dm_color:"Colour layer (speed)", cur_now:"Now",
   dm_depth:"Depth (EMODnet)", ds_off:"Off", ds_fill:"Shaded — shallows coloured", ds_std:"Standard — 2 / 5 / 10 / 20 m", ds_shal:"Shallow — 1 / 2 / 3 / 5 m", ds_1:"Fine lines — every 1 m (1–10 m)", ds_5:"Fine lines — every 5 m (5–30 m)", ds_note:"EMODnet · rel. to chart datum (LAT) · not for navigation",
 };
