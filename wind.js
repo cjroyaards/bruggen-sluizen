@@ -4,7 +4,7 @@
 (function () {
   'use strict';
   const GRID = { lat0: 49.0, dLat: 0.4, nLat: 14, lon0: -2.4, dLon: 0.5, nLon: 18 };
-  const NHOURS = 72, PLAY_HPS = 0.9;
+  const NHOURS = 168, PLAY_HPS = 1.4;
   // Beaufort-kleuren (knopen)
   const RAMP = [[0,'#cfe8ff'],[1,'#a9d9f0'],[4,'#8fd0a8'],[7,'#78c46b'],[11,'#c3dd4e'],
     [17,'#f2d43d'],[22,'#f6a63c'],[28,'#ee6f3a'],[34,'#e0463f'],[41,'#cf3670'],[48,'#9b4bb0'],[56,'#6d3b9e']];
@@ -24,7 +24,7 @@
     attempt=attempt||0;
     const url='https://api.open-meteo.com/v1/forecast?latitude='+ch.map(p=>p[0]).join(',')
       +'&longitude='+ch.map(p=>p[1]).join(',')
-      +'&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&forecast_days=3'
+      +'&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&forecast_days=7'
       +'&wind_speed_unit=kn&timeformat=unixtime&timezone=GMT';
     try{
       const r=await fetch(url,{cache:'no-store'});

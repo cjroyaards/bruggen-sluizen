@@ -4,7 +4,7 @@
 (function () {
   'use strict';
   const GRID = { lat0: 50.0, dLat: 0.4, nLat: 28, lon0: -4.0, dLon: 0.6, nLon: 23 };
-  const NHOURS = 72, PLAY_HPS = 0.9;
+  const NHOURS = 168, PLAY_HPS = 1.4;
   const CMEMS_LAYER = 'NWSHELF_ANALYSISFORECAST_PHY_004_013/cmems_mod_nws_phy-cur_anfc_1.5km-2D_PT1H-i_202511/sea_water_velocity';
   const WMTS = 'https://wmts.marine.copernicus.eu/teroWmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0'
     + '&LAYER=' + encodeURIComponent(CMEMS_LAYER)
@@ -81,7 +81,7 @@
     attempt = attempt || 0;
     const url = 'https://marine-api.open-meteo.com/v1/marine?latitude=' + ch.map(p => p[0]).join(',')
       + '&longitude=' + ch.map(p => p[1]).join(',')
-      + '&hourly=ocean_current_velocity,ocean_current_direction&forecast_days=3&cell_selection=sea&timeformat=unixtime&timezone=GMT';
+      + '&hourly=ocean_current_velocity,ocean_current_direction&forecast_days=7&cell_selection=sea&timeformat=unixtime&timezone=GMT';
     try {
       const r = await fetch(url, { cache: 'no-store' });
       if ((r.status === 429 || r.status >= 500) && attempt < 4) { await sleep(700 * (attempt + 1)); return fetchChunk(ch, attempt + 1); }

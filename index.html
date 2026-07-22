@@ -337,7 +337,6 @@ footer a{color:var(--brand-dim);text-decoration:underline}
           <label><input type="checkbox" id="obj-bedien" checked> <span data-i18n="o_bedien">Bedienbaar</span></label>
           <label><input type="checkbox" id="obj-vast" checked> <span data-i18n="o_vast">Niet bedienbaar</span></label>
           <label><input type="checkbox" id="obj-strem"> <span data-i18n="o_strem">Stremmingen</span></label>
-          <label><input type="checkbox" id="obj-harb" checked> <span data-i18n="o_harb">Kusthavens (UK/BE)</span></label>
         </div>
       </div>
       <div class="dropwrap">
@@ -365,6 +364,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
           <label style="font-weight:700"><input type="radio" name="kmode" value="zee" id="k-zeekaart"> <span data-i18n="k_zeekaart">Zeekaartmodus</span></label>
           <div class="dm-note" data-i18n="k_zeekaart_note">Gladde dieptevlakken (NL, UK-oostkust, Kanaal, België, Duitse Bocht) + kustlijn & dieptelijnen + OpenSeaMap.</div>
           <label><input type="checkbox" id="k-vts"> <span data-i18n="k_vts">VTS-sectoren</span></label>
+          <label><input type="checkbox" id="obj-harb" checked> <span data-i18n="o_harb">Havens</span></label>
           <div class="dm-t" data-i18n="dm_depth">Diepte (EMODnet)</div>
           <label><input type="checkbox" id="d-per1"> <span data-i18n="ds_1">Fijne lijnen — per 1 m (1–10 m)</span></label>
           <label><input type="checkbox" id="d-per5"> <span data-i18n="ds_5">Fijne lijnen — per 5 m (5–30 m)</span></label>
@@ -401,9 +401,11 @@ footer a{color:var(--brand-dim);text-decoration:underline}
     <div id="curbar" hidden>
       <button id="cur-play" title="Afspelen">▶</button>
       <button id="cur-now" data-i18n="cur_now">Nu</button>
+      <button id="cur-prevd" class="step" title="-1 dag" aria-label="-1 dag">-1d</button>
       <button id="cur-prev" class="step" title="-1 uur" aria-label="-1 uur">−1u</button>
-      <input type="range" id="cur-slider" min="0" max="71" step="0.04" value="0">
+      <input type="range" id="cur-slider" min="0" max="167" step="0.04" value="0">
       <button id="cur-next" class="step" title="+1 uur" aria-label="+1 uur">+1u</button>
+      <button id="cur-nextd" class="step" title="+1 dag" aria-label="+1 dag">+1d</button>
       <span id="cur-label">—</span>
     </div>
     <div id="maplegend" hidden></div>
@@ -1546,6 +1548,8 @@ function initCurrents(){
   const stepBy = h => { const base = Currents.anyOn()?Currents.getTFloat():Wind.getTFloat(); bothTime(Math.max(0, Math.min(Currents.NHOURS-1, Math.round(base)+h))); };
   $("#cur-prev").addEventListener("click", ()=>stepBy(-1));
   $("#cur-next").addEventListener("click", ()=>stepBy(1));
+  $("#cur-prevd").addEventListener("click", ()=>stepBy(-24));
+  $("#cur-nextd").addEventListener("click", ()=>stepBy(24));
   $("#cur-play").addEventListener("click", ()=>{ const p=!isPlaying(); Currents.setPlaying(p); Wind.setPlaying(p); $("#cur-play").textContent = p?"❚❚":"▶"; });
   // klik op zee → stroom- en/of wind-info (met doorklik naar detailpaneel)
   map.on("click", e=>{
@@ -2243,7 +2247,7 @@ window.updateLegend = updateLegend;
 const STATIC_EN = {
   tab_kaart:"Map", tab_fav:"Favourites", tab_strem:"Closures",
   mb_locate:"Follow me", mb_plotter:"Plotter", pl_wp:"WP: tap the map", pl_clearwp:"clear WP",
-  mb_objs:"Bridges & locks", dm_objs:"On the map", o_bedien:"Operable", o_vast:"Non-operable", o_strem:"Closures", o_harb:"Coastal harbours (UK/BE)",
+  mb_objs:"Bridges & locks", dm_objs:"On the map", o_bedien:"Operable", o_vast:"Non-operable", o_strem:"Closures", o_harb:"Harbours",
   mb_tide:"Tide, current & wind", dm_tide:"Tide", t_stations:"Tide stations",
   dm_wind:"Wind (Open-Meteo, GFS/ICON)", w_arrows:"Wind arrows (Beaufort)", w_part:"Wind particles", w_color:"Wind colour (speed)",
   mb_kaart:"Map", dm_layers:"Separate layers", k_sea:"Sea chart (OpenSeaMap)", k_vts:"VTS sectors",
