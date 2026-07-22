@@ -2109,10 +2109,10 @@ function setZeeChart(on){
     baseLight.addTo(map);
     // Gladde EMODnet-dieptevlakken (NL + UK-oostkust + Kanaal + België): licht gekleurde dieptezones
     if (encDepthGeo) drawSmoothDepth(encDepthGeo);
-    else fetch("data/depth_smooth.geojson?v=20260722e", {cache:"reload"}).then(r=>r.json()).then(gj=>{ encDepthGeo=gj; if(zeechartView) drawSmoothDepth(gj); }).catch(()=>{});
+    else fetch("data/depth_smooth.geojson?v=20260722f", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{ encDepthGeo=gj; if(zeechartView) drawSmoothDepth(gj); }).catch(()=>{});
     // Proef buitenland (EU-RIS-route): Duitse Rijn als waterlint uit de WSV Inland ENC (ELWIS, vrij gebruik)
     if (!window.deWaterLayer){
-      fetch("data/de_water.geojson?v=20260722", {cache:"reload"}).then(r=>r.json()).then(gj=>{
+      fetch("data/de_water.geojson?v=20260722b", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{
         window.deWaterLayer = L.geoJSON(gj, { pane:"depthPane", interactive:false,
           style:{ stroke:true, color:"#5a7a96", weight:0.7, opacity:0.85, fill:true, fillColor:"#aacfe8", fillOpacity:0.9 } });
         if (zeechartView) window.deWaterLayer.addTo(map);
@@ -2120,10 +2120,10 @@ function setZeeChart(on){
     } else window.deWaterLayer.addTo(map);
     // Eigen kustlijn (COALNE) — bron: RWS Inland ENC (CC-0)
     if (coastGeo) drawCoast(coastGeo);
-    else fetch("data/coast.geojson?v=20260722c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ coastGeo=gj; if(zeechartView) drawCoast(gj); }).catch(()=>{});
+    else fetch("data/coast.geojson?v=20260722d", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{ coastGeo=gj; if(zeechartView) drawCoast(gj); }).catch(()=>{});
     // Eigen dieptelijnen (DEPCNT) met nadruk op de 2 m-lijn — heel NL, zelf-gehost, offline
     if (depthLineGeo) drawDepthLines(depthLineGeo);
-    else fetch("data/depth_lines.geojson?v=20260722", {cache:"reload"}).then(r=>r.json()).then(gj=>{ depthLineGeo=gj; if(zeechartView) drawDepthLines(gj); }).catch(()=>{});
+    else fetch("data/depth_lines.geojson?v=20260722b", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{ depthLineGeo=gj; if(zeechartView) drawDepthLines(gj); }).catch(()=>{});
     if (!seaChartLayer) seaChartLayer = L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",
       { maxZoom:18, pane:"seaPane", attribution:'© OpenSeaMap' });
     seaChartLayer.addTo(map);
@@ -2209,7 +2209,7 @@ function updateDepthLines(){
   const levels = depthLevelsWanted();
   if (levels){
     if (depthGeo) drawDepth(depthGeo, levels);
-    else fetch("data/depth.geojson?v=20260721c", {cache:"reload"}).then(r=>r.json()).then(gj=>{ depthGeo=gj; const lv=depthLevelsWanted(); if(lv){ if(depthLayer){map.removeLayer(depthLayer);depthLayer=null;} drawDepth(gj, lv); updateKaartBtn(); updateLegend(); } }).catch(()=>{});
+    else fetch("data/depth.geojson?v=20260721c", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{ depthGeo=gj; const lv=depthLevelsWanted(); if(lv){ if(depthLayer){map.removeLayer(depthLayer);depthLayer=null;} drawDepth(gj, lv); updateKaartBtn(); updateLegend(); } }).catch(()=>{});
   }
   updateKaartBtn(); updateLegend();
 }
