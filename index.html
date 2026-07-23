@@ -300,10 +300,28 @@ header{position:sticky}
   #curbar .step{padding:8px 11px;font-size:14px}
 }
 #cur-label{font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;min-width:210px;text-align:right;color:var(--ink)}
-@media (max-width:600px){
-  #curbar{flex-wrap:wrap;justify-content:center;gap:7px 8px}
-  #cur-label{min-width:0;font-size:13px;flex-basis:100%;text-align:center;order:5}
-  #curbar input[type=range]{width:44vw}
+@media (max-width:640px), (max-height:500px) and (orientation:landscape) and (pointer:coarse){
+  /* telefoon: nette rijen — ▶ Nu +1d +1u / slider / −1d −1u / label */
+  #curbar{flex-wrap:wrap;justify-content:center;gap:6px 8px;padding:8px 10px;left:10px;right:10px;transform:none;width:auto;max-width:none}
+  #curbar button{padding:6px 9px;font-size:13.5px}
+  #curbar .step{min-width:30px;padding:6px 9px;font-size:13.5px}
+  #cur-play{min-width:36px}
+  #cur-nextd{order:1} #cur-next{order:2}
+  #cur-slider{order:3;flex-basis:100%;width:auto !important}
+  #cur-prevd{order:4} #cur-prev{order:4}
+  #cur-label{min-width:0;font-size:13px;flex-basis:100%;text-align:center;order:6}
+}
+@media (max-width:640px), (max-height:500px) and (orientation:landscape) and (pointer:coarse){
+  /* telefoon: info-tab leesbaar en zonder horizontaal uitschieten */
+  body{overflow-x:hidden}
+  #v-info{max-width:100vw;overflow-x:hidden}
+  #v-info .kv{grid-template-columns:1fr;gap:2px 0}
+  #v-info .kv .k{margin-top:10px;font-weight:750;color:var(--ink)}
+  #v-info code{word-break:break-all}
+  #v-info .ntbl, #v-info .ntbl tbody{display:block}
+  #v-info .ntbl tr{display:block;border:1px solid var(--grid);border-radius:9px;margin:9px 0;overflow:hidden}
+  #v-info .ntbl td{display:block;border:none;white-space:normal}
+  #v-info .ntbl td:first-child{background:var(--tchip-bg);font-size:13.5px;padding:6px 9px}
 }
 .strem-pin{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;line-height:1}
 .strem-pin.crit{background:var(--critical)} .strem-pin.ser{background:var(--serious)}
@@ -578,7 +596,7 @@ header{position:sticky}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-34</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-35</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
