@@ -512,9 +512,9 @@ html.napp header input{touch-action:manipulation}
         <input id="pl-nmurl" placeholder="ws://ip:3000/signalk/v1/stream" autocomplete="off" style="max-width:220px">
         <div class="pl-row" style="margin-top:6px"><button id="pl-nmconn">verbind</button></div>
         <div id="pl-nmstat" style="font-size:10px;color:var(--muted);margin-top:4px;max-width:220px;word-break:break-word"></div>
-        <label style="display:block;font-size:12px;margin-top:6px"><input type="checkbox" id="pl-ais" checked> AIS-doelen tonen</label>
-        <label style="display:block;font-size:12px"><input type="checkbox" id="pl-cpa"> CPA intekenen + waarschuwing (rood bij &lt;0,5 nm/30 min)</label>
-        <label style="display:block;font-size:12px"><input type="checkbox" id="pl-aisvec"> Koersvector bij AIS-doelen (6 min)</label>
+        <label style="display:flex;align-items:center;gap:7px;font-size:12px;margin-top:6px"><input type="checkbox" id="pl-ais" checked style="width:auto;margin:0;flex:none"> AIS-doelen tonen</label>
+        <label style="display:flex;align-items:center;gap:7px;font-size:12px;margin-top:4px"><input type="checkbox" id="pl-cpa" style="width:auto;margin:0;flex:none"> CPA intekenen + waarschuwing (rood bij &lt;0,5 nm/30 min)</label>
+        <label style="display:flex;align-items:center;gap:7px;font-size:12px;margin-top:4px"><input type="checkbox" id="pl-aisvec" style="width:auto;margin:0;flex:none"> Koersvector bij AIS-doelen (6 min)</label>
       </div>
       </div>
       <div style="font-size:9.5px;color:var(--muted);margin-top:7px;line-height:1.3" data-i18n="pl_disc">Indicatief — kaart niet voor navigatiedoeleinden.</div>
@@ -614,7 +614,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-51</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-52</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
