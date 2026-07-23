@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>OpenPilot — open vaarkaart: bedieningstijden bruggen &amp; sluizen, getij, stroming, wind en zeekaart</title>
@@ -71,7 +71,7 @@ html{scrollbar-gutter:stable}
 body{margin:0;background:var(--page);color:var(--ink);font:15px/1.5 -apple-system,system-ui,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;display:flex;flex-direction:column}
 svg.ic{width:15px;height:15px;flex:none;vertical-align:-2px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 /* ---- header ---- */
-header{position:sticky;top:0;z-index:1001;background:var(--brand);color:var(--brand-ink)}
+header{position:sticky;top:0;z-index:1001;background:var(--brand);color:var(--brand-ink);padding-top:env(safe-area-inset-top,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
 .h-top{display:flex;align-items:center;gap:14px;padding:13px 18px 2px;flex-wrap:wrap}
 .wordmark{font-size:16px;font-weight:750;letter-spacing:.14em;text-transform:uppercase}
 .wordmark .amp{color:#6fa8dc;font-weight:400;padding:0 1px}
@@ -304,7 +304,7 @@ header{position:sticky}
 #cur-label{font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;min-width:210px;text-align:right;color:var(--ink)}
 @media (max-width:640px), (max-height:500px) and (orientation:landscape) and (pointer:coarse){
   /* telefoon: nette rijen — ▶ Nu +1d +1u / slider / −1d −1u / label */
-  #curbar{flex-wrap:wrap;justify-content:center;gap:6px 8px;padding:8px 10px;left:10px;right:10px;transform:none;width:auto;max-width:none}
+  #curbar{flex-wrap:wrap;justify-content:center;gap:6px 8px;padding:8px 10px;left:10px;right:10px;transform:none;width:auto;max-width:none;bottom:calc(16px + env(safe-area-inset-bottom,0px))}
   #curbar button{padding:6px 9px;font-size:13.5px}
   #curbar .step{min-width:30px;padding:6px 9px;font-size:13.5px}
   #cur-play{min-width:36px}
@@ -601,7 +601,7 @@ header{position:sticky}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-39</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-40</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
