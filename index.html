@@ -312,6 +312,9 @@ header{position:sticky}
   #cur-label{min-width:0;font-size:13px;flex-basis:100%;text-align:center;order:6}
 }
 @media (max-width:640px), (max-height:500px) and (orientation:landscape) and (pointer:coarse){
+  /* telefoon: geen +/− zoomknoppen (knijpen werkt) en geen dubbeltik-zoom op de app zelf */
+  .leaflet-control-zoom{display:none}
+  *{touch-action:manipulation}
   /* telefoon: info-tab leesbaar en zonder horizontaal uitschieten */
   body{overflow-x:hidden}
   #v-info{max-width:100vw;overflow-x:hidden}
@@ -596,7 +599,7 @@ header{position:sticky}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-35</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-36</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
