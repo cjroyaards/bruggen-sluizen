@@ -610,7 +610,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-47</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-48</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -2008,6 +2008,11 @@ function toggleLocate(){
   }
   if (!navigator.geolocation){ alert("Geolocatie niet beschikbaar in deze browser."); return; }
   btn.classList.add("on");
+  const fx=plFixes[plFixes.length-1];
+  if (fx && nmea.last && Date.now()-nmea.last<6000){   // NMEA actief → direct springen
+    meMarker = L.circleMarker([fx.lat,fx.lon], {radius:9, color:"#fff", weight:3, fillColor:"#2a78d6", fillOpacity:1}).addTo(map);
+    map.setView([fx.lat,fx.lon], Math.max(map.getZoom(),13));
+  }
   watchId = navigator.geolocation.watchPosition(pos=>{
     if (nmea.last && Date.now()-nmea.last<6000) return;   // NMEA levert de positie (zie nmeaFeed)
     const ll = [pos.coords.latitude, pos.coords.longitude];
@@ -2184,7 +2189,8 @@ function nmeaFeed(o){
     if (!plBoat){ plBoat=L.circleMarker([o.lat,o.lon],{radius:8,color:"#fff",weight:2.5,fillColor:"#0e7a5f",fillOpacity:1}).addTo(map); map.setView([o.lat,o.lon],14); }
     else plBoat.setLatLng([o.lat,o.lon]);
     if (watchId!=null){   // "volg mij" actief → NMEA-positie volgen
-      if (meMarker) meMarker.setLatLng([o.lat,o.lon]);
+      if (!meMarker) meMarker = L.circleMarker([o.lat,o.lon], {radius:9, color:"#fff", weight:3, fillColor:"#2a78d6", fillOpacity:1}).addTo(map);
+      meMarker.setLatLng([o.lat,o.lon]);
       map.panTo([o.lat,o.lon],{animate:false});
     }
   }
