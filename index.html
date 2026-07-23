@@ -608,7 +608,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-44</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-45</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -2236,6 +2236,10 @@ function nmeaConnect(){
   const input=($("#pl-nmurl").value||"").trim(), st=$("#pl-nmstat");
   if (nmea.ws || nmea.natOn){ try{if(nmea.ws)nmea.ws.close();}catch(e){} nmea.ws=null; nmea.tryList=null; nmea.natList=null; nmeaNativeStop(); $("#pl-nmconn").textContent="verbind"; st.textContent="verbroken"; const el=$("#pl-src"); if(el) el.textContent="bron: GPS"; return; }
   if (!input){ st.textContent="vul een adres of IP in"; return; }
+  if (document.documentElement.classList.contains("napp") && !nmeaNativePlugin()){
+    st.textContent="De app-versie mist de NMEA-module: controleer in Xcode dat NmeaPlugin.swift en NmeaPlugin.m onder Build Phases \u2192 Compile Sources staan, en bouw opnieuw.";
+    return;
+  }
   if (location.protocol==="https:" && !/^wss:\/\//.test(input) && !nmeaNativePlugin()){
     if (/github\.io$/.test(location.hostname)){
       st.textContent="https blokkeert ws://, en github.io kent geen http-versie. Dit gaat werken zodra de site op een eigen domein draait (met http toegestaan) — of gebruik een wss://-bron.";
