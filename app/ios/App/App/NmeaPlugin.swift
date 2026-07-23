@@ -5,7 +5,13 @@ import Network
 /* OpenPilot NMEA: rauwe TCP/UDP-ontvangst die de browser niet kan.
    Eenmalig in Xcode: sleep NmeaPlugin.swift + NmeaPlugin.m in de map "App" (add to target App). */
 @objc(NmeaPlugin)
-public class NmeaPlugin: CAPPlugin {
+public class NmeaPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "NmeaPlugin"
+    public let jsName = "Nmea"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "connect", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "disconnect", returnType: CAPPluginReturnPromise)
+    ]
     var conn: NWConnection?
     var listener: NWListener?
     var buf = Data()
