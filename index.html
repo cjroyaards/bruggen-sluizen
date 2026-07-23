@@ -70,6 +70,7 @@
 html{scrollbar-gutter:stable}
 body{margin:0;background:var(--page);color:var(--ink);font:15px/1.5 -apple-system,system-ui,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;display:flex;flex-direction:column}
 svg.ic{width:15px;height:15px;flex:none;vertical-align:-2px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+html,body{overscroll-behavior:none}
 /* ---- header ---- */
 header{position:sticky;top:0;z-index:1001;background:var(--brand);color:var(--brand-ink);padding-top:env(safe-area-inset-top,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
 .h-top{display:flex;align-items:center;gap:14px;padding:13px 18px 2px;flex-wrap:wrap}
@@ -257,6 +258,8 @@ header{position:sticky}
   #hd-more{display:flex}
   .h-top{padding:11px 14px 11px}   /* iets meer donker onder de knoppen: ⋮ en 🔍 vallen netjes ín de balk */
 }
+#plotter,#windbox{touch-action:none}
+#plotter input,#plotter button,#windbox button{touch-action:manipulation}
 #plotter[hidden]{display:none}
 #plotter .pl-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 14px}
 #plotter .pl-grid>div{display:flex;flex-direction:column}
@@ -601,7 +604,7 @@ header{position:sticky}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-40</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-41</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -2390,6 +2393,10 @@ function plApplySheet(collapsed){
   localStorage.setItem("pl_sheet", collapsed ? "1" : "0");
   setTimeout(positionWindbox, 30);
 }
+document.addEventListener("touchmove", e=>{
+  const p=e.target.closest("#plotter,#windbox");
+  if (p && !e.target.closest("input")) e.preventDefault();
+}, {passive:false});
 $("#pl-toggle").onclick = ()=> plApplySheet(!$("#plotter").classList.contains("sheet-collapsed"));
 plApplySheet(localStorage.getItem("pl_sheet")==="1");
 /* windvenster: zelfde breedte, direct onder het plotterpaneel */
