@@ -261,6 +261,8 @@ header{position:sticky}
   .h-top{padding:11px 14px 11px}   /* iets meer donker onder de knoppen: ⋮ en 🔍 vallen netjes ín de balk */
 }
 #plotter,#windbox{touch-action:none}
+html.napp header{touch-action:none}
+html.napp header input{touch-action:manipulation}
 #plotter input,#plotter button,#windbox button{touch-action:manipulation}
 #plotter[hidden]{display:none}
 #plotter .pl-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 14px}
@@ -606,7 +608,7 @@ header{position:sticky}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-42</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-43</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -2397,7 +2399,8 @@ function plApplySheet(collapsed){
   setTimeout(positionWindbox, 30);
 }
 document.addEventListener("touchmove", e=>{
-  const p=e.target.closest("#plotter,#windbox");
+  const inApp = document.documentElement.classList.contains("napp");
+  const p = e.target.closest("#plotter,#windbox") || (inApp && e.target.closest("header") && !e.target.closest("#hd-menu"));
   if (p && !e.target.closest("input")) e.preventDefault();
 }, {passive:false});
 $("#pl-toggle").onclick = ()=> plApplySheet(!$("#plotter").classList.contains("sheet-collapsed"));
