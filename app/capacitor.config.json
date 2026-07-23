@@ -1,0 +1,10 @@
+{
+  "appId": "nl.openpilot.app",
+  "appName": "OpenPilot",
+  "webDir": "www",
+  "server": {
+    "url": "https://cjroyaards.github.io/bruggen-sluizen/",
+    "allowNavigation": ["cjroyaards.github.io"]
+  },
+  "ios": { "contentInset": "automatic" }
+}

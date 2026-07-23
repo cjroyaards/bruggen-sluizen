@@ -601,7 +601,7 @@ header{position:sticky}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-38</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-39</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -2180,11 +2180,55 @@ function nmeaCandidates(input){
   // volgorde: YDWG Web Gauges (/ws) · iKommunicate/SignalK op poort 80 · kale host · SignalK-server (:3000)
   return [host+"/ws", host+"/signalk/v1/stream", host, bare+":3000/signalk/v1/stream"];
 }
+/* ---- native app (Capacitor): rauw TCP/UDP via de ingebouwde Nmea-plugin ---- */
+function nmeaNativePlugin(){ try{ return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Nmea) || null; }catch(e){ return null; } }
+function nmeaNativeStop(){
+  const N=nmeaNativePlugin(); if(!N) return;
+  try{ N.disconnect(); }catch(e){}
+  if (nmea.natL){ try{ nmea.natL.remove(); }catch(e){} nmea.natL=null; }
+  if (nmea.natS){ try{ nmea.natS.remove(); }catch(e){} nmea.natS=null; }
+  nmea.natOn=false;
+}
+function nmeaNativeList(input){
+  // tcp://ip[:poort] | udp://poort | kaal IP -> tcp 10110, tcp 2000, udp 10110
+  let m=input.match(/^tcp:\/\/([^:\/]+):?(\d+)?$/i);
+  if (m) return [{mode:"tcp",host:m[1],port:+(m[2]||10110),label:"tcp://"+m[1]+":"+(m[2]||10110)}];
+  m=input.match(/^udp:\/\/:?(\d+)$/i);
+  if (m) return [{mode:"udp",port:+m[1],label:"udp-poort "+m[1]}];
+  if (/^wss?:/i.test(input) || input.indexOf("/")>=0) return [];
+  m=input.match(/^([0-9a-z.\-]+?)(?::(\d+))?$/i);
+  if (!m) return [];
+  if (m[2]) return [{mode:"tcp",host:m[1],port:+m[2],label:"tcp://"+m[1]+":"+m[2]}];
+  return [
+    {mode:"tcp",host:m[1],port:10110,label:"tcp://"+m[1]+":10110"},
+    {mode:"tcp",host:m[1],port:2000,label:"tcp://"+m[1]+":2000"},
+    {mode:"udp",port:10110,label:"udp-poort 10110"}
+  ];
+}
+function nmeaNativeNext(st){
+  nmeaNativeStop();
+  const spec = nmea.natList && nmea.natList.shift();
+  if (!spec){ nmeaTryNext(st); return; }   // native lijst op -> WebSocket-kandidaten proberen
+  const N=nmeaNativePlugin();
+  st.textContent="proberen: "+spec.label+" \u2026";
+  nmea.natOn=true; $("#pl-nmconn").textContent="verbreek";
+  let opened=false;
+  const giveUp=setTimeout(()=>{ if(!opened) nmeaNativeNext(st); }, 4000);
+  Promise.all([
+    N.addListener("line", d=>{ if(!opened){ opened=true; clearTimeout(giveUp); st.textContent="verbonden \u2713 "+spec.label; localStorage.setItem("nmea_url", $("#pl-nmurl").value.trim()); } if(d&&d.l) nmeaSentence(d.l); }),
+    N.addListener("state", d=>{
+      if (!d) return;
+      if (d.state!=="open" && !opened){ clearTimeout(giveUp); nmeaNativeNext(st); }
+      else if (d.state!=="open" && opened){ st.textContent="verbroken"; nmeaNativeStop(); $("#pl-nmconn").textContent="verbind"; const el=$("#pl-src"); if(el) el.textContent="bron: GPS"; }
+    })
+  ]).then(ls=>{ nmea.natL=ls[0]; nmea.natS=ls[1]; });
+  Promise.resolve(N.connect({mode:spec.mode, host:spec.host||"", port:spec.port})).catch(()=>{ clearTimeout(giveUp); nmeaNativeNext(st); });
+}
 function nmeaConnect(){
   const input=($("#pl-nmurl").value||"").trim(), st=$("#pl-nmstat");
-  if (nmea.ws){ try{nmea.ws.close();}catch(e){} nmea.ws=null; nmea.tryList=null; $("#pl-nmconn").textContent="verbind"; st.textContent="verbroken"; const el=$("#pl-src"); if(el) el.textContent="bron: GPS"; return; }
+  if (nmea.ws || nmea.natOn){ try{if(nmea.ws)nmea.ws.close();}catch(e){} nmea.ws=null; nmea.tryList=null; nmea.natList=null; nmeaNativeStop(); $("#pl-nmconn").textContent="verbind"; st.textContent="verbroken"; const el=$("#pl-src"); if(el) el.textContent="bron: GPS"; return; }
   if (!input){ st.textContent="vul een adres of IP in"; return; }
-  if (location.protocol==="https:" && !/^wss:\/\//.test(input)){
+  if (location.protocol==="https:" && !/^wss:\/\//.test(input) && !nmeaNativePlugin()){
     if (/github\.io$/.test(location.hostname)){
       st.textContent="https blokkeert ws://, en github.io kent geen http-versie. Dit gaat werken zodra de site op een eigen domein draait (met http toegestaan) — of gebruik een wss://-bron.";
     } else {
@@ -2195,6 +2239,10 @@ function nmeaConnect(){
   }
   localStorage.setItem("nmea_url", input);
   nmea.tryList = nmeaCandidates(input);
+  if (nmeaNativePlugin()){
+    nmea.natList = nmeaNativeList(input);
+    if (nmea.natList.length){ nmeaNativeNext(st); return; }
+  }
   nmeaTryNext(st);
 }
 function nmeaTryNext(st){
@@ -2231,6 +2279,7 @@ function togglePlotter(){
     const wb=$("#windbox"); if (wb) wb.hidden=true;
     if (plWatch!=null){ navigator.geolocation.clearWatch(plWatch); plWatch=null; }
     if (nmea.ws){ try{nmea.ws.close();}catch(e){} nmea.ws=null; }
+    nmeaNativeStop();
     if (plBoat){ map.removeLayer(plBoat); plBoat=null; }
     plClearWp(); plFixes=[]; window.plotterArmWp=false;
     return;

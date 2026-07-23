@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">OpenPilot</string>
+    <string name="title_activity_main">OpenPilot</string>
+    <string name="package_name">nl.openpilot.app</string>
+    <string name="custom_url_scheme">nl.openpilot.app</string>
+</resources>
