@@ -507,9 +507,9 @@ html.napp header input{touch-action:manipulation}
         <span id="pl-src" style="font-size:10px;color:var(--muted);align-self:center">bron: GPS</span>
       </div>
       <div id="pl-nmeacfg" hidden style="margin-top:7px">
-        <input id="pl-nmurl" placeholder="ws://ip:3000/signalk/v1/stream" autocomplete="off">
+        <input id="pl-nmurl" placeholder="ws://ip:3000/signalk/v1/stream" autocomplete="off" style="max-width:220px">
         <div class="pl-row" style="margin-top:6px"><button id="pl-nmconn">verbind</button></div>
-        <div id="pl-nmstat" style="font-size:10px;color:var(--muted);margin-top:4px"></div>
+        <div id="pl-nmstat" style="font-size:10px;color:var(--muted);margin-top:4px;max-width:220px;word-break:break-word"></div>
         <label style="display:block;font-size:12px;margin-top:6px"><input type="checkbox" id="pl-ais" checked> AIS-doelen tonen</label>
         <label style="display:block;font-size:12px"><input type="checkbox" id="pl-cpa"> CPA-waarschuwing (rood bij &lt;0,5 nm binnen 30 min)</label>
       </div>
@@ -610,7 +610,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-48</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-49</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -2314,7 +2314,7 @@ function nmeaConnect(){
     st.textContent="De app-versie mist de NMEA-module: controleer in Xcode dat NmeaPlugin.swift en NmeaPlugin.m onder Build Phases \u2192 Compile Sources staan, en bouw opnieuw.";
     return;
   }
-  if (location.protocol==="https:" && !/^wss:\/\//.test(input) && !nmeaNativePlugin()){
+  if (location.protocol==="https:" && !/^wss:\/\//.test(input) && !/^(ws:\/\/)?(localhost|127\.0\.0\.1)([:\/]|$)/i.test(input) && !nmeaNativePlugin()){
     if (/github\.io$/.test(location.hostname)){
       st.textContent="https blokkeert ws://, en github.io kent geen http-versie. Dit gaat werken zodra de site op een eigen domein draait (met http toegestaan) — of gebruik een wss://-bron.";
     } else {
