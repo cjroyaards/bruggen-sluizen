@@ -495,15 +495,17 @@ html.napp header input{touch-action:manipulation}
         <div><span class="pl-v" id="pl-btw">–</span><span class="pl-l">BTW °</span></div>
         <div><span class="pl-v" id="pl-ttw">–</span><span class="pl-l">TTW</span></div>
       </div>
+      <button id="pl-close" style="position:absolute;top:6px;right:9px;background:none;border:none;font-size:15px;color:var(--muted);cursor:pointer;padding:2px 4px">✕</button>
       <div class="pl-row">
         <button id="pl-wp" data-i18n="pl_wp">WP: tik op de kaart</button>
         <button id="pl-clearwp" data-i18n="pl_clearwp">wis WP</button>
-        <button id="pl-close">✕</button>
+        <button id="pl-windbtn" title="windvenster">wind</button>
+        <button id="pl-set" title="instellingen">⚙</button>
       </div>
-      <div class="pl-row">
+      <div id="pl-settings" hidden>
+      <div class="pl-row" style="margin-top:6px">
         <button id="pl-nmea">NMEA</button>
         <button id="pl-layout" title="wissel layout 3×2 / 2×2 / 1×2">⊞ 3×2</button>
-        <button id="pl-windbtn" title="windvenster">wind</button>
         <span id="pl-src" style="font-size:10px;color:var(--muted);align-self:center">bron: GPS</span>
       </div>
       <div id="pl-nmeacfg" hidden style="margin-top:7px">
@@ -511,7 +513,9 @@ html.napp header input{touch-action:manipulation}
         <div class="pl-row" style="margin-top:6px"><button id="pl-nmconn">verbind</button></div>
         <div id="pl-nmstat" style="font-size:10px;color:var(--muted);margin-top:4px;max-width:220px;word-break:break-word"></div>
         <label style="display:block;font-size:12px;margin-top:6px"><input type="checkbox" id="pl-ais" checked> AIS-doelen tonen</label>
-        <label style="display:block;font-size:12px"><input type="checkbox" id="pl-cpa"> CPA-waarschuwing (rood bij &lt;0,5 nm binnen 30 min)</label>
+        <label style="display:block;font-size:12px"><input type="checkbox" id="pl-cpa"> CPA intekenen + waarschuwing (rood bij &lt;0,5 nm/30 min)</label>
+        <label style="display:block;font-size:12px"><input type="checkbox" id="pl-aisvec"> Koersvector bij AIS-doelen (6 min)</label>
+      </div>
       </div>
       <div style="font-size:9.5px;color:var(--muted);margin-top:7px;line-height:1.3" data-i18n="pl_disc">Indicatief — kaart niet voor navigatiedoeleinden.</div>
       </div>
@@ -610,7 +614,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-49</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-50</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -2141,6 +2145,14 @@ function aisDraw(t){
     +(c?`<br>CPA ${c.cpa.toFixed(2)} nm · TCPA ${c.tcpa>0?Math.round(c.tcpa)+" min":"—"}`:"");
   if(!t.m){ t.m=L.marker([t.lat,t.lon],{icon:aisIcon(t,danger)}).addTo(AIS.layer); t.m.bindPopup(pop); }
   else { t.m.setLatLng([t.lat,t.lon]); t.m.setIcon(aisIcon(t,danger)); t.m.setPopupContent(pop); }
+  const cosl=Math.cos(t.lat*Math.PI/180);
+  if(t.vl){ AIS.layer.removeLayer(t.vl); t.vl=null; }
+  if(AIS.vec && t.sog>0.2){ const d=t.sog*6/60, e=[t.lat+d/60*Math.cos((t.cog||0)*Math.PI/180), t.lon+d/60*Math.sin((t.cog||0)*Math.PI/180)/cosl];
+    t.vl=L.polyline([[t.lat,t.lon],e],{color:danger?"#c22f2f":"#0e7a5f",weight:1.6,opacity:.85}).addTo(AIS.layer); }
+  if(t.cl){ AIS.layer.removeLayer(t.cl); t.cl=null; }
+  if(AIS.cpa && c && c.tcpa>0 && c.tcpa<60 && t.sog!=null){ const d2=t.sog*c.tcpa/60;
+    const cp=[t.lat+d2/60*Math.cos((t.cog||0)*Math.PI/180), t.lon+d2/60*Math.sin((t.cog||0)*Math.PI/180)/cosl];
+    t.cl=L.polyline([[t.lat,t.lon],cp],{color:danger?"#c22f2f":"#888",weight:1.2,dashArray:"4 5",opacity:.8}).addTo(AIS.layer); }
 }
 function aisPrune(){
   const now=Date.now();
@@ -2454,12 +2466,15 @@ $("#mb-plotter").onclick = ()=>{
 $("#pl-wp").onclick = ()=>{ window.plotterArmWp=!window.plotterArmWp; $("#pl-wp").classList.toggle("arm", window.plotterArmWp); };
 $("#pl-clearwp").onclick = plClearWp;
 $("#pl-close").onclick = togglePlotter;
+$("#pl-set").onclick = ()=>{ const s=$("#pl-settings"); s.hidden=!s.hidden; setTimeout(positionWindbox,30); };
 $("#pl-nmea").onclick = ()=>{ const c=$("#pl-nmeacfg"); c.hidden=!c.hidden; if(!c.hidden && !$("#pl-nmurl").value) $("#pl-nmurl").value = localStorage.getItem("nmea_url")||""; setTimeout(positionWindbox,30); };
 $("#pl-nmconn").onclick = nmeaConnect;
 AIS.on = localStorage.getItem("ais_on")!=="0"; AIS.cpa = localStorage.getItem("ais_cpa")==="1";
 $("#pl-ais").checked=AIS.on; $("#pl-cpa").checked=AIS.cpa;
 $("#pl-ais").onchange = e=> aisSetOn(e.target.checked);
 $("#pl-cpa").onchange = e=>{ AIS.cpa=e.target.checked; localStorage.setItem("ais_cpa",AIS.cpa?"1":"0"); for(const t of AIS.tg.values()) aisDraw(t); };
+AIS.vec = localStorage.getItem("ais_vec")==="1"; $("#pl-aisvec").checked=AIS.vec;
+$("#pl-aisvec").onchange = e=>{ AIS.vec=e.target.checked; localStorage.setItem("ais_vec",AIS.vec?"1":"0"); for(const t of AIS.tg.values()) aisDraw(t); };
 /* layout-wissel 3x2 -> 2x2 -> 1x2 (onthouden) */
 const PL_LAYOUTS=["3","2","1"];
 function plApplyLayout(n){
