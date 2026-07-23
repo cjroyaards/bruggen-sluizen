@@ -158,7 +158,7 @@ a.tel:hover{border-color:var(--accent);text-decoration:none}
 .star.big svg{width:21px;height:21px;vertical-align:-3px}
 /* ---- overlay/panel ---- */
 #ovl{position:fixed;inset:0;background:rgba(9,14,20,.45);z-index:1100;display:none}
-#panel{position:fixed;top:0;right:0;bottom:0;width:min(600px,100%);background:var(--surface);z-index:1101;display:none;overflow-y:auto;border-left:1px solid var(--grid);padding:18px 22px 48px}
+#panel{position:fixed;top:env(safe-area-inset-top,0px);overscroll-behavior:contain;right:0;bottom:0;width:min(600px,100%);background:var(--surface);z-index:1101;display:none;overflow-y:auto;border-left:1px solid var(--grid);padding:18px 22px 48px}
 #panel.open,#ovl.open{display:block}
 .p-close{position:sticky;top:0;float:right;background:var(--surface);border:1px solid var(--grid);border-radius:7px;padding:4px 11px;cursor:pointer;color:var(--ink2);font-size:13px}
 .p-h{font-size:21px;font-weight:700;margin:2px 0 2px;letter-spacing:-.01em}
@@ -510,6 +510,8 @@ html.napp header input{touch-action:manipulation}
         <input id="pl-nmurl" placeholder="ws://ip:3000/signalk/v1/stream" autocomplete="off">
         <div class="pl-row" style="margin-top:6px"><button id="pl-nmconn">verbind</button></div>
         <div id="pl-nmstat" style="font-size:10px;color:var(--muted);margin-top:4px"></div>
+        <label style="display:block;font-size:12px;margin-top:6px"><input type="checkbox" id="pl-ais" checked> AIS-doelen tonen</label>
+        <label style="display:block;font-size:12px"><input type="checkbox" id="pl-cpa"> CPA-waarschuwing (rood bij &lt;0,5 nm binnen 30 min)</label>
       </div>
       <div style="font-size:9.5px;color:var(--muted);margin-top:7px;line-height:1.3" data-i18n="pl_disc">Indicatief — kaart niet voor navigatiedoeleinden.</div>
       </div>
@@ -608,7 +610,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-45</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-46</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -2083,11 +2085,72 @@ function plClearWp(){
   if (plWpLine){ map.removeLayer(plWpLine); plWpLine=null; }
   plUpdate();
 }
+/* ---------- AIS via NMEA (!AIVDM): doelen op de kaart met naam, MMSI en CPA ---------- */
+const AIS={ tg:new Map(), layer:null, parts:{}, on:true, cpa:false, timer:0 };
+function aisBits(payload){ let b=""; for(const ch of payload){ let v=ch.charCodeAt(0)-48; if(v>40)v-=8; b+=v.toString(2).padStart(6,"0"); } return b; }
+function aisInt(b,s,l,signed){ let v=parseInt(b.slice(s,s+l),2); if(signed && b[s]==="1") v-=Math.pow(2,l); return v; }
+function aisStr(b,s,l){ let o=""; for(let i=s;i+6<=s+l;i+=6){ let c=parseInt(b.slice(i,i+6),2); o+=String.fromCharCode(c<32?c+64:c); } return o.replace(/@.*$/,"").trim(); }
+function aisFeed(line){
+  const f=line.split(","); if(f.length<7) return;
+  const total=+f[1], num=+f[2], seq=f[3]||"0";
+  if(total>1){ const k=seq+f[4]; (AIS.parts[k]=AIS.parts[k]||[])[num-1]=f[5];
+    if(AIS.parts[k].filter(Boolean).length<total) return;
+    var payload=AIS.parts[k].join(""); delete AIS.parts[k];
+  } else var payload=f[5];
+  const b=aisBits(payload), type=aisInt(b,0,6), mmsi=aisInt(b,8,30);
+  if(!mmsi) return;
+  let t=AIS.tg.get(mmsi); if(!t){ t={mmsi}; AIS.tg.set(mmsi,t); }
+  t.t=Date.now();
+  if(type>=1&&type<=3){ t.sog=aisInt(b,50,10)/10; t.lon=aisInt(b,61,28,1)/600000; t.lat=aisInt(b,89,27,1)/600000; t.cog=aisInt(b,116,12)/10; }
+  else if(type===18||type===19){ t.sog=aisInt(b,46,10)/10; t.lon=aisInt(b,57,28,1)/600000; t.lat=aisInt(b,85,27,1)/600000; t.cog=aisInt(b,112,12)/10; }
+  else if(type===5){ t.name=aisStr(b,112,120); }
+  else if(type===24){ const pn=aisInt(b,38,2); if(pn===0) t.name=aisStr(b,40,120); }
+  else return;
+  aisDraw(t);
+}
+function aisCpa(t){
+  const own=plFixes[plFixes.length-1]; if(!own||t.sog==null||own.speed==null||own.heading==null) return null;
+  const R=1852, toXY=(la,lo)=>[lo*60*Math.cos(own.lat*Math.PI/180), la*60];
+  const [tx,ty]=toXY(t.lat,t.lon), [ox,oy]=toXY(own.lat,own.lon);
+  const ovx=(own.speed*3600/R)*Math.sin(own.heading*Math.PI/180), ovy=(own.speed*3600/R)*Math.cos(own.heading*Math.PI/180);
+  const tvx=t.sog*Math.sin((t.cog||0)*Math.PI/180), tvy=t.sog*Math.cos((t.cog||0)*Math.PI/180);
+  const dx=tx-ox, dy=ty-oy, dvx=tvx-ovx, dvy=tvy-ovy, dv2=dvx*dvx+dvy*dvy;
+  if(dv2<1e-6) return {cpa:Math.hypot(dx,dy), tcpa:0};
+  const tc=-(dx*dvx+dy*dvy)/dv2;
+  if(tc<0) return {cpa:Math.hypot(dx,dy), tcpa:tc*60};
+  return {cpa:Math.hypot(dx+dvx*tc, dy+dvy*tc), tcpa:tc*60};   // nm, minuten
+}
+function aisIcon(t,danger){
+  const rot=(t.cog||0).toFixed(0), col=danger?"#c22f2f":"#0e7a5f";
+  const nm=t.name?`<div style="font-size:9px;font-weight:700;color:#123;white-space:nowrap;text-shadow:0 0 3px #fff,0 0 3px #fff">${esc(t.name)}</div>`:"";
+  return L.divIcon({className:"",iconSize:[60,30],iconAnchor:[30,10],
+    html:`<div style="text-align:center"><svg width="20" height="20" viewBox="0 0 20 20" style="transform:rotate(${rot}deg)"><path d="M10 1 L16 19 L10 14 L4 19 Z" fill="${col}" stroke="#fff" stroke-width="1.2"/></svg>${nm}</div>`});
+}
+function aisDraw(t){
+  if(!AIS.on||!plOn||!map||t.lat==null) return;
+  if(!AIS.layer){ AIS.layer=L.layerGroup().addTo(map); }
+  const c=AIS.cpa?aisCpa(t):null;
+  const danger=!!(c&&c.cpa<0.5&&c.tcpa>0&&c.tcpa<30);
+  const pop=`<b>${esc(t.name||"AIS-doel")}</b><br>MMSI ${t.mmsi}<br>${t.sog!=null?t.sog.toFixed(1)+" kn · "+Math.round(t.cog||0)+"°":""}`
+    +(c?`<br>CPA ${c.cpa.toFixed(2)} nm · TCPA ${c.tcpa>0?Math.round(c.tcpa)+" min":"—"}`:"");
+  if(!t.m){ t.m=L.marker([t.lat,t.lon],{icon:aisIcon(t,danger)}).addTo(AIS.layer); t.m.bindPopup(pop); }
+  else { t.m.setLatLng([t.lat,t.lon]); t.m.setIcon(aisIcon(t,danger)); t.m.setPopupContent(pop); }
+}
+function aisPrune(){
+  const now=Date.now();
+  for(const [m,t] of AIS.tg){ if(now-t.t>300000){ if(t.m&&AIS.layer) AIS.layer.removeLayer(t.m); AIS.tg.delete(m); } }
+  if(AIS.cpa) for(const t of AIS.tg.values()) aisDraw(t);   // CPA-kleur actueel houden
+}
+function aisSetOn(on){ AIS.on=on; localStorage.setItem("ais_on",on?"1":"0");
+  if(!on&&AIS.layer){ map.removeLayer(AIS.layer); AIS.layer=null; for(const t of AIS.tg.values()) t.m=null; }
+}
+function aisClear(){ if(AIS.layer&&map) map.removeLayer(AIS.layer); AIS.layer=null; AIS.tg.clear(); clearInterval(AIS.timer); AIS.timer=0; }
 /* ---- NMEA 0183 via WebSocket (bijv. wifi-gateway/multiplexer aan boord) ---- */
 const nmea = { ws:null, last:0, depth:null, depthT:0 };
 function nmeaLat(v,h){ if(!v) return null; const d=Math.floor(+v/100), m=+v-d*100; let x=d+m/60; return (h==="S"||h==="W") ? -x : x; }
 function nmeaSentence(line){
   line=line.trim(); if(!line || (line[0]!=="$" && line[0]!=="!")) return;
+  if (line.startsWith("!AIVDM")||line.startsWith("!AIVDO")){ const st=line.indexOf("*"); try{ aisFeed(st>0?line.slice(1,st):line.slice(1)); }catch(e){} if(!AIS.timer) AIS.timer=setInterval(aisPrune,30000); return; }
   const star=line.indexOf("*"); if(star>0) line=line.slice(0,star);
   const f=line.split(","), id=f[0].slice(-3);
   if (id==="RMC" && f[2]==="A"){
@@ -2292,6 +2355,7 @@ function togglePlotter(){
     if (plWatch!=null){ navigator.geolocation.clearWatch(plWatch); plWatch=null; }
     if (nmea.ws){ try{nmea.ws.close();}catch(e){} nmea.ws=null; }
     nmeaNativeStop();
+    aisClear();
     if (plBoat){ map.removeLayer(plBoat); plBoat=null; }
     plClearWp(); plFixes=[]; window.plotterArmWp=false;
     return;
@@ -2381,6 +2445,10 @@ $("#pl-clearwp").onclick = plClearWp;
 $("#pl-close").onclick = togglePlotter;
 $("#pl-nmea").onclick = ()=>{ const c=$("#pl-nmeacfg"); c.hidden=!c.hidden; if(!c.hidden && !$("#pl-nmurl").value) $("#pl-nmurl").value = localStorage.getItem("nmea_url")||""; setTimeout(positionWindbox,30); };
 $("#pl-nmconn").onclick = nmeaConnect;
+AIS.on = localStorage.getItem("ais_on")!=="0"; AIS.cpa = localStorage.getItem("ais_cpa")==="1";
+$("#pl-ais").checked=AIS.on; $("#pl-cpa").checked=AIS.cpa;
+$("#pl-ais").onchange = e=> aisSetOn(e.target.checked);
+$("#pl-cpa").onchange = e=>{ AIS.cpa=e.target.checked; localStorage.setItem("ais_cpa",AIS.cpa?"1":"0"); for(const t of AIS.tg.values()) aisDraw(t); };
 /* layout-wissel 3x2 -> 2x2 -> 1x2 (onthouden) */
 const PL_LAYOUTS=["3","2","1"];
 function plApplyLayout(n){
