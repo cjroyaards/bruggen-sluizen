@@ -240,6 +240,8 @@ header{position:sticky}
   #windbox{left:8px;right:8px;width:auto !important}
   /* telefoon: vaste 2x2 (SOG/COG/DTW/TTW), geen layoutkeuze, geen NMEA/wind tot de koppeling kan */
   #pl-nmea,#pl-windbtn,#pl-layout,#pl-src{display:none !important}
+  /* in de native app werkt NMEA (TCP/UDP) wél → knoppen en bron-label daar tonen */
+  html.napp #pl-nmea,html.napp #pl-windbtn,html.napp #pl-src{display:inline-block !important}
   #plotter .pl-grid{gap:4px 14px}
   #plotter .pl-grid>div:nth-child(2),#plotter .pl-grid>div:nth-child(5){display:none !important}   /* DPT, BTW */
   #plotter .pl-grid>div:nth-child(1),#plotter .pl-grid>div:nth-child(3),
@@ -604,7 +606,7 @@ header{position:sticky}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-41</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-42</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -668,6 +670,7 @@ function enName(n){
 }
 
 document.documentElement.lang = LANG;
+try{ if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) document.documentElement.classList.add("napp"); }catch(e){}
 const $ = s => document.querySelector(s);
 
 /* ---------- opslag (favorieten & mast) ---------- */
