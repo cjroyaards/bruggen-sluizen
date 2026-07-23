@@ -2,7 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-		<key>NSLocalNetworkUsageDescription</key>
+		<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSLocalNetworkUsageDescription</key>
 	<string>OpenPilot verbindt met de NMEA-gateway van je boot op het lokale (boord)netwerk.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>OpenPilot toont je positie, snelheid en koers op de kaart (plotter).</string>
