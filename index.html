@@ -238,6 +238,7 @@ header{position:sticky}
   #plotter .pl-row button{font-size:14px;padding:7px 12px}
   #plotter input{font-size:15px;padding:8px}
   #windbox{left:8px;right:8px;width:auto !important}
+  #pl-close{display:none}   /* telefoon: ▾-pijltje volstaat om te sluiten */
   /* telefoon: vaste 2x2 (SOG/COG/DTW/TTW), geen layoutkeuze, geen NMEA/wind tot de koppeling kan */
   #pl-nmea,#pl-windbtn,#pl-layout,#pl-src{display:none !important}
   /* in de native app werkt NMEA (TCP/UDP) wél → knoppen en bron-label daar tonen */
@@ -614,7 +615,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-52</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-53</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
