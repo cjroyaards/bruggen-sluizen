@@ -357,6 +357,11 @@ html.napp header input{touch-action:manipulation}
   /* telefoon: geen +/− zoomknoppen (knijpen werkt) en geen dubbeltik-zoom op de app zelf */
   .leaflet-control-zoom{display:none}
   *{touch-action:manipulation}
+  /* telefoon: de kopbalk onversleepbaar maken (net als de kaart-iconen) — maar zoekveld,
+     zoekresultaten en het header-menu moeten wél bruikbaar/scrollbaar blijven */
+  header{touch-action:none}
+  header input,header [type=search]{touch-action:manipulation}
+  #searchdrop,#hd-menu{touch-action:pan-y}
   /* telefoon: info-tab leesbaar en zonder horizontaal uitschieten */
   body{overflow-x:hidden}
   #v-info{max-width:100vw;overflow-x:hidden}
@@ -650,7 +655,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260724-62</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260724-63</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -2718,7 +2723,7 @@ function plApplySheet(collapsed){
 }
 document.addEventListener("touchmove", e=>{
   const inApp = document.documentElement.classList.contains("napp");
-  const p = e.target.closest("#plotter,#windbox") || (inApp && e.target.closest("header") && !e.target.closest("#hd-menu"));
+  const p = e.target.closest("#plotter,#windbox") || (inApp && e.target.closest("header") && !e.target.closest("#hd-menu,#searchdrop"));
   if (p && !e.target.closest("input")) e.preventDefault();
 }, {passive:false});
 $("#pl-toggle").onclick = ()=> plApplySheet(!$("#plotter").classList.contains("sheet-collapsed"));
