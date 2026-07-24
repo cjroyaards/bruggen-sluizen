@@ -491,8 +491,7 @@ html.napp header input{touch-action:manipulation}
           <div class="dm-t" data-i18n="dm_tide">Getij</div>
           <label><input type="checkbox" id="tide-stations" checked> <span data-i18n="t_stations">Getijstations</span></label>
           <div class="dm-t" data-i18n="dm_title">Getijdestroom (Copernicus)</div>
-          <label><input type="checkbox" id="lay-arrows"> <span data-i18n="dm_arrows">Copernicus pijlen (scherp)</span></label>
-          <label><input type="checkbox" id="lay-own"> <span data-i18n="dm_own">Eigen pijlen (vloeiend)</span></label>
+          <label><input type="checkbox" id="lay-flow"> <span data-i18n="dm_flow">Stroompijlen</span></label>
           <label><input type="checkbox" id="lay-particles"> <span data-i18n="dm_particles">Deeltjesanimatie</span></label>
           <div class="dm-note" id="lay-status"></div>
           <div class="dm-t" data-i18n="dm_wind">Wind (Open-Meteo, GFS/ICON)</div>
@@ -654,7 +653,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-65</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-66</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1885,21 +1884,22 @@ function initCurrents(){
     if (on){ $("#cur-slider").value = String(tf); $("#cur-label").textContent = curFmtLabel(tf); }
   }
   function applyLayers(){
-    Currents.setLayers({ arrows:$("#lay-arrows").checked, own:$("#lay-own").checked, particles:$("#lay-particles").checked, color:false });
+    const flow = $("#lay-flow").checked, deep = map.getZoom()>=11;
+    Currents.setLayers({ arrows: flow && !deep, own: flow && deep, particles:$("#lay-particles").checked, color:false });
     Wind.setLayers({ arrows:$("#wind-arrows").checked, particles:$("#wind-particles").checked, color:$("#wind-color").checked });
     flowPlaying = Currents.isPlaying() || Wind.isPlaying();   // deeltjes starten auto → overnemen
     syncPlay();
     refreshBar();
     if (window.updateLegend) updateLegend();
   }
-  ["lay-arrows","lay-own","lay-particles","wind-arrows","wind-particles","wind-color"].forEach(id => $("#"+id).addEventListener("change", applyLayers));
-  // Copernicus-WMTS gaat maar tot zoom 9 native → bij dieper inzoomen blokkerig.
-  // Vanaf zoom 11 automatisch de vloeiende eigen pijlen tonen (zelfde stromingsdata), terug bij uitzoomen.
-  let copSwapped=false;
+  ["lay-flow","lay-particles","wind-arrows","wind-particles","wind-color"].forEach(id => $("#"+id).addEventListener("change", applyLayers));
+  // Eén "Stroompijlen"-laag: scherpe Copernicus-WMTS-tegels (native tot zoom 9) op afstand,
+  // vanaf zoom 11 automatisch de vloeiende eigen pijlen (zelfde stromingsdata). Herschakelen bij zoomen.
+  let lastDeep = null;
   map.on("zoomend", ()=>{
-    const wantCop = $("#lay-arrows").checked, deep = map.getZoom()>=11;
-    if (wantCop && deep && !copSwapped){ copSwapped=true; Currents.setLayers({arrows:false, own:true}); }
-    else if (copSwapped && (!deep || !wantCop)){ copSwapped=false; applyLayers(); }
+    if (!$("#lay-flow").checked) return;
+    const deep = map.getZoom()>=11;
+    if (deep !== lastDeep){ lastDeep = deep; applyLayers(); }
   });
   const bothTime = tf => { flowPlaying = false; Currents.setTime(tf); Wind.setTime(tf); syncPlay(); };
   $("#cur-slider").addEventListener("input", ()=> bothTime(+$("#cur-slider").value));
@@ -3273,7 +3273,7 @@ const STATIC_EN = {
   dm_rain:"Precipitation & thunder", r_radar:"Rain radar + thunder ⚡",
   mb_kaart:"Map", dm_layers:"Separate layers", k_sea:"Sea chart (OpenSeaMap)", k_vts:"VTS sectors",
   k_land:"Land map mode", k_zeekaart:"Nautical chart mode",
-  dm_title:"Tidal current (Copernicus)", dm_arrows:"Copernicus arrows (sharp)", dm_own:"Own arrows (smooth)", dm_particles:"Particle animation", dm_color:"Colour layer (speed)", cur_now:"Now",
+  dm_title:"Tidal current (Copernicus)", dm_flow:"Current arrows", dm_particles:"Particle animation", cur_now:"Now",
   dm_depth:"Depth (EMODnet)", ds_off:"Off", ds_fill:"Shaded — shallows coloured", ds_std:"Standard — 2 / 5 / 10 / 20 m", ds_shal:"Shallow — 1 / 2 / 3 / 5 m", ds_1:"Fine lines — every 1 m (1–10 m)", ds_5:"Fine lines — every 5 m (5–30 m)", ds_note:"EMODnet · rel. to chart datum (LAT) · not for navigation",
 };
 function applyStaticLang(){
