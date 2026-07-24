@@ -207,9 +207,10 @@ details.tlex p{color:var(--ink2);margin:6px 0 0}
 .wx-tr .i{font-size:16px}
 .wx-tr.gfs{color:var(--muted);font-size:12.5px}
 .wx-tr.gfs .i{font-size:14px}
-.wx-wind.gfs{opacity:.7;margin:0 0 6px}
-.wx-wind.gfs .wx-bft{font-size:10px;color:var(--muted)}
-.wx-wm{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-weight:700;line-height:1}
+.wx-mtoggle{display:inline-flex;gap:0;margin:0 0 9px;border:1px solid var(--line,#d5dde3);border-radius:8px;overflow:hidden}
+.wx-mbtn{appearance:none;border:0;background:transparent;color:var(--ink2);font:inherit;font-size:12.5px;font-weight:650;padding:5px 14px;cursor:pointer;line-height:1}
+.wx-mbtn+.wx-mbtn{border-left:1px solid var(--line,#d5dde3)}
+.wx-mbtn.on{background:var(--accent);color:#fff}
 .wx-legend{font-size:11.5px;color:var(--muted);margin-top:9px;line-height:1.5}
 .wx-legend b{color:var(--ink2);font-weight:650}
 .wx-err{font-size:13px;color:var(--muted)}
@@ -638,7 +639,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260724-55</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260724-56</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -656,6 +657,8 @@ const EN = {
  "wind uit":"wind from","vlagen":"gusts",
  "Pijl + kleur = ECMWF-wind (getal = Beaufort).":"Arrow + colour = ECMWF wind (number = Beaufort).",
  "Temperatuur: boven ECMWF, onder GFS — verschil = onzekerheid.":"Temperature: top ECMWF, bottom GFS — difference = uncertainty.",
+ "Wind, temperatuur en icoon: ECMWF-model.":"Wind, temperature and icon: ECMWF model.",
+ "Pijl + kleur = wind (getal = Beaufort).":"Arrow + colour = wind (number = Beaufort).",
  "helder":"clear","licht bewolkt":"mainly clear","half bewolkt":"partly cloudy","bewolkt":"overcast",
  "mist":"fog","motregen":"drizzle","regen":"rain","sneeuw":"snow","buien":"showers","sneeuwbuien":"snow showers","onweer":"thunderstorm",
  "bediening nu":"operating now","tot":"until","gesloten":"closed","volgende bediening":"next operation",
@@ -1384,7 +1387,8 @@ async function loadTideInto(o){
   }
 }
 /* ---------- weer & wind in het detailpaneel (Open-Meteo: ECMWF-pijlen + GFS als 2e verwachting) ---------- */
-let wxToken = 0, windWxToken = 0;
+let wxToken = 0, windWxToken = 0, windWxModel = 'ecmwf_ifs025', windWxCache = null;
+const WIND_MODELS = [['ecmwf_ifs025','ECMWF'],['gfs_seamless','GFS']];
 const WX_RAMP = [[0,'#cfe8ff'],[1,'#a9d9f0'],[4,'#8fd0a8'],[7,'#78c46b'],[11,'#c3dd4e'],
   [17,'#f2d43d'],[22,'#f6a63c'],[28,'#ee6f3a'],[34,'#e0463f'],[41,'#cf3670'],[48,'#9b4bb0'],[56,'#6d3b9e']];
 function wxColor(kn){ for(let k=WX_RAMP.length-1;k>=0;k--) if(kn>=WX_RAMP[k][0]) return WX_RAMP[k][1]; return WX_RAMP[0][1]; }
@@ -1453,7 +1457,6 @@ function wxHTML(d){
   if(D.time){
     const eWc=wxPick(D,'weather_code','ecmwf_ifs025'), eMax=wxPick(D,'temperature_2m_max','ecmwf_ifs025'),
           eWmax=wxPick(D,'wind_speed_10m_max','ecmwf_ifs025'), eWdir=wxPick(D,'wind_direction_10m_dominant','ecmwf_ifs025');
-    const gWc=wxPick(D,'weather_code','gfs_seamless'), gMax=wxPick(D,'temperature_2m_max','gfs_seamless');
     const n=Math.min(D.time.length,6);
     for(let i=0;i<n;i++){
       const kn=eWmax?eWmax[i]:0, dir=eWdir?eWdir[i]:0, col=wxColor(kn);
@@ -1461,13 +1464,12 @@ function wxHTML(d){
         <div class="wx-dl">${wxDayLabel(D.time[i])}</div>
         <div class="wx-wind">${wxArrow(dir,col,22)}<span class="wx-bft">${wxBft(kn)}</span></div>
         <div class="wx-tr"><span class="i">${wxIcon(eWc?eWc[i]:null)}</span>${eMax?Math.round(eMax[i])+"°":"–"}</div>
-        <div class="wx-tr gfs"><span class="i">${wxIcon(gWc?gWc[i]:null)}</span>${gMax?Math.round(gMax[i])+"°":"–"}</div>
       </div>`;
     }
   }
   if(!nowHTML && !cells) return '<div class="wx-err">'+T("Weer niet beschikbaar")+'</div>';
   return nowHTML + (cells?`<div class="wx-strip">${cells}</div>
-    <div class="wx-legend">${T("Pijl + kleur = ECMWF-wind (getal = Beaufort).")} ${T("Temperatuur: boven ECMWF, onder GFS — verschil = onzekerheid.")}</div>`:"");
+    <div class="wx-legend">${T("Wind, temperatuur en icoon: ECMWF-model.")} ${T("Pijl + kleur = wind (getal = Beaufort).")}</div>`:"");
 }
 function wxSectionHTML(){
   return `<div class="p-sec" id="wxsec"><h3>${T("Weer & wind")}</h3><div id="wxbox" class="wx-err">${T("Weer laden…")}</div></div>`;
@@ -1961,34 +1963,39 @@ function openWindDetail(lat, lon){
   $("#pclose").onclick = closeDetail;
   renderWindWxStrip(lat, lon);
 }
-/* 6-daagse strip voor het wind-detailpaneel: 2x windmodel (ECMWF + GFS) + 1x temp + weericoon */
-function windWxStripHTML(d){
+/* 6-daagse strip voor het wind-detailpaneel: één model tegelijk (ECMWF/GFS-keuzeknop) + temp + weericoon */
+function windWxStripHTML(d, model){
   const D=d.daily||{};
   if(!D.time) return '<div class="wx-err">'+(LANG==="en"?"Weather unavailable":"Weer niet beschikbaar")+'</div>';
-  const eWc=wxPick(D,'weather_code','ecmwf_ifs025'), eMax=wxPick(D,'temperature_2m_max','ecmwf_ifs025'),
-        eWmax=wxPick(D,'wind_speed_10m_max','ecmwf_ifs025'), eWdir=wxPick(D,'wind_direction_10m_dominant','ecmwf_ifs025'),
-        gWmax=wxPick(D,'wind_speed_10m_max','gfs_seamless'), gWdir=wxPick(D,'wind_direction_10m_dominant','gfs_seamless');
+  const wc=wxPick(D,'weather_code',model), tmax=wxPick(D,'temperature_2m_max',model),
+        wmax=wxPick(D,'wind_speed_10m_max',model), wdir=wxPick(D,'wind_direction_10m_dominant',model);
   const n=Math.min(D.time.length,6);
   let cells="";
   for(let i=0;i<n;i++){
-    const eKn=eWmax?eWmax[i]:0, eDir=eWdir?eWdir[i]:0;
-    const gKn=gWmax?gWmax[i]:null, gDir=gWdir?gWdir[i]:0;
+    const kn=wmax?wmax[i]:0, dir=wdir?wdir[i]:0;
     cells+=`<div class="wx-day">
       <div class="wx-dl">${wxDayLabel(D.time[i])}</div>
-      <div class="wx-wm">ECMWF</div>
-      <div class="wx-wind">${wxArrow(eDir,wxColor(eKn),22)}<span class="wx-bft">${wxBft(eKn)}</span></div>
-      <div class="wx-wm">GFS</div>
-      <div class="wx-wind gfs">${gKn==null?'<span class="wx-bft">–</span>':wxArrow(gDir,wxColor(gKn),18)+'<span class="wx-bft">'+wxBft(gKn)+'</span>'}</div>
-      <div class="wx-tr"><span class="i">${wxIcon(eWc?eWc[i]:null)}</span>${eMax?Math.round(eMax[i])+"°":"–"}</div>
+      <div class="wx-wind">${wxArrow(dir,wxColor(kn),22)}<span class="wx-bft">${wxBft(kn)}</span></div>
+      <div class="wx-tr"><span class="i">${wxIcon(wc?wc[i]:null)}</span>${tmax?Math.round(tmax[i])+"°":"–"}</div>
     </div>`;
   }
+  const name=(WIND_MODELS.find(m=>m[0]===model)||['','?'])[1];
+  const toggle=WIND_MODELS.map(([id,label])=>`<button type="button" class="wx-mbtn${id===model?' on':''}" data-model="${id}">${label}</button>`).join("");
   const legend = LANG==="en"
-    ? "Two wind models per day (kn/Beaufort as arrow + colour): <b>ECMWF</b> above, <b>GFS</b> below — the difference shows the forecast uncertainty. Temperature + icon are ECMWF. Beyond day 3–4 indicative."
-    : "Twee windmodellen per dag (kn/Beaufort als pijl + kleur): <b>ECMWF</b> boven, <b>GFS</b> onder — het verschil laat de onzekerheid zien. Temperatuur + icoon zijn ECMWF. Na dag 3–4 indicatief.";
-  return `<div class="wx-strip">${cells}</div><div class="wx-legend">${legend}</div>`;
+    ? `Model <b>${name}</b> · wind (kn/Beaufort as arrow + colour) + temperature + icon per day. Tap ECMWF/GFS to compare. Beyond day 3–4 indicative.`
+    : `Model <b>${name}</b> · wind (kn/Beaufort als pijl + kleur) + temperatuur + icoon per dag. Tik ECMWF/GFS om te vergelijken. Na dag 3–4 indicatief.`;
+  return `<div class="wx-mtoggle">${toggle}</div><div class="wx-strip">${cells}</div><div class="wx-legend">${legend}</div>`;
+}
+function paintWindWx(){
+  const el=document.getElementById('windwxbox');
+  if(!el || !windWxCache) return;
+  el.className='';
+  el.innerHTML=windWxStripHTML(windWxCache, windWxModel);
+  el.querySelectorAll('.wx-mbtn').forEach(b=> b.onclick=()=>{ windWxModel=b.dataset.model; paintWindWx(); });
 }
 async function renderWindWxStrip(lat, lon){
   const token=++windWxToken;
+  windWxCache=null;
   const box=document.getElementById('windwxbox');
   if(!box || lat==null || lon==null) return;
   const url='https://api.open-meteo.com/v1/forecast?latitude='+(+lat).toFixed(4)+'&longitude='+(+lon).toFixed(4)
@@ -1999,10 +2006,11 @@ async function renderWindWxStrip(lat, lon){
     if(!r.ok) throw new Error('http '+r.status);
     const d=await r.json();
     if(token!==windWxToken) return; // paneel is intussen veranderd
-    const el=document.getElementById('windwxbox'); if(el) el.outerHTML='<div id="windwxbox">'+windWxStripHTML(d)+'</div>';
+    windWxCache=d;
+    paintWindWx();
   }catch(e){
     if(token!==windWxToken) return;
-    const el=document.getElementById('windwxbox'); if(el) el.innerHTML='<div class="wx-err">'+(LANG==="en"?"Weather unavailable":"Weer niet beschikbaar")+'</div>';
+    const el=document.getElementById('windwxbox'); if(el){ el.className='wx-err'; el.innerHTML=(LANG==="en"?"Weather unavailable":"Weer niet beschikbaar"); }
   }
 }
 /* pijl die de kant op wijst waar de stroom heen gaat (dirTo); 0° = noord = omhoog */
