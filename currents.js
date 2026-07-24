@@ -9,7 +9,7 @@
   const WMTS = 'https://wmts.marine.copernicus.eu/teroWmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0'
     + '&LAYER=' + encodeURIComponent(CMEMS_LAYER)
     + '&TILEMATRIXSET=EPSG:3857&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/png';
-  const RAMP = [[0, '#9ec5f4'], [0.93, '#6da7ec'], [1.85, '#3987e5'], [2.8, '#256abf'], [3.7, '#184f95'], [4.6, '#0d366b']];
+  const RAMP = [[0, '#5f9be0'], [0.93, '#3d84d8'], [1.85, '#2f74cf'], [2.8, '#215fb0'], [3.7, '#184f95'], [4.6, '#0d366b']];
 
   let map = null, times = null, U = null, V = null, seaCells = [], seaMask = null;
   let tFloat = 0, playing = false, loaded = false, loading = false;
@@ -245,11 +245,11 @@
         const len = Math.min(step * 0.5, 7 + kmh * 4.2);
         const hx = x + ux * len * 0.5, hy = y + uy * len * 0.5, tx = x - ux * len * 0.5, ty = y - uy * len * 0.5;
         const ah = Math.min(5.5, len * 0.42), ang = Math.atan2(uy, ux);
-        ctx.strokeStyle = speedColor(kmh);
         ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy);
         ctx.lineTo(hx - ah * Math.cos(ang - 0.45), hy - ah * Math.sin(ang - 0.45));
         ctx.moveTo(hx, hy); ctx.lineTo(hx - ah * Math.cos(ang + 0.45), hy - ah * Math.sin(ang + 0.45));
-        ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 3.6; ctx.stroke();   // witte casing → contrast op elke ondergrond
+        ctx.strokeStyle = speedColor(kmh); ctx.lineWidth = 1.9; ctx.stroke();
       }
     }
   }
