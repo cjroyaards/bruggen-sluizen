@@ -190,6 +190,26 @@ details.tlex p{color:var(--ink2);margin:6px 0 0}
 .kv{display:grid;grid-template-columns:150px 1fr;gap:4px 12px;font-size:14px}
 .kv .k{color:var(--muted)}
 .p-note{background:var(--chip-mut-bg);border-radius:8px;padding:9px 12px;font-size:13px;color:var(--ink2);white-space:pre-wrap;margin-top:8px}
+/* ---- weer & wind (detailpaneel) ---- */
+.wx-now{display:flex;align-items:center;gap:13px;background:var(--chip-mut-bg);border-radius:10px;padding:11px 13px;margin-bottom:12px;flex-wrap:wrap}
+.wx-now .wx-ico{font-size:26px;line-height:1}
+.wx-now .wx-t{font-size:27px;font-weight:750;letter-spacing:-.02em}
+.wx-now .wx-meta{font-size:13px;color:var(--ink2);display:flex;flex-direction:column;gap:2px;min-width:0}
+.wx-now .wx-meta .l1{display:flex;align-items:center;gap:6px;color:var(--ink);font-weight:600}
+.wx-arrow{display:inline-block;flex:none;vertical-align:middle}
+.wx-strip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(52px,1fr);gap:3px;text-align:center;overflow-x:auto;padding-bottom:2px}
+.wx-day{padding:8px 3px 7px;border-radius:8px}
+.wx-day:nth-child(odd){background:var(--chip-mut-bg)}
+.wx-dl{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:5px}
+.wx-wind{display:flex;flex-direction:column;align-items:center;gap:1px;margin:1px 0 6px}
+.wx-bft{font-size:11px;color:var(--ink2);font-weight:700}
+.wx-tr{display:flex;align-items:center;justify-content:center;gap:4px;font-size:14px;padding:1px 0;font-variant-numeric:tabular-nums}
+.wx-tr .i{font-size:16px}
+.wx-tr.gfs{color:var(--muted);font-size:12.5px}
+.wx-tr.gfs .i{font-size:14px}
+.wx-legend{font-size:11.5px;color:var(--muted);margin-top:9px;line-height:1.5}
+.wx-legend b{color:var(--ink2);font-weight:650}
+.wx-err{font-size:13px;color:var(--muted)}
 a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
 .linkrow{display:flex;gap:16px;flex-wrap:wrap;font-size:14px;margin-top:4px}
@@ -615,7 +635,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260722-53</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260724-54</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -629,6 +649,12 @@ try { if (localStorage.getItem("bs_reset_v2")!=="1"){ localStorage.removeItem("b
 function readLang(){ try{ const x = localStorage.getItem("bs_lang"); return x==='"en"'||x==="en" ? "en" : (x?JSON.parse(x):"nl"); }catch(e){ return "nl"; } }
 const LANG = readLang();
 const EN = {
+ "Weer & wind":"Weather & wind","Weer laden…":"Loading weather…","Weer niet beschikbaar":"Weather unavailable",
+ "wind uit":"wind from","vlagen":"gusts",
+ "Pijl + kleur = ECMWF-wind (getal = Beaufort).":"Arrow + colour = ECMWF wind (number = Beaufort).",
+ "Temperatuur: boven ECMWF, onder GFS — verschil = onzekerheid.":"Temperature: top ECMWF, bottom GFS — difference = uncertainty.",
+ "helder":"clear","licht bewolkt":"mainly clear","half bewolkt":"partly cloudy","bewolkt":"overcast",
+ "mist":"fog","motregen":"drizzle","regen":"rain","sneeuw":"snow","buien":"showers","sneeuwbuien":"snow showers","onweer":"thunderstorm",
  "bediening nu":"operating now","tot":"until","gesloten":"closed","volgende bediening":"next operation",
  "morgen":"tomorrow","vanaf":"from","geen bediening deze week":"no operation this week",
  "vaste brug":"fixed bridge","geen bediening":"no operation","stremming gemeld":"closure reported",
@@ -1354,6 +1380,114 @@ async function loadTideInto(o){
     box.textContent = T("Getijverwachting kon niet worden geladen.");
   }
 }
+/* ---------- weer & wind in het detailpaneel (Open-Meteo: ECMWF-pijlen + GFS als 2e verwachting) ---------- */
+let wxToken = 0;
+const WX_RAMP = [[0,'#cfe8ff'],[1,'#a9d9f0'],[4,'#8fd0a8'],[7,'#78c46b'],[11,'#c3dd4e'],
+  [17,'#f2d43d'],[22,'#f6a63c'],[28,'#ee6f3a'],[34,'#e0463f'],[41,'#cf3670'],[48,'#9b4bb0'],[56,'#6d3b9e']];
+function wxColor(kn){ for(let k=WX_RAMP.length-1;k>=0;k--) if(kn>=WX_RAMP[k][0]) return WX_RAMP[k][1]; return WX_RAMP[0][1]; }
+function wxBft(kn){ const b=[1,4,7,11,17,22,28,34,41,48,56,64]; let n=0; for(const t of b){ if(kn>=t) n++; } return n; }
+function wxCompass(deg){
+  const nl=['N','NNO','NO','ONO','O','OZO','ZO','ZZO','Z','ZZW','ZW','WZW','W','WNW','NW','NNW'];
+  const en=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return (LANG==="en"?en:nl)[Math.round(((deg%360)+360)%360/22.5)%16];
+}
+function wxArrow(dirFrom,color,size){
+  size=size||15; const rot=(dirFrom+180)%360; // pijl wijst met de wind mee (waarheen het waait)
+  return `<svg class="wx-arrow" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true" style="transform:rotate(${rot}deg)"><path d="M12 3 L12 21 M12 3 L6.5 10 M12 3 L17.5 10" stroke="${color}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+function wxIcon(c){
+  if(c==null) return '·';
+  if(c===0) return '☀️'; if(c===1) return '🌤️'; if(c===2) return '⛅'; if(c===3) return '☁️';
+  if(c===45||c===48) return '🌫️';
+  if(c>=51&&c<=57) return '🌦️';
+  if((c>=61&&c<=67)) return '🌧️';
+  if(c>=71&&c<=77) return '🌨️';
+  if(c>=80&&c<=82) return '🌦️';
+  if(c===85||c===86) return '🌨️';
+  if(c>=95) return '⛈️';
+  return '☁️';
+}
+function wxLabel(c){
+  if(c==null) return '';
+  if(c===0) return T("helder"); if(c===1) return T("licht bewolkt"); if(c===2) return T("half bewolkt"); if(c===3) return T("bewolkt");
+  if(c===45||c===48) return T("mist");
+  if(c>=51&&c<=57) return T("motregen");
+  if(c>=61&&c<=67) return T("regen");
+  if(c>=71&&c<=77) return T("sneeuw");
+  if(c>=80&&c<=82) return T("buien");
+  if(c===85||c===86) return T("sneeuwbuien");
+  if(c>=95) return T("onweer");
+  return T("bewolkt");
+}
+function wxDayLabel(iso){
+  const dt=new Date(iso+"T12:00:00");
+  const nl=['zo','ma','di','wo','do','vr','za'], en=['zo','ma','di','wo','do','vr','za'];
+  const enF=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  return (LANG==="en"?enF:nl)[dt.getDay()];
+}
+function wxPick(src,base,model){ return src[base+"_"+model] || src[base] || null; }
+function wxHTML(d){
+  const H=d.hourly||{}, D=d.daily||{};
+  let nowHTML="";
+  if(H.time){
+    const times=H.time.map(t=>Date.parse(t)), nowMs=Date.now();
+    let ni=0; for(let i=0;i<times.length;i++) if(Math.abs(times[i]-nowMs)<Math.abs(times[ni]-nowMs)) ni=i;
+    const eT=wxPick(H,'temperature_2m','ecmwf_ifs025'), eC=wxPick(H,'weather_code','ecmwf_ifs025'),
+          eS=wxPick(H,'wind_speed_10m','ecmwf_ifs025'), eDir=wxPick(H,'wind_direction_10m','ecmwf_ifs025'),
+          eG=wxPick(H,'wind_gusts_10m','ecmwf_ifs025');
+    if(eS&&eDir){
+      const kn=eS[ni], dir=eDir[ni], col=wxColor(kn);
+      nowHTML=`<div class="wx-now">
+        <span class="wx-ico">${wxIcon(eC?eC[ni]:null)}</span>
+        ${eT?`<span class="wx-t">${Math.round(eT[ni])}°</span>`:""}
+        <span class="wx-meta">
+          <span class="l1">${wxArrow(dir,col,17)} ${T("wind uit")} ${wxCompass(dir)} · ${Math.round(kn)} kn · ${wxBft(kn)} bft</span>
+          <span>${eG?T("vlagen")+" "+Math.round(eG[ni])+" kn · ":""}${wxLabel(eC?eC[ni]:null)}</span>
+        </span></div>`;
+    }
+  }
+  let cells="";
+  if(D.time){
+    const eWc=wxPick(D,'weather_code','ecmwf_ifs025'), eMax=wxPick(D,'temperature_2m_max','ecmwf_ifs025'),
+          eWmax=wxPick(D,'wind_speed_10m_max','ecmwf_ifs025'), eWdir=wxPick(D,'wind_direction_10m_dominant','ecmwf_ifs025');
+    const gWc=wxPick(D,'weather_code','gfs_seamless'), gMax=wxPick(D,'temperature_2m_max','gfs_seamless');
+    const n=Math.min(D.time.length,6);
+    for(let i=0;i<n;i++){
+      const kn=eWmax?eWmax[i]:0, dir=eWdir?eWdir[i]:0, col=wxColor(kn);
+      cells+=`<div class="wx-day">
+        <div class="wx-dl">${wxDayLabel(D.time[i])}</div>
+        <div class="wx-wind">${wxArrow(dir,col,22)}<span class="wx-bft">${wxBft(kn)}</span></div>
+        <div class="wx-tr"><span class="i">${wxIcon(eWc?eWc[i]:null)}</span>${eMax?Math.round(eMax[i])+"°":"–"}</div>
+        <div class="wx-tr gfs"><span class="i">${wxIcon(gWc?gWc[i]:null)}</span>${gMax?Math.round(gMax[i])+"°":"–"}</div>
+      </div>`;
+    }
+  }
+  if(!nowHTML && !cells) return '<div class="wx-err">'+T("Weer niet beschikbaar")+'</div>';
+  return nowHTML + (cells?`<div class="wx-strip">${cells}</div>
+    <div class="wx-legend">${T("Pijl + kleur = ECMWF-wind (getal = Beaufort).")} ${T("Temperatuur: boven ECMWF, onder GFS — verschil = onzekerheid.")}</div>`:"");
+}
+function wxSectionHTML(){
+  return `<div class="p-sec" id="wxsec"><h3>${T("Weer & wind")}</h3><div id="wxbox" class="wx-err">${T("Weer laden…")}</div></div>`;
+}
+async function renderWeatherPanel(o){
+  const token=++wxToken;
+  const box=document.getElementById('wxbox');
+  if(!box || o.lat==null || o.lon==null) return;
+  const url='https://api.open-meteo.com/v1/forecast?latitude='+(+o.lat).toFixed(4)+'&longitude='+(+o.lon).toFixed(4)
+    +'&hourly=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m'
+    +'&daily=weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,wind_direction_10m_dominant'
+    +'&models=ecmwf_ifs025,gfs_seamless&wind_speed_unit=kn&timezone=auto&forecast_days=6';
+  try{
+    const r=await fetch(url);
+    if(!r.ok) throw new Error('http '+r.status);
+    const d=await r.json();
+    if(token!==wxToken) return; // paneel is intussen veranderd
+    const el=document.getElementById('wxbox'); if(el) el.outerHTML='<div id="wxbox">'+wxHTML(d)+'</div>';
+  }catch(e){
+    if(token!==wxToken) return;
+    const el=document.getElementById('wxbox'); if(el) el.innerHTML='<div class="wx-err">'+T("Weer niet beschikbaar")+'</div>';
+  }
+}
 function openHarbourDetail(o){
   panelRefresh = ()=>openHarbourDetail(o);
   const sec = [];
@@ -1379,6 +1513,7 @@ function openHarbourDetail(o){
       <a href="#" class="tel showOnMap">${T("toon op kaart")}</a>
     </div>
     ${sec.join("")}
+    ${wxSectionHTML()}
     <div class="p-sec"><h3>${T("Gegevens")}</h3><div class="kv">${kv.map(([k,v])=>`<span class="k">${k}</span><span>${v}</span>`).join("")}</div></div>
     <div class="p-sec"><h3>${T("Links")}</h3><div class="linkrow">${links.join("")}</div></div>
     <div class="p-sec"><h3>${T("Getij")}</h3><div id="tidebox" class="p-note" style="margin-top:0">${T("Getijverwachting laden…")}</div></div>
@@ -1394,6 +1529,7 @@ function openHarbourDetail(o){
     highlightOnMap(o);
   });
   if (map){ map.setView([o.lat,o.lon], Math.max(map.getZoom(), 11), {animate:false}); highlightOnMap(o); }
+  renderWeatherPanel(o);
   loadTideInto(o);
 }
 function openTideStationDetail(o){
@@ -1409,6 +1545,7 @@ function openTideStationDetail(o){
         <a href="#" class="tel showOnMap">${T("toon op kaart")}</a>
       </div>
       <div class="p-sec"><h3>${T("Getij")}</h3><div id="tidebox" class="p-note" style="margin-top:0">${T("Getijverwachting laden…")}</div></div>
+      ${wxSectionHTML()}
       <div class="p-sec"><h3>${T("Links")}</h3><div class="linkrow">
         <a href="https://www.google.com/maps?q=${o.lat},${o.lon}" target="_blank" rel="noopener">${T("kaart ↗")}</a>
       </div></div>`;
@@ -1423,6 +1560,7 @@ function openTideStationDetail(o){
       highlightOnMap(o);
     });
     if (map){ map.setView([o.lat,o.lon], Math.max(map.getZoom(), 10), {animate:false}); highlightOnMap(o); }
+    renderWeatherPanel(o);
     renderOfficialTide(document.getElementById("tidebox"), o.uk, null);
     return;
   }
@@ -1475,6 +1613,7 @@ function openTideStationDetail(o){
         <p>Astronomisch betekent: zonder windopzet of afwaaiing. Bij stevige wind kan de werkelijke waterstand flink afwijken — kijk dan op <a href="https://waterinfo.rws.nl/" target="_blank" rel="noopener">waterinfo.rws.nl ↗</a> voor de actuele en verwachte waterstand inclusief wind.</p>`}
       </details>
     </div>
+    ${wxSectionHTML()}
     <div class="p-sec"><h3>${T("Links")}</h3><div class="linkrow">
       <a href="https://waterinfo.rws.nl/" target="_blank" rel="noopener">waterinfo.rws.nl ↗</a>
       <a href="https://www.google.com/maps?q=${o.lat},${o.lon}" target="_blank" rel="noopener">${T("kaart ↗")}</a>
@@ -1490,6 +1629,7 @@ function openTideStationDetail(o){
     highlightOnMap(o);
   });
   if (map){ map.setView([o.lat,o.lon], Math.max(map.getZoom(), 10), {animate:false}); highlightOnMap(o); }
+  renderWeatherPanel(o);
   if (scrub) wireTideScrub($("#panel"), scrub.x, scrub.y, scrub.lbl, scrub.val);
 }
 function openDetail(o){
@@ -1555,6 +1695,7 @@ function openDetail(o){
     </div>
     ${mastIssue(o)?`<div class="mastwarn">${esc(mastIssue(o))}</div>`:""}
     ${sec}
+    ${wxSectionHTML()}
     <div class="p-sec"><h3>${T("Gegevens")}</h3><div class="kv">${kv.map(([k,v])=>`<span class="k">${k}</span><span>${v}</span>`).join("")}</div></div>
     <div class="p-sec"><h3>Links</h3><div class="linkrow">
       <a href="${vwi}" target="_blank" rel="noopener">vaarweginformatie.nl ↗</a>
@@ -1570,6 +1711,7 @@ function openDetail(o){
     map.setView([o.lat,o.lon], Math.max(map.getZoom(), 15));
     highlightOnMap(o);
   });
+  renderWeatherPanel(o);
   // kaart meteen naar het object zoomen terwijl de details tonen
   if (map){ map.setView([o.lat,o.lon], Math.max(map.getZoom(), 15), {animate:false}); highlightOnMap(o); }
 }
