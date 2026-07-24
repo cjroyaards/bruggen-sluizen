@@ -639,7 +639,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260724-56</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260724-57</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1924,27 +1924,8 @@ function windCellStyle(kn){
 function openWindDetail(lat, lon){
   panelRefresh = ()=>openWindDetail(lat, lon);
   const now = Wind.pointNow(lat, lon);
-  const series = Wind.pointSeries(lat, lon);
-  const times = Wind.getTimes();
   const T = k => LANG==="en" ? k.en : k.nl;
   const card = now ? curDirCardinal(now.dirFrom) : null;
-  let rows = "";
-  if (series && times){
-    const nowIdx = Math.round(Wind.getTFloat());
-    const dayFmt = new Intl.DateTimeFormat(LANG==="en"?"en-GB":"nl-NL",{timeZone:TZ_ZONE[TZ],weekday:"long",day:"numeric",month:"short"});
-    let lastDay = null, i = nowIdx;
-    while (i < series.length){
-      const s = series[i];
-      if (s){
-        const ms = times[i]*1000, c = curDirCardinal(s.dirFrom);
-        const day = dayFmt.format(new Date(ms));
-        if (day !== lastDay){ rows += `<tr><td colspan="4" style="font-weight:700;padding-top:7px;color:var(--accent)">${day}</td></tr>`; lastDay = day; }
-        const wc = windCellStyle(s.kn);
-        rows += `<tr${i===nowIdx?' style="font-weight:650"':''}><td>${fmtClock(ms)}</td><td style="${wc};border-radius:4px 0 0 4px">${s.kn.toFixed(0)} kn</td><td style="${wc};border-radius:0 4px 4px 0">Bft ${s.bft}</td><td><span class="dircell">${c.abbr} ${Math.round(s.dirFrom)}°${dirArrow((s.dirFrom+180)%360,15)}</span></td></tr>`;
-      }
-      i += (i < nowIdx+24 ? 1 : 3);   // eerste etmaal per uur, daarna per 3 uur
-    }
-  }
   $("#panel").innerHTML = `
     <button class="p-close" id="pclose">${T({nl:"sluiten ✕",en:"close ✕"})}</button>
     <div class="p-h">${T({nl:"Wind",en:"Wind"})}</div>
@@ -1954,11 +1935,8 @@ function openWindDetail(lat, lon){
       ${T({nl:"uit het",en:"from the"})} <b>${card.word}</b> (${Math.round(now.dirFrom)}°) ${dirArrow((now.dirFrom+180)%360,20)}</p>
       <div class="tlegend" style="margin-top:6px">${curFmtLabel(Wind.getTFloat())}</div></div>`
       : `<div class="p-note">${T({nl:"Geen winddata op dit punt.",en:"No wind data here."})}</div>`}
-    <div class="p-sec" id="windwxsec"><h3>${T({nl:"Weer & 6-daagse wind",en:"Weather & 6-day wind"})}</h3><div id="windwxbox" class="wx-err">${T({nl:"Weer laden…",en:"Loading weather…"})}</div></div>
-    ${rows ? `<div class="p-sec"><h3>${T({nl:"Verwachting (7 dagen)",en:"Forecast (7 days)"})}</h3>
-      <table class="times" style="font-size:13px"><tr style="color:var(--muted)"><td>${T({nl:"tijd",en:"time"})} (${tzShort()})</td><td>${T({nl:"snelheid",en:"speed"})}</td><td>Bft</td><td>${T({nl:"uit",en:"from"})}</td></tr>${rows}</table>
-      <div class="p-note" style="margin-top:4px">${T({nl:"Eerste etmaal per uur, daarna per 3 uur. Na dag 3–4 indicatief.",en:"First 24 h hourly, then 3-hourly. Indicative beyond day 3–4."})}</div></div>` : ""}
-    <div class="p-note">${T({nl:"Windverwachting op 10 m (Open-Meteo, GFS/ICON). Pijl wijst met de wind mee.",en:"10 m wind forecast (Open-Meteo, GFS/ICON). Arrow points downwind."})}</div>`;
+    <div class="p-sec" id="windwxsec"><h3>${T({nl:"Weer & wind",en:"Weather & wind"})}</h3><div id="windwxbox" class="wx-err">${T({nl:"Weer laden…",en:"Loading weather…"})}</div></div>
+    <div class="p-note">${T({nl:"Wind op 10 m (Open-Meteo, ECMWF & GFS). Pijl wijst met de wind mee.",en:"10 m wind (Open-Meteo, ECMWF & GFS). Arrow points downwind."})}</div>`;
   $("#panel").classList.add("open"); $("#ovl").classList.add("open");
   $("#pclose").onclick = closeDetail;
   renderWindWxStrip(lat, lon);
@@ -1982,15 +1960,44 @@ function windWxStripHTML(d, model){
   const name=(WIND_MODELS.find(m=>m[0]===model)||['','?'])[1];
   const toggle=WIND_MODELS.map(([id,label])=>`<button type="button" class="wx-mbtn${id===model?' on':''}" data-model="${id}">${label}</button>`).join("");
   const legend = LANG==="en"
-    ? `Model <b>${name}</b> · wind (kn/Beaufort as arrow + colour) + temperature + icon per day. Tap ECMWF/GFS to compare. Beyond day 3–4 indicative.`
-    : `Model <b>${name}</b> · wind (kn/Beaufort als pijl + kleur) + temperatuur + icoon per dag. Tik ECMWF/GFS om te vergelijken. Na dag 3–4 indicatief.`;
+    ? `Model <b>${name}</b> · wind (kn/Beaufort as arrow + colour) + temperature + icon per day. Tap ECMWF/GFS to compare.`
+    : `Model <b>${name}</b> · wind (kn/Beaufort als pijl + kleur) + temperatuur + icoon per dag. Tik ECMWF/GFS om te vergelijken.`;
   return `<div class="wx-mtoggle">${toggle}</div><div class="wx-strip">${cells}</div><div class="wx-legend">${legend}</div>`;
+}
+/* 7-daagse uurtabel voor het gekozen model (eerste etmaal per uur, daarna per 3 uur) */
+function windWxTableHTML(d, model){
+  const H=d.hourly||{};
+  const spd=wxPick(H,'wind_speed_10m',model), dr=wxPick(H,'wind_direction_10m',model);
+  if(!H.time || !spd || !dr) return "";
+  const off=(d.utc_offset_seconds||0)*1000;
+  const times=H.time.map(t=>Date.parse(t+"Z")-off);   // naar absolute ms; fmtClock rendert in gekozen tz
+  const nowMs=Date.now();
+  let nowIdx=0; for(let i=0;i<times.length;i++) if(Math.abs(times[i]-nowMs)<Math.abs(times[nowIdx]-nowMs)) nowIdx=i;
+  const dayFmt=new Intl.DateTimeFormat(LANG==="en"?"en-GB":"nl-NL",{timeZone:TZ_ZONE[TZ],weekday:"long",day:"numeric",month:"short"});
+  let rows="",lastDay=null,i=nowIdx;
+  while(i<times.length){
+    const kn=spd[i], dir=dr[i];
+    if(kn!=null && dir!=null){
+      const ms=times[i], c=curDirCardinal(dir), day=dayFmt.format(new Date(ms));
+      if(day!==lastDay){ rows+=`<tr><td colspan="4" style="font-weight:700;padding-top:7px;color:var(--accent)">${day}</td></tr>`; lastDay=day; }
+      const wc=windCellStyle(kn);
+      rows+=`<tr${i===nowIdx?' style="font-weight:650"':''}><td>${fmtClock(ms)}</td><td style="${wc};border-radius:4px 0 0 4px">${kn.toFixed(0)} kn</td><td style="${wc};border-radius:0 4px 4px 0">Bft ${wxBft(kn)}</td><td><span class="dircell">${c.abbr} ${Math.round(dir)}°${dirArrow((dir+180)%360,15)}</span></td></tr>`;
+    }
+    i += (i < nowIdx+24 ? 1 : 3);
+  }
+  if(!rows) return "";
+  const L = LANG==="en"
+    ? {t:"time",s:"speed",f:"from",title:"Forecast (7 days)",note:"First 24 h hourly, then 3-hourly. Indicative beyond day 3–4."}
+    : {t:"tijd",s:"snelheid",f:"uit",title:"Verwachting (7 dagen)",note:"Eerste etmaal per uur, daarna per 3 uur. Na dag 3–4 indicatief."};
+  return `<div class="p-sec" style="margin-top:12px"><h3>${L.title}</h3>
+    <table class="times" style="font-size:13px"><tr style="color:var(--muted)"><td>${L.t} (${tzShort()})</td><td>${L.s}</td><td>Bft</td><td>${L.f}</td></tr>${rows}</table>
+    <div class="p-note" style="margin-top:4px">${L.note}</div></div>`;
 }
 function paintWindWx(){
   const el=document.getElementById('windwxbox');
   if(!el || !windWxCache) return;
   el.className='';
-  el.innerHTML=windWxStripHTML(windWxCache, windWxModel);
+  el.innerHTML=windWxStripHTML(windWxCache, windWxModel)+windWxTableHTML(windWxCache, windWxModel);
   el.querySelectorAll('.wx-mbtn').forEach(b=> b.onclick=()=>{ windWxModel=b.dataset.model; paintWindWx(); });
 }
 async function renderWindWxStrip(lat, lon){
@@ -1999,8 +2006,9 @@ async function renderWindWxStrip(lat, lon){
   const box=document.getElementById('windwxbox');
   if(!box || lat==null || lon==null) return;
   const url='https://api.open-meteo.com/v1/forecast?latitude='+(+lat).toFixed(4)+'&longitude='+(+lon).toFixed(4)
+    +'&hourly=wind_speed_10m,wind_direction_10m'
     +'&daily=weather_code,temperature_2m_max,wind_speed_10m_max,wind_direction_10m_dominant'
-    +'&models=ecmwf_ifs025,gfs_seamless&wind_speed_unit=kn&timezone=auto&forecast_days=6';
+    +'&models=ecmwf_ifs025,gfs_seamless&wind_speed_unit=kn&timezone=auto&forecast_days=7';
   try{
     const r=await fetch(url);
     if(!r.ok) throw new Error('http '+r.status);
