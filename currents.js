@@ -232,8 +232,8 @@
   }
   /* eigen vloeiende pijlen — uit het (in de tijd geïnterpoleerde) veld, land-gemaskeerd */
   function drawArrows() {
-    const sz = map.getSize(), step = 44;
-    ctx.lineWidth = 1.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.globalAlpha = 1;
+    const sz = map.getSize(), step = 50;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.globalAlpha = 1;
     for (let x = step * 0.6; x < sz.x; x += step) {
       for (let y = step * 0.6; y < sz.y; y += step) {
         if (maskData) { const mx = x | 0, my = y | 0; if (mx < 0 || my < 0 || mx >= maskW || my >= maskH || maskData[(my * maskW + mx) * 4 + 3] <= 25) continue; }
@@ -242,14 +242,14 @@
         if (!uv) continue;
         const u = uv[0], v = uv[1], kmh = Math.hypot(u, v); if (kmh < 0.05) continue;
         const dx = u, dy = -v, m = Math.hypot(dx, dy) || 1, ux = dx / m, uy = dy / m;
-        const len = Math.min(step * 0.5, 7 + kmh * 4.2);
+        const len = Math.min(step * 0.58, 9 + kmh * 5);
         const hx = x + ux * len * 0.5, hy = y + uy * len * 0.5, tx = x - ux * len * 0.5, ty = y - uy * len * 0.5;
-        const ah = Math.min(5.5, len * 0.42), ang = Math.atan2(uy, ux);
+        const ah = Math.min(7, len * 0.44), ang = Math.atan2(uy, ux);
         ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy);
         ctx.lineTo(hx - ah * Math.cos(ang - 0.45), hy - ah * Math.sin(ang - 0.45));
         ctx.moveTo(hx, hy); ctx.lineTo(hx - ah * Math.cos(ang + 0.45), hy - ah * Math.sin(ang + 0.45));
-        ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 3.6; ctx.stroke();   // witte casing → contrast op elke ondergrond
-        ctx.strokeStyle = speedColor(kmh); ctx.lineWidth = 1.9; ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 4.0; ctx.stroke();   // witte casing → contrast op elke ondergrond
+        ctx.strokeStyle = speedColor(kmh); ctx.lineWidth = 2.2; ctx.stroke();
       }
     }
   }
