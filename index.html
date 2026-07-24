@@ -650,7 +650,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260724-61</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260724-62</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1400,8 +1400,8 @@ async function loadTideInto(o){
 /* ---------- weer & wind in het detailpaneel (Open-Meteo: ECMWF-pijlen + GFS als 2e verwachting) ---------- */
 let wxToken = 0, windWxToken = 0, windWxModel = 'ecmwf_ifs025', windWxCache = null;
 const WIND_MODELS = [['ecmwf_ifs025','ECMWF'],['gfs_seamless','GFS']];
-const WX_RAMP = [[0,'#cfe8ff'],[1,'#a9d9f0'],[4,'#8fd0a8'],[7,'#78c46b'],[11,'#c3dd4e'],
-  [17,'#f2d43d'],[22,'#f6a63c'],[28,'#ee6f3a'],[34,'#e0463f'],[41,'#cf3670'],[48,'#9b4bb0'],[56,'#6d3b9e']];
+const WX_RAMP = [[0,'#86b6e8'],[1,'#5b9bd6'],[4,'#3fa579'],[7,'#4aa62f'],[11,'#98ba26'],
+  [17,'#e6bd15'],[22,'#f6a63c'],[28,'#ee6f3a'],[34,'#e0463f'],[41,'#cf3670'],[48,'#9b4bb0'],[56,'#6d3b9e']];
 function wxColor(kn){ for(let k=WX_RAMP.length-1;k>=0;k--) if(kn>=WX_RAMP[k][0]) return WX_RAMP[k][1]; return WX_RAMP[0][1]; }
 function wxBft(kn){ const b=[1,4,7,11,17,22,28,34,41,48,56,64]; let n=0; for(const t of b){ if(kn>=t) n++; } return n; }
 function wxCompass(deg){
@@ -3233,7 +3233,7 @@ function updateLegend(){
   }
   if (window.Wind && Wind.anyOn()){
     html+=`<div class="lg-t">${LANG==="en"?"Wind (kn · Bft)":"Wind (kn · Bft)"}</div>`;
-    [["1–3 · 1","#a9d9f0"],["7–10 · 3","#78c46b"],["11–16 · 4","#c3dd4e"],["17–21 · 5","#f2d43d"],["22–27 · 6","#f6a63c"],["28–33 · 7","#ee6f3a"],["34–40 · 8","#e0463f"],["≥41 · 9+","#cf3670"]].forEach(([lab,c])=>{ html+=`<div class="lg-row"><span class="lg-sw" style="background:${c}"></span>${lab}</div>`; });
+    [["1–3 · 1","#5b9bd6"],["7–10 · 3","#4aa62f"],["11–16 · 4","#98ba26"],["17–21 · 5","#e6bd15"],["22–27 · 6","#f6a63c"],["28–33 · 7","#ee6f3a"],["34–40 · 8","#e0463f"],["≥41 · 9+","#cf3670"]].forEach(([lab,c])=>{ html+=`<div class="lg-row"><span class="lg-sw" style="background:${c}"></span>${lab}</div>`; });
   }
   if (html){
     const hd = `<div class="lg-hd" style="cursor:pointer;font-weight:700;display:flex;justify-content:space-between;gap:10px;user-select:none"><span>${LANG==="en"?"Legend":"Legenda"}</span><span>${legendOpen?"▾":"▸"}</span></div>`;

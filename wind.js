@@ -6,8 +6,8 @@
   const GRID = { lat0: 49.0, dLat: 0.4, nLat: 14, lon0: -2.4, dLon: 0.5, nLon: 18 };
   const NHOURS = 168, PLAY_HPS = 1.4;
   // Beaufort-kleuren (knopen)
-  const RAMP = [[0,'#cfe8ff'],[1,'#a9d9f0'],[4,'#8fd0a8'],[7,'#78c46b'],[11,'#c3dd4e'],
-    [17,'#f2d43d'],[22,'#f6a63c'],[28,'#ee6f3a'],[34,'#e0463f'],[41,'#cf3670'],[48,'#9b4bb0'],[56,'#6d3b9e']];
+  const RAMP = [[0,'#86b6e8'],[1,'#5b9bd6'],[4,'#3fa579'],[7,'#4aa62f'],[11,'#98ba26'],
+    [17,'#e6bd15'],[22,'#f6a63c'],[28,'#ee6f3a'],[34,'#e0463f'],[41,'#cf3670'],[48,'#9b4bb0'],[56,'#6d3b9e']];
   function windColor(kn){ for(let k=RAMP.length-1;k>=0;k--) if(kn>=RAMP[k][0]) return RAMP[k][1]; return RAMP[0][1]; }
   function beaufort(kn){ const b=[1,4,7,11,17,22,28,34,41,48,56,64]; let n=0; for(const t of b){ if(kn>=t) n++; } return n; }
 
