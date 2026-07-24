@@ -231,6 +231,7 @@ footer a{color:var(--brand-dim);text-decoration:underline}
 .mapbar{position:absolute;z-index:1000;top:12px;left:54px;display:flex;gap:6px;flex-wrap:wrap}
 .mapbtn{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--grid);border-radius:8px;padding:6px 12px;font-size:13px;font-weight:550;color:var(--ink2);cursor:pointer;box-shadow:0 1px 5px rgba(0,0,0,.14)}
 .mapbtn.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.boltmark{font-size:20px;line-height:22px;text-align:center;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55));pointer-events:none}
 #mb-menu{display:none}
 #hd-more{display:none}
 #hd-menu{position:absolute;right:10px;top:100%;margin-top:4px;background:var(--surface);border:1px solid var(--grid);border-radius:11px;padding:11px;display:flex;flex-direction:column;gap:11px;align-items:flex-end;z-index:1002;box-shadow:0 3px 14px rgba(5,10,16,.25)}
@@ -495,6 +496,9 @@ html.napp header input{touch-action:manipulation}
           <label><input type="checkbox" id="wind-particles"> <span data-i18n="w_part">Winddeeltjes</span></label>
           <label><input type="checkbox" id="wind-color"> <span data-i18n="w_color">Windkleur (snelheid)</span></label>
           <div class="dm-note" id="wind-status"></div>
+          <div class="dm-t" data-i18n="dm_rain">Neerslag &amp; onweer</div>
+          <label><input type="checkbox" id="rain-radar"> <span data-i18n="r_radar">Regenradar + onweer ⚡</span></label>
+          <div class="dm-note" id="rain-status"></div>
         </div>
       </div>
       <div class="dropwrap">
@@ -646,7 +650,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260724-59</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260724-60</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1761,6 +1765,7 @@ function initMap(){
   map.createPane("iencPane");  map.getPane("iencPane").style.zIndex = 300;
   map.createPane("encPane");   map.getPane("encPane").style.zIndex = 320;
   map.createPane("seaPane");   map.getPane("seaPane").style.zIndex = 350;
+  map.createPane("rainPane");  map.getPane("rainPane").style.zIndex = 245; map.getPane("rainPane").style.pointerEvents = "none";
   cluster = L.markerClusterGroup(clusterOpts());
   buildMarkers();
   map.addLayer(cluster);
@@ -3120,6 +3125,88 @@ function updateDepthLines(){
 }
 $("#d-per1").addEventListener("change", updateDepthLines);
 $("#d-per5").addEventListener("change", updateDepthLines);
+/* ---------- Regenradar (RainViewer) + onweer-markers (Open-Meteo weercode 95/96/99) ---------- */
+const Rain = (function(){
+  let on=false, host="", frames=[], layers=[], idx=0, animTimer=null, refreshTimer=null, boltTimer=null;
+  let boltLayer=null, boltTok=0, moveHooked=false, moveTmr=null;
+  const OPACITY=0.72;
+  const boltIcon = L.divIcon({className:"boltmark", html:"⚡", iconSize:[22,22], iconAnchor:[11,11]});
+  async function loadFrames(){
+    try{
+      const r=await fetch("https://api.rainviewer.com/public/weather-maps.json",{cache:"no-store"});
+      const d=await r.json();
+      host=d.host||"";
+      const past=(d.radar&&d.radar.past)||[], nc=(d.radar&&d.radar.nowcast)||[];
+      frames=past.concat(nc).slice(-12);
+      return frames.length>0 && !!host;
+    }catch(e){ return false; }
+  }
+  function buildLayers(){
+    layers.forEach(l=>{ try{map.removeLayer(l);}catch(_){} });
+    layers=frames.map(fr=> L.tileLayer(host+fr.path+"/256/{z}/{x}/{y}/4/1_1.png",{
+      pane:"rainPane", opacity:0, tileSize:256, maxZoom:19, crossOrigin:true,
+      attribution:'Radar © <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a>'
+    }));
+  }
+  function showFrame(i){ layers.forEach((l,j)=> l.setOpacity(j===i?OPACITY:0)); }
+  function tick(){
+    if(!on || !layers.length) return;
+    idx=(idx+1)%layers.length; showFrame(idx);
+    animTimer=setTimeout(tick, idx===layers.length-1 ? 1200 : 450);
+  }
+  function startAnim(){
+    stopAnim();
+    layers.forEach(l=> l.addTo(map));
+    idx=layers.length-1; showFrame(idx);
+    animTimer=setTimeout(tick, 1200);
+  }
+  function stopAnim(){ if(animTimer){ clearTimeout(animTimer); animTimer=null; } }
+  function setStatus(txt){ const st=document.getElementById("rain-status"); if(st) st.textContent=txt; }
+  async function refreshBolts(){
+    if(!on) return;
+    if(!boltLayer) boltLayer=L.layerGroup().addTo(map);
+    const b=map.getBounds(), rows=5, cols=6, lats=[], lons=[];
+    for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+      lats.push((b.getSouth()+(b.getNorth()-b.getSouth())*(r+0.5)/rows).toFixed(3));
+      lons.push((b.getWest()+(b.getEast()-b.getWest())*(c+0.5)/cols).toFixed(3));
+    }
+    const url='https://api.open-meteo.com/v1/forecast?latitude='+lats.join(',')+'&longitude='+lons.join(',')+'&current=weather_code&timezone=auto';
+    const tok=++boltTok;
+    try{
+      const r=await fetch(url); const d=await r.json();
+      if(tok!==boltTok || !on) return;
+      boltLayer.clearLayers();
+      const arr=Array.isArray(d)?d:[d]; let n=0;
+      arr.forEach(p=>{ const code=p.current&&p.current.weather_code;
+        if(code===95||code===96||code===99){ n++; L.marker([p.latitude,p.longitude],{icon:boltIcon,interactive:false,keyboard:false}).addTo(boltLayer); } });
+      setStatus(LANG==="en" ? ("Radar live · "+(n?n+" thunder cell"+(n>1?"s":""):"no thunder"))
+                            : ("Radar live · "+(n?n+" onweercel"+(n>1?"len":""):"geen onweer")));
+    }catch(e){}
+  }
+  function onMove(){ clearTimeout(moveTmr); moveTmr=setTimeout(refreshBolts, 500); }
+  async function enable(){
+    on=true; setStatus(LANG==="en"?"Loading radar…":"Radar laden…");
+    const ok=await loadFrames();
+    if(!on) return;
+    if(!ok){ setStatus(LANG==="en"?"Radar unavailable":"Radar niet beschikbaar"); return; }
+    buildLayers(); startAnim();
+    if(boltLayer) boltLayer.addTo(map); else boltLayer=L.layerGroup().addTo(map);
+    if(!moveHooked){ map.on("moveend", onMove); moveHooked=true; }
+    refreshBolts();
+    refreshTimer=setInterval(async ()=>{ if(!on) return; const had=await loadFrames(); if(on&&had){ buildLayers(); startAnim(); } }, 5*60*1000);
+    boltTimer=setInterval(refreshBolts, 4*60*1000);
+  }
+  function disable(){
+    on=false; stopAnim();
+    layers.forEach(l=>{ try{map.removeLayer(l);}catch(_){} });
+    if(boltLayer){ boltLayer.clearLayers(); try{map.removeLayer(boltLayer);}catch(_){} }
+    if(refreshTimer){ clearInterval(refreshTimer); refreshTimer=null; }
+    if(boltTimer){ clearInterval(boltTimer); boltTimer=null; }
+    setStatus("");
+  }
+  return { toggle:v=>{ v?enable():disable(); }, isOn:()=>on };
+})();
+$("#rain-radar").addEventListener("change", ()=> Rain.toggle($("#rain-radar").checked));
 /* ---- kaartlegenda (diepte + wind), in/uitklapbaar ---- */
 function legendDepthSet(){ return depthLevelsWanted() ? "lines" : "off"; }
 let legendOpen = !matchMedia("(max-width:640px), (max-height:500px) and (orientation:landscape) and (pointer:coarse)").matches;   // telefoon: standaard ingeklapt
@@ -3163,6 +3250,7 @@ const STATIC_EN = {
   mb_objs:"Bridges & locks", dm_objs:"On the map", o_bedien:"Operable", o_vast:"Non-operable", o_strem:"Closures", o_harb:"Harbours",
   mb_tide:"Tide, current & wind", dm_tide:"Tide", t_stations:"Tide stations",
   dm_wind:"Wind (Open-Meteo, GFS/ICON)", w_arrows:"Wind arrows (Beaufort)", w_part:"Wind particles", w_color:"Wind colour (speed)",
+  dm_rain:"Precipitation & thunder", r_radar:"Rain radar + thunder ⚡",
   mb_kaart:"Map", dm_layers:"Separate layers", k_sea:"Sea chart (OpenSeaMap)", k_vts:"VTS sectors",
   k_land:"Land map mode", k_zeekaart:"Nautical chart mode",
   dm_title:"Tidal current (Copernicus)", dm_arrows:"Copernicus arrows (sharp)", dm_own:"Own arrows (smooth)", dm_particles:"Particle animation", dm_color:"Colour layer (speed)", cur_now:"Now",
