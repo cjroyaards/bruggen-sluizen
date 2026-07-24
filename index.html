@@ -494,7 +494,6 @@ html.napp header input{touch-action:manipulation}
           <label><input type="checkbox" id="lay-arrows"> <span data-i18n="dm_arrows">Copernicus pijlen (scherp)</span></label>
           <label><input type="checkbox" id="lay-own"> <span data-i18n="dm_own">Eigen pijlen (vloeiend)</span></label>
           <label><input type="checkbox" id="lay-particles"> <span data-i18n="dm_particles">Deeltjesanimatie</span></label>
-          <label><input type="checkbox" id="lay-color"> <span data-i18n="dm_color">Kleurlaag (snelheid)</span></label>
           <div class="dm-note" id="lay-status"></div>
           <div class="dm-t" data-i18n="dm_wind">Wind (Open-Meteo, GFS/ICON)</div>
           <label><input type="checkbox" id="wind-arrows"> <span data-i18n="w_arrows">Windpijlen (Beaufort)</span></label>
@@ -655,7 +654,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260724-64</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-65</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1886,14 +1885,14 @@ function initCurrents(){
     if (on){ $("#cur-slider").value = String(tf); $("#cur-label").textContent = curFmtLabel(tf); }
   }
   function applyLayers(){
-    Currents.setLayers({ arrows:$("#lay-arrows").checked, own:$("#lay-own").checked, particles:$("#lay-particles").checked, color:$("#lay-color").checked });
+    Currents.setLayers({ arrows:$("#lay-arrows").checked, own:$("#lay-own").checked, particles:$("#lay-particles").checked, color:false });
     Wind.setLayers({ arrows:$("#wind-arrows").checked, particles:$("#wind-particles").checked, color:$("#wind-color").checked });
     flowPlaying = Currents.isPlaying() || Wind.isPlaying();   // deeltjes starten auto → overnemen
     syncPlay();
     refreshBar();
     if (window.updateLegend) updateLegend();
   }
-  ["lay-arrows","lay-own","lay-particles","lay-color","wind-arrows","wind-particles","wind-color"].forEach(id => $("#"+id).addEventListener("change", applyLayers));
+  ["lay-arrows","lay-own","lay-particles","wind-arrows","wind-particles","wind-color"].forEach(id => $("#"+id).addEventListener("change", applyLayers));
   // Copernicus-WMTS gaat maar tot zoom 9 native → bij dieper inzoomen blokkerig.
   // Vanaf zoom 11 automatisch de vloeiende eigen pijlen tonen (zelfde stromingsdata), terug bij uitzoomen.
   let copSwapped=false;

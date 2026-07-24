@@ -34,19 +34,29 @@
     const layers = new Map(); let visibleHour = -1, fadeRAF = 0, on = false;
     function layerFor(hr) {
       if (layers.has(hr)) return layers.get(hr);
-      const lyr = makeCmemsLayer(style, 0, isoHour(times[hr])).addTo(map); lyr.setOpacity(0); layers.set(hr, lyr);
+      const lyr = makeCmemsLayer(style, 0, isoHour(times[hr])); lyr._allLoaded = false;
+      lyr.on('load', () => { lyr._allLoaded = true; });
+      lyr.addTo(map); lyr.setOpacity(0); layers.set(hr, lyr);
       if (layers.size > 8) { let far = -1, fd = -1; for (const h of layers.keys()) { if (h === visibleHour || Math.abs(h - visibleHour) <= 1) continue; const d = Math.abs(h - visibleHour); if (d > fd) { fd = d; far = h; } } if (far >= 0) { map.removeLayer(layers.get(far)); layers.delete(far); } }
       return lyr;
+    }
+    function fadeTo(target, prev) {
+      cancelAnimationFrame(fadeRAF);
+      const t0 = performance.now(), dur = 380, of = target.options.opacity || 0, pf = prev ? (prev.options.opacity || 0) : 0;
+      const step = now => { const k = Math.min(1, (now - t0) / dur); target.setOpacity(of + (maxOpacity - of) * k); if (prev && prev !== target) prev.setOpacity(pf * (1 - k)); if (k < 1) fadeRAF = requestAnimationFrame(step); };
+      fadeRAF = requestAnimationFrame(step);
     }
     function show(hr) {
       if (!times || !on) return;
       const target = layerFor(hr), prev = layers.get(visibleHour); if (target === prev) return;
       visibleHour = hr; layerFor(Math.min(NHOURS - 1, hr + 1));
       layers.forEach(l => { if (l !== target && l !== prev) l.setOpacity(0); });
-      cancelAnimationFrame(fadeRAF);
-      const t0 = performance.now(), dur = 380, of = target.options.opacity || 0, pf = prev ? (prev.options.opacity || 0) : 0;
-      const step = now => { const k = Math.min(1, (now - t0) / dur); target.setOpacity(of + (maxOpacity - of) * k); if (prev && prev !== target) prev.setOpacity(pf * (1 - k)); if (k < 1) fadeRAF = requestAnimationFrame(step); };
-      fadeRAF = requestAnimationFrame(step);
+      // pas infaden als álle tegels binnen zijn → in één keer, geen piecemeal-gepop
+      if (target._allLoaded) { fadeTo(target, prev); }
+      else {
+        target.once('load', () => { if (on && visibleHour === hr) fadeTo(target, prev); });
+        setTimeout(() => { if (on && visibleHour === hr && (target.options.opacity || 0) < maxOpacity * 0.5) fadeTo(target, prev); }, 1500);
+      }
     }
     function clear() { cancelAnimationFrame(fadeRAF); layers.forEach(l => map.removeLayer(l)); layers.clear(); visibleHour = -1; }
     return { show, clear, setOn(v) { on = v; if (!v) clear(); }, get on() { return on; }, get visibleHour() { return visibleHour; } };
