@@ -655,7 +655,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260724-63</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260724-64</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1849,7 +1849,15 @@ function curFmtLabel(tf){
   const dstr = new Intl.DateTimeFormat(LANG==="en"?"en-GB":"nl-NL",{timeZone:TZ_ZONE[TZ],weekday:"short",day:"numeric",month:"short"}).format(new Date(ms));
   return `${dstr} · ${fmtClock(ms)} ${tzAbbr(ms)}`;
 }
-function loadScriptOnce(src, cb){ const s=document.createElement("script"); s.src=src+"?t="+Date.now(); s.onload=cb; document.head.appendChild(s); }
+const _loadedScripts = {};
+function loadScriptOnce(src, cb){
+  let e=_loadedScripts[src];
+  if(e){ e.done ? cb() : e.cbs.push(cb); return; }   // al (aan het) laden → nooit dubbel
+  e=_loadedScripts[src]={done:false,cbs:[cb]};
+  const s=document.createElement("script"); s.src=src+"?t="+Date.now();
+  s.onload=()=>{ e.done=true; const q=e.cbs; e.cbs=[]; q.forEach(fn=>fn()); };
+  document.head.appendChild(s);
+}
 function initCurrents(){
   if (curInited) return;
   if (!window.Currents){ loadScriptOnce("currents.js", initCurrents); return; }
@@ -1858,7 +1866,13 @@ function initCurrents(){
   Currents.init(map);
   Wind.init(map);
   const anyFlow = () => Currents.anyOn() || Wind.anyOn();
-  const isPlaying = () => Currents.isPlaying() || Wind.isPlaying();
+  let flowPlaying = false;
+  const isPlaying = () => flowPlaying;
+  const syncPlay = () => {
+    Currents.setPlaying(flowPlaying && Currents.anyOn());
+    Wind.setPlaying(flowPlaying && Wind.anyOn());
+    $("#cur-play").textContent = flowPlaying ? "❚❚" : "▶";
+  };
   Currents.onStatus(s => { $("#lay-status").textContent = s || ""; });
   Wind.onStatus(s => { $("#wind-status").textContent = s || ""; });
   const barTime = tf => { $("#cur-slider").value = String(tf); $("#cur-label").textContent = curFmtLabel(tf); $("#cur-play").textContent = isPlaying()?"❚❚":"▶"; };
@@ -1874,6 +1888,8 @@ function initCurrents(){
   function applyLayers(){
     Currents.setLayers({ arrows:$("#lay-arrows").checked, own:$("#lay-own").checked, particles:$("#lay-particles").checked, color:$("#lay-color").checked });
     Wind.setLayers({ arrows:$("#wind-arrows").checked, particles:$("#wind-particles").checked, color:$("#wind-color").checked });
+    flowPlaying = Currents.isPlaying() || Wind.isPlaying();   // deeltjes starten auto → overnemen
+    syncPlay();
     refreshBar();
     if (window.updateLegend) updateLegend();
   }
@@ -1886,7 +1902,7 @@ function initCurrents(){
     if (wantCop && deep && !copSwapped){ copSwapped=true; Currents.setLayers({arrows:false, own:true}); }
     else if (copSwapped && (!deep || !wantCop)){ copSwapped=false; applyLayers(); }
   });
-  const bothTime = tf => { Currents.setPlaying(false); Wind.setPlaying(false); Currents.setTime(tf); Wind.setTime(tf); $("#cur-play").textContent="▶"; };
+  const bothTime = tf => { flowPlaying = false; Currents.setTime(tf); Wind.setTime(tf); syncPlay(); };
   $("#cur-slider").addEventListener("input", ()=> bothTime(+$("#cur-slider").value));
   $("#cur-now").addEventListener("click", ()=> bothTime(Currents.nowIndex()));
   const stepBy = h => { const base = Currents.anyOn()?Currents.getTFloat():Wind.getTFloat(); bothTime(Math.max(0, Math.min(Currents.NHOURS-1, Math.round(base)+h))); };
@@ -1894,7 +1910,7 @@ function initCurrents(){
   $("#cur-next").addEventListener("click", ()=>stepBy(1));
   $("#cur-prevd").addEventListener("click", ()=>stepBy(-24));
   $("#cur-nextd").addEventListener("click", ()=>stepBy(24));
-  $("#cur-play").addEventListener("click", ()=>{ const p=!isPlaying(); Currents.setPlaying(p); Wind.setPlaying(p); $("#cur-play").textContent = p?"❚❚":"▶"; });
+  $("#cur-play").addEventListener("click", ()=>{ flowPlaying = !flowPlaying; syncPlay(); });
   // klik op zee → stroom- en/of wind-info (met doorklik naar detailpaneel)
   map.on("click", e=>{
     if (window.plotterArmWp || (plOn && !plWp)) return;   // klik zet een waypoint, geen popup

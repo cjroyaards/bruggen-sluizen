@@ -346,7 +346,7 @@
       resizeCanvas(); reposition(); setTimeFloat(nowIndex()); requestAnimationFrame(frame);
       return API;
     },
-    setLayers(w) { const wasP = want.particles; want = Object.assign({}, want, w); if (want.particles && !wasP) playing = true; sync(); if (onTimeChange) onTimeChange(tFloat); },
+    setLayers(w) { const wasP = want.particles; want = Object.assign({}, want, w); if (want.particles && !wasP) playing = true; if (!(want.arrows || want.particles || want.color || want.own)) playing = false; sync(); if (onTimeChange) onTimeChange(tFloat); },
     anyOn() { return want.arrows || want.particles || want.color || want.own; },
     pointNow(lat, lon) { return U ? pointInfo(lat, lon, tFloat) : null; },
     pointSeries(lat, lon) { return U ? pointSeries(lat, lon) : null; },
