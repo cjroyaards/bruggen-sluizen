@@ -650,7 +650,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260724-60</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260724-61</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -3144,7 +3144,7 @@ const Rain = (function(){
   function buildLayers(){
     layers.forEach(l=>{ try{map.removeLayer(l);}catch(_){} });
     layers=frames.map(fr=> L.tileLayer(host+fr.path+"/256/{z}/{x}/{y}/4/1_1.png",{
-      pane:"rainPane", opacity:0, tileSize:256, maxZoom:19, crossOrigin:true,
+      pane:"rainPane", opacity:0, tileSize:256, maxNativeZoom:7, maxZoom:19, crossOrigin:true,
       attribution:'Radar © <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a>'
     }));
   }
