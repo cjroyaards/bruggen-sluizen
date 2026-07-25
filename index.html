@@ -652,7 +652,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-71</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-72</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1867,35 +1867,66 @@ function initCurrents(){
   const clockOn = () => Currents.anyOn() || Wind.anyOn() || Rain.isOn();
   let flowPlaying = false;
   const isPlaying = () => flowPlaying;
+  // --- radar-baas-modus: radar loopt zijn eigen ~2u-lus; wind/stroom volgen die tijd via setTime ---
+  let radarIdx = 0, radarTimer = null;
+  function tfFromMs(ms){
+    const t = Currents.getTimes && Currents.getTimes();
+    if (!t || ms==null) return Currents.getTFloat();
+    return Math.max(0, Math.min(Currents.NHOURS-1, (ms/1000 - t[0]) / 3600));
+  }
+  function radarStop(){ if(radarTimer){ clearTimeout(radarTimer); radarTimer=null; } }
+  function radarShow(i){
+    const n = Rain.count(); if(!n) return;
+    radarIdx = ((Math.round(i) % n) + n) % n;
+    Rain.showIndex(radarIdx);
+    const tf = tfFromMs(Rain.frameTimeAt(radarIdx));
+    Currents.setTime(tf); Wind.setTime(tf);              // wind/stroom volgen de radartijd
+    $("#cur-slider").value = String(radarIdx);
+    $("#cur-label").textContent = Rain.frameLabel(radarIdx);
+    $("#cur-play").textContent = flowPlaying ? "❚❚" : "▶";
+  }
+  function radarLoop(){
+    radarStop();
+    const n = Rain.count(); if(!n) return;
+    radarShow(radarIdx + 1);
+    radarTimer = setTimeout(radarLoop, radarIdx === n-1 ? 1400 : 700);   // rustig, pauze aan het eind
+  }
   const syncPlay = () => {
-    // Currents = master-klok: draait ook als alleen wind of alleen radar aanstaat, zodat tFloat vooruit gaat
-    Currents.setPlaying(flowPlaying && clockOn());
-    Wind.setPlaying(flowPlaying && Wind.anyOn());
+    if (Rain.isOn()){
+      Currents.setPlaying(false); Wind.setPlaying(false);   // radar is master; wind/stroom via setTime per frame
+      flowPlaying ? radarLoop() : radarStop();
+    } else {
+      radarStop();
+      Currents.setPlaying(flowPlaying && clockOn());
+      Wind.setPlaying(flowPlaying && Wind.anyOn());
+    }
     $("#cur-play").textContent = flowPlaying ? "❚❚" : "▶";
   };
   Currents.onStatus(s => { $("#lay-status").textContent = s || ""; });
   Wind.onStatus(s => { $("#wind-status").textContent = s || ""; });
   const barTime = tf => {
+    if (Rain.isOn()) return;             // in radarmodus stuurt radarShow de balk
     $("#cur-slider").value = String(tf);
     $("#cur-label").textContent = curFmtLabel(tf);
     $("#cur-play").textContent = isPlaying()?"❚❚":"▶";
-    if (Rain.isOn()) Rain.showAtMs(curMs(tf));   // radar volgt dezelfde tijd
   };
-  Currents.onTime(barTime);            // Currents is de klok; wind loopt parallel mee
+  Currents.onTime(barTime);            // niet-radar: Currents is de klok; wind loopt parallel mee
   Wind.onTime(()=>{});
-  Rain.setClock(() => curMs(Currents.getTFloat()));
   function refreshBar(){
     const on = clockOn();
     $("#curbar").hidden = !on;
     $("#mb-tide").classList.toggle("on", anyFlow());
-    if (on) barTime(Currents.getTFloat());
+    const sl = $("#cur-slider");
+    if (!on) return;
+    if (Rain.isOn()){ sl.min="0"; sl.max=String(Math.max(1,Rain.count()-1)); sl.step="1"; radarShow(radarIdx); }
+    else { sl.min="0"; sl.max="167"; sl.step="0.04"; barTime(Currents.getTFloat()); }
   }
-  CURBAR_API = { refreshBar, syncPlay };
+  CURBAR_API = { refreshBar, syncPlay, radarReset: ()=>{ radarIdx = Math.max(0, Rain.count()-1); } };
   function applyLayers(){
     const flow = $("#lay-flow").checked, deep = map.getZoom()>=11;
     Currents.setLayers({ arrows: flow && !deep, own: flow && deep, particles:$("#lay-particles").checked, color:false });
     Wind.setLayers({ arrows:$("#wind-arrows").checked, particles:$("#wind-particles").checked, color:$("#wind-color").checked });
-    flowPlaying = Currents.isPlaying() || Wind.isPlaying();   // deeltjes starten auto → overnemen
+    if (!Rain.isOn()) flowPlaying = Currents.isPlaying() || Wind.isPlaying();   // deeltjes-autostart alleen buiten radarmodus
     syncPlay();
     refreshBar();
     if (window.updateLegend) updateLegend();
@@ -1910,9 +1941,13 @@ function initCurrents(){
     if (deep !== lastDeep){ lastDeep = deep; applyLayers(); }
   });
   const bothTime = tf => { flowPlaying = false; Currents.setTime(tf); Wind.setTime(tf); syncPlay(); barTime(tf); };
-  $("#cur-slider").addEventListener("input", ()=> bothTime(+$("#cur-slider").value));
-  $("#cur-now").addEventListener("click", ()=> bothTime(Currents.nowIndex()));
-  const stepBy = h => { const base = Currents.anyOn()?Currents.getTFloat():Wind.getTFloat(); bothTime(Math.max(0, Math.min(Currents.NHOURS-1, Math.round(base)+h))); };
+  const radarScrub = i => { flowPlaying=false; radarStop(); radarShow(i); $("#cur-play").textContent="▶"; };
+  $("#cur-slider").addEventListener("input", ()=>{ Rain.isOn() ? radarScrub(+$("#cur-slider").value) : bothTime(+$("#cur-slider").value); });
+  $("#cur-now").addEventListener("click", ()=>{ Rain.isOn() ? radarScrub(Rain.count()-1) : bothTime(Currents.nowIndex()); });
+  const stepBy = h => {
+    if (Rain.isOn()){ radarScrub(radarIdx + (h<0?-1:1)); return; }
+    const base = Currents.anyOn()?Currents.getTFloat():Wind.getTFloat(); bothTime(Math.max(0, Math.min(Currents.NHOURS-1, Math.round(base)+h)));
+  };
   $("#cur-prev").addEventListener("click", ()=>stepBy(-1));
   $("#cur-next").addEventListener("click", ()=>stepBy(1));
   $("#cur-prevd").addEventListener("click", ()=>stepBy(-24));
@@ -3156,7 +3191,7 @@ $("#d-per5").addEventListener("change", updateDepthLines);
 /* ---------- Regenradar (RainViewer) + onweer-markers (Open-Meteo weercode 95/96/99) ---------- */
 const Rain = (function(){
   let on=false, host="", frames=[], frameMs=[], layers=[], refreshTimer=null, boltTimer=null;
-  let boltLayer=null, boltTok=0, boltN=0, moveHooked=false, moveTmr=null, clockFn=()=>Date.now();
+  let boltLayer=null, boltTok=0, boltN=0, moveHooked=false, moveTmr=null, shownIdx=0;
   const OPACITY=0.72;
   const boltIcon = L.divIcon({className:"boltmark", html:"⚡", iconSize:[22,22], iconAnchor:[11,11]});
   async function loadFrames(){
@@ -3184,17 +3219,15 @@ const Rain = (function(){
     const b = boltN ? " · "+boltN+(LANG==="en"?(" thunder cell"+(boltN>1?"s":"")):(" onweercel"+(boltN>1?"len":""))) : (LANG==="en"?" · no thunder":" · geen onweer");
     st.textContent = (future ? (LANG==="en"?"Radar: latest image ":"Radar: laatste beeld ") : "Radar ") + fmtHM(ms) + b;
   }
-  // toon het radarbeeld dat qua tijd het dichtst bij de gedeelde klok ligt (of het nieuwste, gedimd, in de toekomst)
-  function showAtMs(ms){
-    if(!layers.length || !frameMs.length) return;
-    if(ms==null) ms=frameMs[frameMs.length-1];
-    const newest=frameMs[frameMs.length-1];
-    let i, future=false;
-    if(ms>=newest){ i=frameMs.length-1; future=(ms-newest>15*60*1000); }
-    else { i=0; let best=Infinity; for(let k=0;k<frameMs.length;k++){ const dd=Math.abs(frameMs[k]-ms); if(dd<best){best=dd;i=k;} } }
-    const op = future ? OPACITY*0.45 : OPACITY;   // gedimd = "niet live voor dit tijdstip"
-    layers.forEach((l,j)=> l.setOpacity(j===i?op:0));
-    paintStatus(future, frameMs[i]);
+  // radar-baas-modus: toon een specifiek radarframe op index (de gedeelde balk/lus stuurt de index aan)
+  function count(){ return layers.length; }
+  function frameTimeAt(i){ return frameMs[i]; }
+  function frameLabel(i){ return "Radar " + fmtHM(frameMs[((Math.round(i)%(frameMs.length||1))+(frameMs.length||1))%(frameMs.length||1)]); }
+  function showIndex(i){
+    if(!layers.length) return;
+    shownIdx = ((Math.round(i)%layers.length)+layers.length)%layers.length;
+    layers.forEach((l,j)=> l.setOpacity(j===shownIdx?OPACITY:0));
+    paintStatus(false, frameMs[shownIdx]);
   }
   async function refreshBolts(){
     if(!on) return;
@@ -3214,7 +3247,7 @@ const Rain = (function(){
       arr.forEach(p=>{ const code=p.current&&p.current.weather_code;
         if(code===95||code===96||code===99){ n++; L.marker([p.latitude,p.longitude],{icon:boltIcon,interactive:false,keyboard:false}).addTo(boltLayer); } });
       boltN=n;
-      showAtMs(clockFn());   // statusregel verversen op de huidige klok
+      if(frameMs.length) paintStatus(false, frameMs[shownIdx]);   // statusregel verversen
     }catch(e){}
   }
   function onMove(){ clearTimeout(moveTmr); moveTmr=setTimeout(refreshBolts, 500); }
@@ -3227,11 +3260,10 @@ const Rain = (function(){
     buildLayers();
     if(boltLayer) boltLayer.addTo(map); else boltLayer=L.layerGroup().addTo(map);
     if(!moveHooked){ map.on("moveend", onMove); moveHooked=true; }
-    showAtMs(clockFn());
+    if(CURBAR_API){ CURBAR_API.radarReset(); CURBAR_API.refreshBar(); CURBAR_API.syncPlay(); }
     refreshBolts();
-    refreshTimer=setInterval(async ()=>{ if(!on) return; const had=await loadFrames(); if(on&&had){ buildLayers(); showAtMs(clockFn()); } }, 5*60*1000);
+    refreshTimer=setInterval(async ()=>{ if(!on) return; const had=await loadFrames(); if(on&&had){ buildLayers(); if(CURBAR_API) CURBAR_API.refreshBar(); } }, 5*60*1000);
     boltTimer=setInterval(refreshBolts, 4*60*1000);
-    if(CURBAR_API){ CURBAR_API.refreshBar(); CURBAR_API.syncPlay(); }
   }
   function disable(){
     on=false;
@@ -3242,7 +3274,7 @@ const Rain = (function(){
     const st=document.getElementById("rain-status"); if(st) st.textContent="";
     if(CURBAR_API){ CURBAR_API.refreshBar(); CURBAR_API.syncPlay(); }
   }
-  return { toggle:v=>{ v?enable():disable(); }, isOn:()=>on, showAtMs, setClock:fn=>{ clockFn=fn; } };
+  return { toggle:v=>{ v?enable():disable(); }, isOn:()=>on, count, frameTimeAt, frameLabel, showIndex };
 })();
 $("#rain-radar").addEventListener("change", ()=> Rain.toggle($("#rain-radar").checked));
 /* ---- kaartlegenda (diepte + wind), in/uitklapbaar ---- */
