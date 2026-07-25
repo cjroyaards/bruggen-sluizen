@@ -18,7 +18,7 @@
   let maskLayer = null, maskData = null, maskW = 0, maskH = 0, maskT = null;
   let want = { arrows: false, particles: false, color: false, own: false };
   /* fijn lokaal veld (±1,6 km) voor het zichtgebied bij diep inzoomen */
-  const FINE = { minZoom: 12, dLat: 0.015, dLon: 0.024, maxPts: 300, pad: 0.25 };
+  const FINE = { minZoom: 10, dLat: 0.015, dLon: 0.024, maxPts: 600, pad: 0.25 };
   let fine = null, fineLoading = false, fineTimer = 0, fineKey = '';
   let onTimeChange = null, statusCb = null;
 
