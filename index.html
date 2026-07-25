@@ -603,9 +603,11 @@ html.napp header input{touch-action:manipulation}
         <span class="k">Scheepvaartberichten</span><span>Actuele en aangekondigde stremmingen en beperkingen, met doorklik naar het volledige bericht op vaarweginformatie.nl.</span>
         <span class="k">Masthoogte-check</span><span>Vul je masthoogte in (vergrootglas → mast); vaste bruggen die te laag zijn krijgen dan een waarschuwing.</span>
         <span class="k">Getij NL &amp; UK</span><span>Hoog- en laagwatertijden en -hoogtes plus een getijcurve, voor Nederlandse en Britse getijstations.</span>
-        <span class="k">Kusthavens UK &amp; BE</span><span>Geselecteerde havens langs de Engelse én Belgische kust (Nieuwpoort, Oostende, Blankenberge, Zeebrugge) met toegang, getijdenvenster, marifoon en sluis-/bruginfo.</span>
-        <span class="k">Getijstroom Noordzee</span><span>Stroomrichting en -snelheid als pijlen, kleurlaag en deeltjesanimatie, met een tijdlijn tot 72 uur vooruit en klik-op-zee voor richting/snelheid op een punt.</span>
+        <span class="k">Havens</span><span>Geselecteerde jachthavens met toegang, getijdenvenster, marifoon en sluis-/bruginfo: langs de Engelse en Belgische kust (o.a. Nieuwpoort, Oostende, Blankenberge, Zeebrugge) én — nieuw — rond het Haringvliet (Hellevoetsluis, Stellendam, Middelharnis, Stad aan 't Haringvliet, Den Bommel, Numansdorp).</span>
+        <span class="k">Getijstroom Noordzee</span><span>Eén laag "Stroompijlen" (scherpe tegels op afstand, vloeiende pijlen bij inzoomen) plus een deeltjesanimatie, met een tijdlijn tot 72 uur vooruit en klik-op-zee voor richting/snelheid op een punt. Bij inzoomen dichter bij de kust fijner bemonsterd.</span>
         <span class="k">Windvoorspelling</span><span>Windpijlen, deeltjes en een kleurlaag (Beaufort), zelfde tijdlijn als de stroming; tik op de kaart voor windsnelheid (kn), Beaufort en richting waar de wind vandaan komt.</span>
+        <span class="k">Weer per locatie</span><span>Open je een brug, sluis, haven of getijstation, dan verschijnt "Weer &amp; wind": temperatuur, weericoon en wind (knopen/Beaufort/richting) voor nu, plus een 6-daagse strip. Via de windlaag → klik → wind-details vergelijk je ECMWF en GFS naast elkaar (6-daagse strip + 7-daagse uurtabel).</span>
+        <span class="k">Regenradar &amp; onweer</span><span>Regenradar met een animatie over het afgelopen ~2 uur die je rustig kunt doorlopen; wind en stroom lopen desgewenst op dezelfde tijd mee. ⚡-icoontjes tonen waar het weermodel onweer aangeeft.</span>
         <span class="k">Handig</span><span>Favorieten (☆), zoeken op naam/plaats/vaarweg, en een tijdzoneknop (NL / UTC-GMT / UK) die alle tijden meteen omzet.</span>
       </div>
     </div>
@@ -630,9 +632,13 @@ html.napp header input{touch-action:manipulation}
         <span class="k">Bruggen, sluizen &amp; berichten</span><span>Rijkswaterstaat — Fairway Information Services (vaarweginformatie.nl): de objectgegevens en de scheepvaartberichten (NtS/FTM).</span>
         <span class="k">Getij Nederland</span><span>Rijkswaterstaat WaterWebservices (waterinfo) — astronomische voorspelling, hoogtes t.o.v. <b>NAP</b>.</span>
         <span class="k">Getij Verenigd Koninkrijk</span><span>UK Hydrographic Office — Admiralty-voorspellingen, hoogtes boven <b>kaartnul (LAT)</b>.</span>
-        <span class="k">Getijstroom</span><span>Copernicus Marine Service (NWShelf-model, ~1,5 km) voor de pijlen en kleurlaag; het stroomveld voor eigen pijlen/deeltjes via Open-Meteo (zelfde Copernicus-model).</span>
+        <span class="k">Getijstroom</span><span>Copernicus Marine Service (NWShelf-model, ~1,5 km) voor de scherpe pijlen (WMTS-tegels); het stroomveld voor de vloeiende pijlen/deeltjes via Open-Meteo (zelfde Copernicus-model), bij inzoomen dichter bij de kust fijner bemonsterd.</span>
         <span class="k">Wind</span><span>Open-Meteo — open weermodeldata (o.a. <b>GFS</b> van NOAA en <b>ICON</b> van DWD; dezelfde modellen die ook in GRIB-bestanden zitten). 10&nbsp;m-windsnelheid, -richting en windstoten, uurlijks tot 72&nbsp;uur vooruit, live in je browser opgehaald. Modelvoorspelling — geen waarneming; bij hard weer kan de werkelijke wind afwijken.</span>
         <span class="k">Getijcurve UK-havens</span><span>Waar geen officieel Admiralty-station is: modelcurve van Open-Meteo/ECMWF (t.o.v. gemiddeld zeeniveau) — alleen om het ritme te zien.</span>
+        <span class="k">Weer (locatiedetail)</span><span>Open-Meteo — model ECMWF voor temperatuur, weericoon en wind op 10 m; in het wind-detailpaneel ook GFS ter vergelijking. Live in je browser opgehaald, tot 7 dagen vooruit. Modelvoorspelling, geen waarneming.</span>
+        <span class="k">Regenradar</span><span>RainViewer — geanimeerde neerslagradar (gratis), de beelden van het afgelopen ~2 uur.</span>
+        <span class="k">Onweer</span><span>Open-Meteo weercode (95/96/99) op een raster over het zichtgebied — <b>modelmatig</b>, geen echte blikseminslagen.</span>
+        <span class="k">Havens (curated)</span><span>Handmatig samengestelde haveninfo (toegang, marifoon, sluis/brug) voor de Engelse/Belgische kust en het Haringvliet; per haven staat onderin wanneer die voor het laatst is gecontroleerd. Geen officiële bron — controleer vóór vertrek de actuele almanak en notices.</span>
         <span class="k">Diepte</span><span>EMODnet Bathymetry — het Europese Digital Terrain Model (DTM 2024, ~115&nbsp;m raster), herleid tot dieptelijnen en gearceerde banden. Dieptes t.o.v. <b>kaartnul (LAT)</b> — hetzelfde nulvlak als een zeekaart, dus aan de veilige (ondiepe) kant.</span>
         <span class="k">Diepte — actualiteit</span><span>EMODnet brengt het DTM ongeveer eens per twee jaar uit (…, 2020, 2022, 2024); de 2024-versie verscheen in maart 2025. Het is dus een samengesteld, periodiek bijgewerkt model — geen live meting.</span>
         <span class="k">Diepte — nauwkeurigheid</span><span>EMODnet bouwt het DTM uit duizenden ingemeten surveys (akoestisch, lidar, satelliet). Elke bron is via CDI/Sextant-metadata herleidbaar, en per rastercel wordt bijgehouden welke bron is gebruikt, hoeveel metingen zijn meegenomen en of de cel ge-interpoleerd is. Bronnen die niet aan de QA/QC-eisen voldoen vallen af. De nauwkeurigheid verschilt per gebied — dicht bemeten kustzones zijn betrouwbaarder dan dunbemeten open zee.</span>
@@ -656,7 +662,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-75</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-76</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -683,7 +689,7 @@ const EN = {
  "vaste brug":"fixed bridge","geen bediening":"no operation","stremming gemeld":"closure reported",
  "beperking gemeld":"restriction reported","beperking":"restriction","bediening — tijden onbekend":"operated — times unknown",
  "geen periode gevonden":"no period found","let op bericht":"see notice","UK kusthaven":"UK coastal harbour",
- "Belgische kusthaven":"Belgian coastal harbour","kusthaven":"coastal harbour",
+ "Belgische kusthaven":"Belgian coastal harbour","kusthaven":"coastal harbour","Nederlandse jachthaven":"Dutch marina",
  "getijstation":"tide station","brug":"bridge","sluis":"lock","haven":"harbour","getij":"tide",
  "beweegbaar dicht":"opening closed clearance","vast deel":"fixed span","breedte":"width","kolk":"chamber",
  "aangekondigd":"announced","sinds":"since","gepland / periodiek":"planned / periodic","bericht ↗":"notice ↗",
@@ -751,7 +757,7 @@ async function fetchGz(url){
 }
 let UKCHECKED = "";
 let NLTIDES = null;
-const AREALBL = {oostkust:"Engelse oostkust", theems:"Theems & Medway", zuidkust:"Sussex & Kent", solent:"Solent & westkust", "belgische kust":"Belgische kust"};
+const AREALBL = {oostkust:"Engelse oostkust", theems:"Theems & Medway", zuidkust:"Sussex & Kent", solent:"Solent & westkust", "belgische kust":"Belgische kust", haringvliet:"Haringvliet"};
 async function loadData(){
   const [stat, st, uk, nlt] = await Promise.all([
     fetchGz("data/static.json.gz"),
@@ -848,7 +854,7 @@ function dayAt(n, offset){
   return nn;
 }
 function statusFor(obj){
-  if (obj.t==="H") return {cls:"mut", label:T("UK kusthaven"), strems:[]};
+  if (obj.t==="H") return {cls:"mut", label:harbLabel(obj), strems:[]};
   if (obj.t==="G") return {cls:"mut", label:T("getijstation"), strems:[]};
   const strems = stremsNear(obj);
   const actStrems = strems.filter(s=>s.act);          // alleen berichten die nú gelden
@@ -2218,7 +2224,7 @@ function setVts(on){
   } else if (vtsLayer){ map.removeLayer(vtsLayer); }
   updateKaartBtn();
 }
-function harbLabel(o){ return o.c==="BE" ? T("Belgische kusthaven") : T("UK kusthaven"); }
+function harbLabel(o){ return o.c==="BE" ? T("Belgische kusthaven") : o.c==="NL" ? T("Nederlandse jachthaven") : T("UK kusthaven"); }
 let harbLayerH = null, harbLayerG = null;
 function buildHarbourLayer(){
   if (harbLayerH) return;
@@ -3354,9 +3360,11 @@ function applyStaticLang(){
         <span class="k">Notices to skippers</span><span>Current and announced closures and restrictions, with a link through to the full notice on vaarweginformatie.nl.</span>
         <span class="k">Mast-height check</span><span>Enter your mast height (magnifier → mast); fixed bridges that are too low then get a warning.</span>
         <span class="k">Tides NL &amp; UK</span><span>High- and low-water times and heights plus a tide curve, for Dutch and British tide stations.</span>
-        <span class="k">Coastal harbours UK &amp; BE</span><span>Curated harbours along the English and Belgian coast (Nieuwpoort, Ostend, Blankenberge, Zeebrugge) with access, tidal window, VHF and lock/bridge info.</span>
-        <span class="k">North Sea currents</span><span>Current direction and speed as arrows, colour layer and particle animation, with a timeline up to 72 h ahead and tap-the-sea for direction/speed at a point.</span>
+        <span class="k">Harbours</span><span>Curated marinas with access, tidal window, VHF and lock/bridge info: along the English and Belgian coast (Nieuwpoort, Ostend, Blankenberge, Zeebrugge) and — new — around the Haringvliet (Hellevoetsluis, Stellendam, Middelharnis, Stad aan 't Haringvliet, Den Bommel, Numansdorp).</span>
+        <span class="k">North Sea currents</span><span>One "current arrows" layer (sharp tiles at a distance, smooth arrows when zoomed in) plus a particle animation, with a timeline up to 72 h ahead and tap-the-sea for direction/speed at a point. Sampled more finely near the coast when zoomed in.</span>
         <span class="k">Wind forecast</span><span>Wind arrows, particles and a colour layer (Beaufort), same timeline as the current; tap the map for wind speed (kn), Beaufort and the direction the wind comes from.</span>
+        <span class="k">Weather per location</span><span>Open a bridge, lock, harbour or tide station and you get "Weather &amp; wind": temperature, weather icon and wind (knots/Beaufort/direction) for now, plus a 6-day strip. Via the wind layer → tap → wind details you can compare ECMWF and GFS side by side (6-day strip + 7-day hourly table).</span>
+        <span class="k">Rain radar &amp; thunder</span><span>Rain radar with an animation over the past ~2 hours you can step through calmly; wind and current can follow the same time. ⚡ icons show where the model indicates thunderstorms.</span>
         <span class="k">Handy</span><span>Favourites (☆), search by name/place/waterway, and a time-zone button (NL / UTC-GMT / UK) that converts all times instantly.</span>
       </div>
     </div>
@@ -3381,9 +3389,13 @@ function applyStaticLang(){
         <span class="k">Bridges, locks &amp; notices</span><span>Rijkswaterstaat — Fairway Information Services (vaarweginformatie.nl): the object data and the notices to skippers (NtS/FTM). Dutch descriptions stay in Dutch.</span>
         <span class="k">Tides Netherlands</span><span>Rijkswaterstaat WaterWebservices (waterinfo) — astronomical prediction, heights relative to <b>NAP</b>.</span>
         <span class="k">Tides United Kingdom</span><span>UK Hydrographic Office — Admiralty predictions, heights above <b>chart datum (LAT)</b>.</span>
-        <span class="k">Tidal current</span><span>Copernicus Marine Service (NWShelf model, ~1.5 km) for the arrows and colour layer; the current field for own arrows/particles via Open-Meteo (same Copernicus model).</span>
+        <span class="k">Tidal current</span><span>Copernicus Marine Service (NWShelf model, ~1.5 km) for the sharp arrows (WMTS tiles); the current field for the smooth arrows/particles via Open-Meteo (same Copernicus model), sampled more finely near the coast when zoomed in.</span>
         <span class="k">Wind</span><span>Open-Meteo — open weather-model data (incl. <b>GFS</b> from NOAA and <b>ICON</b> from DWD; the same models found in GRIB files). 10&nbsp;m wind speed, direction and gusts, hourly up to 72&nbsp;h ahead, fetched live in your browser. Model forecast — not an observation; in heavy weather the real wind may differ.</span>
         <span class="k">Tide curve, UK harbours</span><span>Where there is no official Admiralty station: model curve from Open-Meteo/ECMWF (rel. to mean sea level) — only to show the rhythm.</span>
+        <span class="k">Weather (location detail)</span><span>Open-Meteo — ECMWF model for temperature, weather icon and 10&nbsp;m wind; the wind-detail panel also shows GFS for comparison. Fetched live in your browser, up to 7 days ahead. Model forecast, not an observation.</span>
+        <span class="k">Rain radar</span><span>RainViewer — animated precipitation radar (free), the images of the past ~2 hours.</span>
+        <span class="k">Thunder</span><span>Open-Meteo weather code (95/96/99) on a grid over the visible area — <b>model-based</b>, not real lightning strikes.</span>
+        <span class="k">Harbours (curated)</span><span>Hand-compiled harbour info (access, VHF, lock/bridge) for the English/Belgian coast and the Haringvliet; each harbour shows when it was last verified. Not an official source — check the current almanac and notices before departure.</span>
         <span class="k">Depth</span><span>EMODnet Bathymetry — the European Digital Terrain Model (DTM 2024, ~115&nbsp;m grid), reduced to contour lines and shaded bands. Depths relative to <b>chart datum (LAT)</b> — the same reference as a nautical chart, so on the safe (shallow) side.</span>
         <span class="k">Depth — how current</span><span>EMODnet releases the DTM roughly every two years (…, 2020, 2022, 2024); the 2024 version appeared in March 2025. It is a compiled, periodically updated model — not a live measurement.</span>
         <span class="k">Depth — accuracy</span><span>EMODnet builds the DTM from thousands of surveys (acoustic, lidar, satellite). Every source is traceable through CDI/Sextant metadata, and each grid cell records which source was used, how many soundings went in, and whether the cell was interpolated. Sources failing the QA/QC criteria are dropped. Accuracy varies by area — densely surveyed coastal zones are more reliable than sparsely surveyed open sea.</span>
@@ -3448,8 +3460,8 @@ loadData().then(()=>{
   if (oc){
     const nB=DATA.objs.filter(o=>o.t==="B").length, nS=DATA.objs.filter(o=>o.t==="S").length, nH=DATA.objs.filter(o=>o.t==="H").length;
     oc.textContent = LANG==="en"
-      ? `${nB} bridges · ${nS} locks · ${nH} coastal harbours (UK/BE) · ${STREM.length} live notices`
-      : `${nB} bruggen · ${nS} sluizen · ${nH} kusthavens (UK/BE) · ${STREM.length} actuele berichten`;
+      ? `${nB} bridges · ${nS} locks · ${nH} harbours · ${STREM.length} live notices`
+      : `${nB} bruggen · ${nS} sluizen · ${nH} havens · ${STREM.length} actuele berichten`;
   }
   const m = readStore("bs_mast", null);
   if (m!=null) $("#mast").value = m;
