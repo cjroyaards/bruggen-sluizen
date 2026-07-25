@@ -245,6 +245,8 @@ header{position:sticky}
 .dropmenu{position:absolute;top:calc(100% + 5px);left:0;z-index:1002;background:var(--surface);border:1px solid var(--grid);border-radius:10px;box-shadow:0 6px 22px rgba(5,10,16,.22);padding:9px 11px;min-width:186px}
 .dropmenu .dm-t{font-weight:650;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
 .dropmenu label{display:flex;gap:8px;align-items:center;padding:7px 11px;margin:3px 0;font-size:13.5px;color:var(--ink);cursor:pointer;border:1px solid var(--grid);border-radius:8px;background:var(--surface);transition:background .12s,color .12s,border-color .12s}
+.dropmenu .dm-2{display:flex;flex-direction:column;gap:1px;line-height:1.25}
+.dropmenu .dm-2 small{font-size:11px;color:var(--muted);font-weight:400}
 .dropmenu label input{accent-color:var(--accent);width:16px;height:16px}
 .dropmenu label:hover{border-color:var(--accent);background:var(--accent-soft)}
 @supports selector(:has(*)){
@@ -252,6 +254,7 @@ header{position:sticky}
   .dropmenu label input{position:absolute;opacity:0;width:0;height:0;margin:0;pointer-events:none}
   .dropmenu label:has(input:checked){background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
   .dropmenu label:has(input:checked):hover{background:var(--accent)}
+  .dropmenu label:has(input:checked) .dm-2 small{color:rgba(255,255,255,.82)}
 }
 .dropmenu .dm-note{font-size:11.5px;color:var(--muted);margin-top:5px;min-height:0}
 #curbar{position:absolute;z-index:1000;bottom:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--grid);border-radius:11px;box-shadow:0 2px 12px rgba(5,10,16,.2);padding:6px 11px;max-width:calc(100% - 24px)}
@@ -511,8 +514,8 @@ html.napp header input{touch-action:manipulation}
           <label><input type="checkbox" id="k-vts"> <span data-i18n="k_vts">VTS-sectoren</span></label>
           <label><input type="checkbox" id="obj-harb" checked> <span data-i18n="o_harb">Havens</span></label>
           <div class="dm-t" data-i18n="dm_depth">Diepte (EMODnet)</div>
-          <label><input type="checkbox" id="d-per1"> <span data-i18n="ds_1">Fijne lijnen — per 1 m (1–10 m)</span></label>
-          <label><input type="checkbox" id="d-per5"> <span data-i18n="ds_5">Fijne lijnen — per 5 m (5–30 m)</span></label>
+          <label><input type="checkbox" id="d-per5"> <span class="dm-2"><b data-i18n="ds_deep">Diep</b><small data-i18n="ds_deep_x">per 5 m (5–30 m)</small></span></label>
+          <label><input type="checkbox" id="d-per1"> <span class="dm-2"><b data-i18n="ds_shallow">Ondiep</b><small data-i18n="ds_shallow_x">per 1 m (1–10 m)</small></span></label>
           <div class="dm-note" data-i18n="ds_note">EMODnet · t.o.v. kaartnul (LAT) · niet voor navigatie</div>
         </div>
       </div>
@@ -652,7 +655,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-72</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-73</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -3324,7 +3327,7 @@ const STATIC_EN = {
   mb_kaart:"Map", dm_layers:"Separate layers", k_sea:"Sea chart (OpenSeaMap)", k_vts:"VTS sectors",
   k_land:"Land map mode", k_zeekaart:"Nautical chart mode",
   dm_title:"Tidal current", dm_flow:"Current arrows", dm_particles:"Particle animation", cur_now:"Now",
-  dm_depth:"Depth (EMODnet)", ds_off:"Off", ds_fill:"Shaded — shallows coloured", ds_std:"Standard — 2 / 5 / 10 / 20 m", ds_shal:"Shallow — 1 / 2 / 3 / 5 m", ds_1:"Fine lines — every 1 m (1–10 m)", ds_5:"Fine lines — every 5 m (5–30 m)", ds_note:"EMODnet · rel. to chart datum (LAT) · not for navigation",
+  dm_depth:"Depth (EMODnet)", ds_off:"Off", ds_fill:"Shaded — shallows coloured", ds_std:"Standard — 2 / 5 / 10 / 20 m", ds_shal:"Shallow — 1 / 2 / 3 / 5 m", ds_deep:"Deep", ds_deep_x:"every 5 m (5–30 m)", ds_shallow:"Shallow", ds_shallow_x:"every 1 m (1–10 m)", ds_note:"EMODnet · rel. to chart datum (LAT) · not for navigation",
 };
 function applyStaticLang(){
   document.querySelectorAll(".langbtn").forEach(b=> b.classList.toggle("on", b.dataset.lang===LANG));
