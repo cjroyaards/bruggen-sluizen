@@ -488,19 +488,18 @@ html.napp header input{touch-action:manipulation}
       <div class="dropwrap">
         <button class="mapbtn" id="mb-tide"><svg class="ic" viewBox="0 0 24 24"><path d="M3 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M3 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/></svg><span data-i18n="mb_tide">Getij, stroming &amp; wind</span> ▾</button>
         <div id="tidemenu" class="dropmenu" hidden>
-          <div class="dm-t" data-i18n="dm_tide">Getij</div>
+          <div class="dm-t" data-i18n="dm_title">Getijdestroom</div>
           <label><input type="checkbox" id="tide-stations" checked> <span data-i18n="t_stations">Getijstations</span></label>
-          <div class="dm-t" data-i18n="dm_title">Getijdestroom (Copernicus)</div>
           <label><input type="checkbox" id="lay-flow"> <span data-i18n="dm_flow">Stroompijlen</span></label>
           <label><input type="checkbox" id="lay-particles"> <span data-i18n="dm_particles">Deeltjesanimatie</span></label>
           <div class="dm-note" id="lay-status"></div>
-          <div class="dm-t" data-i18n="dm_wind">Wind (Open-Meteo, GFS/ICON)</div>
+          <div class="dm-t" data-i18n="dm_wind">Wind</div>
           <label><input type="checkbox" id="wind-arrows"> <span data-i18n="w_arrows">Windpijlen (Beaufort)</span></label>
           <label><input type="checkbox" id="wind-particles"> <span data-i18n="w_part">Winddeeltjes</span></label>
           <label><input type="checkbox" id="wind-color"> <span data-i18n="w_color">Windkleur (snelheid)</span></label>
           <div class="dm-note" id="wind-status"></div>
           <div class="dm-t" data-i18n="dm_rain">Neerslag &amp; onweer</div>
-          <label><input type="checkbox" id="rain-radar"> <span data-i18n="r_radar">Regenradar + onweer ⚡</span></label>
+          <label><input type="checkbox" id="rain-radar"> <span data-i18n="r_radar">Regenradar ⚡</span></label>
           <div class="dm-note" id="rain-status"></div>
         </div>
       </div>
@@ -653,7 +652,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-70</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-71</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -3288,11 +3287,11 @@ const STATIC_EN = {
   mb_locate:"Follow me", mb_plotter:"Plotter", pl_wp:"WP: tap the map", pl_clearwp:"clear WP", pl_disc:"Indicative — chart not for navigation purposes.",
   mb_objs:"Bridges & locks", dm_objs:"On the map", o_bedien:"Operable", o_vast:"Non-operable", o_strem:"Closures", o_harb:"Harbours",
   mb_tide:"Tide, current & wind", dm_tide:"Tide", t_stations:"Tide stations",
-  dm_wind:"Wind (Open-Meteo, GFS/ICON)", w_arrows:"Wind arrows (Beaufort)", w_part:"Wind particles", w_color:"Wind colour (speed)",
-  dm_rain:"Precipitation & thunder", r_radar:"Rain radar + thunder ⚡",
+  dm_wind:"Wind", w_arrows:"Wind arrows (Beaufort)", w_part:"Wind particles", w_color:"Wind colour (speed)",
+  dm_rain:"Precipitation & thunder", r_radar:"Rain radar ⚡",
   mb_kaart:"Map", dm_layers:"Separate layers", k_sea:"Sea chart (OpenSeaMap)", k_vts:"VTS sectors",
   k_land:"Land map mode", k_zeekaart:"Nautical chart mode",
-  dm_title:"Tidal current (Copernicus)", dm_flow:"Current arrows", dm_particles:"Particle animation", cur_now:"Now",
+  dm_title:"Tidal current", dm_flow:"Current arrows", dm_particles:"Particle animation", cur_now:"Now",
   dm_depth:"Depth (EMODnet)", ds_off:"Off", ds_fill:"Shaded — shallows coloured", ds_std:"Standard — 2 / 5 / 10 / 20 m", ds_shal:"Shallow — 1 / 2 / 3 / 5 m", ds_1:"Fine lines — every 1 m (1–10 m)", ds_5:"Fine lines — every 5 m (5–30 m)", ds_note:"EMODnet · rel. to chart datum (LAT) · not for navigation",
 };
 function applyStaticLang(){
