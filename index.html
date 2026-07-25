@@ -662,7 +662,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-76</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-77</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -2243,7 +2243,16 @@ function buildHarbourLayer(){
         .addTo(harbLayerG);
     }
   }
-  harbLayerH.addTo(map); harbLayerG.addTo(map);
+  harbLayerG.addTo(map);
+  applyHarbZoom();                        // havens pas vanaf zoom-drempel tonen (tegen rommel op overzicht)
+  map.on("zoomend", applyHarbZoom);
+}
+const HARB_MINZOOM = 9;
+function applyHarbZoom(){
+  if (!harbLayerH) return;
+  const want = $("#obj-harb").checked && map.getZoom() >= HARB_MINZOOM;
+  if (want && !map.hasLayer(harbLayerH)) harbLayerH.addTo(map);
+  else if (!want && map.hasLayer(harbLayerH)) map.removeLayer(harbLayerH);
 }
 /* clusteren alleen op de landkaart; in zeekaartmodus individuele (aanklikbare) stippen zonder telbollen */
 function clusterOpts(){
@@ -3143,7 +3152,7 @@ function updateObjs(){ showBedien=$("#obj-bedien").checked; showVast=$("#obj-vas
 $("#obj-bedien").addEventListener("change", updateObjs);
 $("#obj-vast").addEventListener("change", updateObjs);
 $("#obj-strem").addEventListener("change", ()=>{ showStrem=$("#obj-strem").checked; buildStremLayer(); });
-$("#obj-harb").addEventListener("change", ()=>{ if(!harbLayerH) return; $("#obj-harb").checked ? harbLayerH.addTo(map) : map.removeLayer(harbLayerH); });
+$("#obj-harb").addEventListener("change", applyHarbZoom);
 /* 2) Getij: getijstations (stroming-checkboxes via initCurrents) */
 $("#tide-stations").addEventListener("change", ()=>{ if(!harbLayerG) return; $("#tide-stations").checked ? harbLayerG.addTo(map) : map.removeLayer(harbLayerG); });
 /* 3) Kaart: land-/zeekaartmodus (radio), VTS-checkbox (standaard aan in zeekaartmodus), fijne dieptelijnen als losse toggles */
