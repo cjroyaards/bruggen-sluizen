@@ -594,7 +594,7 @@ html.napp header input{touch-action:manipulation}
   </section>
   <section id="v-info" hidden>
     <div class="p-sec"><h3>Over deze site</h3>
-      <p>Eén plek voor bedieningstijden van bruggen en sluizen, actuele scheepvaartberichten, getij en getijstroom — doorzoekbaar en op de kaart, gemaakt voor onderweg op het water. Geen officiële bron, wel snel en overzichtelijk.</p>
+      <p>Een gratis, tweetalige vaarkaart voor de recreatievaart — alles op één doorzoekbare kaart, gemaakt voor onderweg op het water. In het kort kun je hier: <b>bedieningstijden van bruggen en sluizen</b> opzoeken, <b>actuele stremmingen</b> zien, <b>getij</b> (NL &amp; UK), <b>getijstroom</b> en <b>wind</b> met een tijdlijn bekijken, per locatie het <b>weer</b> zien, een <b>regenradar</b> met onweer aanzetten, overschakelen naar een <b>zeekaartmodus met dieptelijnen</b>, geselecteerde <b>jachthavens</b> bekijken en een eenvoudige <b>plotter</b> gebruiken. Geen officiële bron — wel snel en overzichtelijk. Hieronder staat per onderdeel wat het precies doet.</p>
     </div>
 
     <div class="p-sec"><h3>Wat je hier ziet</h3>
@@ -608,7 +608,10 @@ html.napp header input{touch-action:manipulation}
         <span class="k">Windvoorspelling</span><span>Windpijlen, deeltjes en een kleurlaag (Beaufort), zelfde tijdlijn als de stroming; tik op de kaart voor windsnelheid (kn), Beaufort en richting waar de wind vandaan komt.</span>
         <span class="k">Weer per locatie</span><span>Open je een brug, sluis, haven of getijstation, dan verschijnt "Weer &amp; wind": temperatuur, weericoon en wind (knopen/Beaufort/richting) voor nu, plus een 6-daagse strip. Via de windlaag → klik → wind-details vergelijk je ECMWF en GFS naast elkaar (6-daagse strip + 7-daagse uurtabel).</span>
         <span class="k">Regenradar &amp; onweer</span><span>Regenradar met een animatie over het afgelopen ~2 uur die je rustig kunt doorlopen; wind en stroom lopen desgewenst op dezelfde tijd mee. ⚡-icoontjes tonen waar het weermodel onweer aangeeft.</span>
-        <span class="k">Handig</span><span>Favorieten (☆), zoeken op naam/plaats/vaarweg, en een tijdzoneknop (NL / UTC-GMT / UK) die alle tijden meteen omzet.</span>
+        <span class="k">Zeekaartmodus &amp; diepte</span><span>Schakel naar zeekaartmodus (OpenSeaMap: tonnen, lichten, bakens) met eigen dieptelijnen en gearceerde banden — fijne lijnen voor "diep" en "ondiep". Dieptes t.o.v. kaartnul (LAT).</span>
+        <span class="k">VTS-sectoren</span><span>De marifoon-/VHF-sectoren van de Scheldemond met kanalen, namen en meldplicht — indicatief, niet voor navigatie.</span>
+        <span class="k">Plotter</span><span>Je eigen positie op de kaart, met snelheid, koers en een waypoint met afstand/tijd. In de app te koppelen aan je NMEA-instrumenten (TCP/UDP).</span>
+        <span class="k">Handig</span><span>Favorieten (☆), zoeken op naam/plaats/vaarweg, licht/donker, en een tijdzoneknop (NL / UTC-GMT / UK) die alle tijden meteen omzet.</span>
       </div>
     </div>
 
@@ -662,7 +665,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-77</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-78</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -3360,7 +3363,7 @@ function applyStaticLang(){
   const inf = $("#v-info");
   if (inf) inf.innerHTML = `
     <div class="p-sec"><h3 style="color:var(--ink)">About this site</h3>
-      <p>One place for bridge and lock operating times, live notices to skippers, tides and tidal currents — searchable and on the map, made for use while you're on the water. Not an official source, but fast and clear.</p>
+      <p>A free, bilingual chart for recreational boating — everything on one searchable map, made for use while you're on the water. In short, here you can: look up <b>bridge and lock operating times</b>, see <b>live closures</b>, check <b>tides</b> (NL &amp; UK), <b>tidal current</b> and <b>wind</b> on a timeline, view the <b>weather</b> per location, switch on a <b>rain radar</b> with thunder, change to a <b>nautical-chart mode with depth contours</b>, browse selected <b>marinas</b>, and use a simple <b>plotter</b>. Not an official source — but fast and clear. Below is what each part does.</p>
     </div>
 
     <div class="p-sec"><h3 style="color:var(--ink)">What you see here</h3>
@@ -3374,7 +3377,10 @@ function applyStaticLang(){
         <span class="k">Wind forecast</span><span>Wind arrows, particles and a colour layer (Beaufort), same timeline as the current; tap the map for wind speed (kn), Beaufort and the direction the wind comes from.</span>
         <span class="k">Weather per location</span><span>Open a bridge, lock, harbour or tide station and you get "Weather &amp; wind": temperature, weather icon and wind (knots/Beaufort/direction) for now, plus a 6-day strip. Via the wind layer → tap → wind details you can compare ECMWF and GFS side by side (6-day strip + 7-day hourly table).</span>
         <span class="k">Rain radar &amp; thunder</span><span>Rain radar with an animation over the past ~2 hours you can step through calmly; wind and current can follow the same time. ⚡ icons show where the model indicates thunderstorms.</span>
-        <span class="k">Handy</span><span>Favourites (☆), search by name/place/waterway, and a time-zone button (NL / UTC-GMT / UK) that converts all times instantly.</span>
+        <span class="k">Nautical-chart mode &amp; depth</span><span>Switch to nautical-chart mode (OpenSeaMap: buoys, lights, beacons) with own depth contours and shaded bands — fine lines for "deep" and "shallow". Depths relative to chart datum (LAT).</span>
+        <span class="k">VTS sectors</span><span>The VHF sectors of the Scheldemond estuary with channels, names and reporting duties — indicative, not for navigation.</span>
+        <span class="k">Plotter</span><span>Your own position on the map, with speed, course and a waypoint with distance/time. In the app it links to your NMEA instruments (TCP/UDP).</span>
+        <span class="k">Handy</span><span>Favourites (☆), search by name/place/waterway, light/dark, and a time-zone button (NL / UTC-GMT / UK) that converts all times instantly.</span>
       </div>
     </div>
 
