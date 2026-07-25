@@ -513,7 +513,7 @@ html.napp header input{touch-action:manipulation}
           <label style="font-weight:700"><input type="radio" name="kmode" value="zee" id="k-zeekaart"> <span data-i18n="k_zeekaart">Zeekaartmodus</span></label>
           <label><input type="checkbox" id="k-vts"> <span data-i18n="k_vts">VTS-sectoren</span></label>
           <label><input type="checkbox" id="obj-harb" checked> <span data-i18n="o_harb">Havens</span></label>
-          <div class="dm-t" data-i18n="dm_depth">Diepte (EMODnet)</div>
+          <div class="dm-t" data-i18n="dm_depth">Diepte</div>
           <label><input type="checkbox" id="d-per5"> <span class="dm-2"><b data-i18n="ds_deep">Diep</b><small data-i18n="ds_deep_x">per 5 m (5–30 m)</small></span></label>
           <label><input type="checkbox" id="d-per1"> <span class="dm-2"><b data-i18n="ds_shallow">Ondiep</b><small data-i18n="ds_shallow_x">per 1 m (1–10 m)</small></span></label>
           <div class="dm-note" data-i18n="ds_note">EMODnet · t.o.v. kaartnul (LAT) · niet voor navigatie</div>
@@ -655,7 +655,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-73</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-74</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -3327,7 +3327,7 @@ const STATIC_EN = {
   mb_kaart:"Map", dm_layers:"Separate layers", k_sea:"Sea chart (OpenSeaMap)", k_vts:"VTS sectors",
   k_land:"Land map mode", k_zeekaart:"Nautical chart mode",
   dm_title:"Tidal current", dm_flow:"Current arrows", dm_particles:"Particle animation", cur_now:"Now",
-  dm_depth:"Depth (EMODnet)", ds_off:"Off", ds_fill:"Shaded — shallows coloured", ds_std:"Standard — 2 / 5 / 10 / 20 m", ds_shal:"Shallow — 1 / 2 / 3 / 5 m", ds_deep:"Deep", ds_deep_x:"every 5 m (5–30 m)", ds_shallow:"Shallow", ds_shallow_x:"every 1 m (1–10 m)", ds_note:"EMODnet · rel. to chart datum (LAT) · not for navigation",
+  dm_depth:"Depth", ds_off:"Off", ds_fill:"Shaded — shallows coloured", ds_std:"Standard — 2 / 5 / 10 / 20 m", ds_shal:"Shallow — 1 / 2 / 3 / 5 m", ds_deep:"Deep", ds_deep_x:"every 5 m (5–30 m)", ds_shallow:"Shallow", ds_shallow_x:"every 1 m (1–10 m)", ds_note:"EMODnet · rel. to chart datum (LAT) · not for navigation",
 };
 function applyStaticLang(){
   document.querySelectorAll(".langbtn").forEach(b=> b.classList.toggle("on", b.dataset.lang===LANG));
