@@ -328,7 +328,8 @@ html.napp header input{touch-action:manipulation}
 .via{color:#b07a1e;font-weight:700}
 #maplegend .lg-t{font-weight:700;margin:2px 0 3px;font-size:11px}
 #maplegend .lg-t:not(:first-child){margin-top:7px}
-#maplegend .lg-row{display:flex;align-items:center;gap:6px;white-space:nowrap}
+#maplegend .lg-row{display:flex;align-items:flex-start;gap:6px}
+#maplegend .lg-row .lg-sw,#maplegend .lg-row .lg-ln{margin-top:2px}
 #maplegend .lg-sw{width:16px;height:10px;border-radius:2px;flex:none}
 #maplegend .lg-ln{width:16px;height:0;border-top-width:2.4px;border-top-style:solid;flex:none}
 @media (max-width:640px), (max-height:500px) and (orientation:landscape) and (pointer:coarse){#maplegend{left:auto;right:8px;bottom:auto;top:12px;font-size:10.5px;max-width:150px;max-height:60vh;overflow-y:auto}}
@@ -655,7 +656,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-74</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-75</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
