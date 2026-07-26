@@ -666,7 +666,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-79</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-80</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1492,7 +1492,7 @@ function wxHTML(d){
       cells+=`<div class="wx-day">
         <div class="wx-dl">${wxDayLabel(D.time[i])}</div>
         <div class="wx-wind">${wxArrow(dir,col,22)}<span class="wx-bft">${wxBft(kn)}</span></div>
-        ${g!=null?`<div class="wx-gust" title="${T("vlagen")}">⇡${g}</div>`:""}
+        ${g!=null?`<div class="wx-gust" title="${T("vlagen")}">⇡<b style="color:${wxColor(g)}">${g}</b></div>`:""}
         <div class="wx-tr"><span class="i">${wxIcon(eWc?eWc[i]:null)}</span>${eMax?Math.round(eMax[i])+"°":"–"}</div>
       </div>`;
     }
@@ -2047,7 +2047,7 @@ function windWxStripHTML(d, model){
     cells+=`<div class="wx-day">
       <div class="wx-dl">${wxDayLabel(D.time[i])}</div>
       <div class="wx-wind">${wxArrow(dir,wxColor(kn),22)}<span class="wx-bft">${wxBft(kn)}</span></div>
-      ${g!=null?`<div class="wx-gust" title="${LANG==="en"?"gusts":"vlagen"}">⇡${g}</div>`:""}
+      ${g!=null?`<div class="wx-gust" title="${LANG==="en"?"gusts":"vlagen"}">⇡<b style="color:${wxColor(g)}">${g}</b></div>`:""}
       <div class="wx-tr"><span class="i">${wxIcon(wc?wc[i]:null)}</span>${tmax?Math.round(tmax[i])+"°":"–"}</div>
     </div>`;
   }
@@ -2075,16 +2075,16 @@ function windWxTableHTML(d, model){
       const ms=times[i], c=curDirCardinal(dir), day=dayFmt.format(new Date(ms));
       if(day!==lastDay){ rows+=`<tr><td colspan="5" style="font-weight:700;padding-top:7px;color:var(--accent)">${day}</td></tr>`; lastDay=day; }
       const wc=windCellStyle(kn), g=gst&&gst[i]!=null?Math.round(gst[i]):null;
-      rows+=`<tr${i===nowIdx?' style="font-weight:650"':''}><td>${fmtClock(ms)}</td><td style="${wc};border-radius:4px 0 0 4px">${kn.toFixed(0)} kn</td><td style="${wc};border-radius:0 4px 4px 0">Bft ${wxBft(kn)}</td><td style="color:var(--muted)">${g!=null?"⇡"+g:"–"}</td><td><span class="dircell">${c.abbr} ${Math.round(dir)}°${dirArrow((dir+180)%360,15)}</span></td></tr>`;
+      rows+=`<tr${i===nowIdx?' style="font-weight:650"':''}><td>${fmtClock(ms)}</td><td style="${wc};border-radius:4px 0 0 4px">${kn.toFixed(0)} kn</td><td style="${wc};border-radius:0 4px 4px 0">Bft ${wxBft(kn)}</td><td>${g!=null?`<span style="${windCellStyle(g)};padding:1px 5px;border-radius:4px">⇡${g}</span>`:"–"}</td><td><span class="dircell">${c.abbr} ${Math.round(dir)}°${dirArrow((dir+180)%360,15)}</span></td></tr>`;
     }
     i += (i < nowIdx+24 ? 1 : 3);
   }
   if(!rows) return "";
   const L = LANG==="en"
-    ? {t:"time",s:"speed",g:"gusts",f:"from",title:"Forecast (7 days)",note:"First 24 h hourly, then 3-hourly. Indicative beyond day 3–4."}
-    : {t:"tijd",s:"snelheid",g:"vlagen",f:"uit",title:"Verwachting (7 dagen)",note:"Eerste etmaal per uur, daarna per 3 uur. Na dag 3–4 indicatief."};
+    ? {t:"time",s:"speed",g:"gusts",f:"dir.",title:"Forecast (7 days)",note:"First 24 h hourly, then 3-hourly. Indicative beyond day 3–4."}
+    : {t:"tijd",s:"snelheid",g:"vlagen",f:"richting",title:"Verwachting (7 dagen)",note:"Eerste etmaal per uur, daarna per 3 uur. Na dag 3–4 indicatief."};
   return `<div class="p-sec" style="margin-top:12px"><h3>${L.title}</h3>
-    <table class="times" style="font-size:13px"><tr style="color:var(--muted)"><td>${L.t} (${tzShort()})</td><td>${L.s}</td><td>Bft</td><td>${L.g}</td><td>${L.f}</td></tr>${rows}</table>
+    <table class="times" style="font-size:13px"><tr style="color:var(--muted)"><td>${L.t} (${tzShort()})</td><td>${L.s}</td><td>Bft</td><td title="${L.g}">⇡</td><td>${L.f}</td></tr>${rows}</table>
     <div class="p-note" style="margin-top:4px">${L.note}</div></div>`;
 }
 function paintWindWx(){
