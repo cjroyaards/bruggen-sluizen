@@ -666,7 +666,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-86</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-87</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -2228,7 +2228,7 @@ function updateKaartBtn(){ $("#mb-kaart").classList.toggle("on", vtsView || seaV
 function setVts(on){
   vtsView = on;
   if (on && !vtsLayer) buildVtsLayer();
-  applyObjectZoom();            // tonen/verbergen (incl. zoom-drempel in zeekaartmodus)
+  if (vtsLayer){ on ? vtsLayer.addTo(map) : map.removeLayer(vtsLayer); }   // handmatige keuze wint (override)
   updateKaartBtn();
 }
 function harbLabel(o){ return o.c==="BE" ? T("Belgische kusthaven") : o.c==="NL" ? T("Nederlandse jachthaven") : T("UK kusthaven"); }
@@ -2256,29 +2256,26 @@ function buildHarbourLayer(){
 }
 const HARB_MINZOOM = 9;
 const ZC_MINZOOM = 11;   // zeekaartmodus: VTS/sluizen/getijstations/havens pas vanaf dit niveau
-let wantTide = true, wantHarb = true;   // gebruikersintentie (los van de zoom-gate) voor getijstations/havens
-/* Toont/verbergt de laag én laat de menu-checkbox de zichtbaarheid spiegelen:
-   onder de drempel uitgevinkt, erboven automatisch aangevinkt — met behoud van een handmatige uitvink. */
+let wantTide = true, wantHarb = true;   // gebruikersintentie (los van de zoom-gate)
+let gateBand = { vts:null, tide:null, obj:null, harb:null };   // laatste zoom-band per item (boven/onder drempel)
+/* Zoom-gate mét handmatige override: onder de drempel worden items automatisch uitgevinkt/verborgen,
+   maar je kunt ze altijd handmatig aanvinken om ze tóch te tonen. De auto-actie gebeurt alleen bij het
+   passeren van de drempel of een moduswissel (niet continu) — zo blijft een handmatige keuze staan. */
 function applyObjectZoom(){
   if (!map) return;
   const z = map.getZoom();
-  const detail = !zeechartView || z >= ZC_MINZOOM;   // zoom-gate geldt alleen voor VTS + getijstations (overzicht schoon houden)
+  const th = { vts: zeechartView?ZC_MINZOOM:0, tide: zeechartView?ZC_MINZOOM:0, obj: zeechartView?ZC_MINZOOM:0, harb: zeechartView?ZC_MINZOOM:HARB_MINZOOM };
   const setChk = (id,on)=>{ const el=$("#"+id); if(el) el.checked=on; };
   const toggleLayer = (lay,on)=>{ if(!lay) return; if(on && !map.hasLayer(lay)) lay.addTo(map); else if(!on && map.hasLayer(lay)) map.removeLayer(lay); };
-  // VTS — in zeekaartmodus pas vanaf de detail-zoom
-  if (vtsLayer){ const on = vtsView && detail; setChk("k-vts", on); toggleLayer(vtsLayer, on); }
-  // getijstations — idem
-  if (harbLayerG){ const on = wantTide && detail; setChk("tide-stations", on); toggleLayer(harbLayerG, on); }
-  // bruggen & sluizen — altijd zichtbaar/aanklikbaar (geclusterd), op elk zoomniveau
-  if (cluster){
-    setChk("obj-bedien", showBedien); setChk("obj-vast", showVast);
-    const on = showBedien || showVast;
-    $("#mb-objs").classList.toggle("on", on);
-    if (on && !map.hasLayer(cluster)) map.addLayer(cluster);
-    else if (!on && map.hasLayer(cluster)) map.removeLayer(cluster);
-  }
-  // havens — altijd zichtbaar/aanklikbaar, op elk zoomniveau
-  if (harbLayerH){ setChk("obj-harb", wantHarb); toggleLayer(harbLayerH, wantHarb); }
+  const crossed = (k)=>{ const band = z >= th[k]; const ch = band!==gateBand[k]; gateBand[k]=band; return ch ? band : null; };  // geeft de nieuwe band terug alleen bij passage
+  // VTS
+  if (vtsLayer){ const b=crossed('vts'); if(b!==null){ const on=vtsView&&b; setChk("k-vts",on); toggleLayer(vtsLayer,on); } }
+  // getijstations
+  if (harbLayerG){ const b=crossed('tide'); if(b!==null){ const on=wantTide&&b; setChk("tide-stations",on); toggleLayer(harbLayerG,on); } }
+  // bruggen & sluizen (cluster)
+  if (cluster){ const b=crossed('obj'); if(b!==null){ setChk("obj-bedien",showBedien&&b); setChk("obj-vast",showVast&&b); const on=(showBedien||showVast)&&b; $("#mb-objs").classList.toggle("on",on); if(on&&!map.hasLayer(cluster))map.addLayer(cluster); else if(!on&&map.hasLayer(cluster))map.removeLayer(cluster); } }
+  // havens
+  if (harbLayerH){ const b=crossed('harb'); if(b!==null){ const on=wantHarb&&b; setChk("obj-harb",on); toggleLayer(harbLayerH,on); } }
 }
 /* clusteren alleen op de landkaart; in zeekaartmodus individuele (aanklikbare) stippen zonder telbollen */
 function clusterOpts(){
@@ -2292,6 +2289,7 @@ function rebuildCluster(){
   cluster = L.markerClusterGroup(clusterOpts());
   map.addLayer(cluster);
   buildMarkers();
+  gateBand.obj = null;   // her-evalueer de cluster-gate na herbouw
   applyObjectZoom();
 }
 function buildMarkers(){
@@ -3175,20 +3173,22 @@ $("#hd-more").addEventListener("click", e=>{ e.stopPropagation(); const m=$("#hd
 $("#hd-menu").addEventListener("click", e=>{ if (e.target.closest(".tab")) $("#hd-menu").hidden=true; });
 document.addEventListener("click", e=>{ if (!e.target.closest("#hd-menu") && !e.target.closest("#hd-more")) $("#hd-menu").hidden=true; });
 /* 1) Bruggen & sluizen */
-function updateObjs(){ showBedien=$("#obj-bedien").checked; showVast=$("#obj-vast").checked; $("#mb-objs").classList.toggle("on", showBedien||showVast); buildMarkers(); applyObjectZoom(); }
+function updateObjs(){ showBedien=$("#obj-bedien").checked; showVast=$("#obj-vast").checked; const on=showBedien||showVast; $("#mb-objs").classList.toggle("on", on); buildMarkers(); if(on&&!map.hasLayer(cluster))map.addLayer(cluster); else if(!on&&map.hasLayer(cluster))map.removeLayer(cluster); }
 $("#obj-bedien").addEventListener("change", updateObjs);
 $("#obj-vast").addEventListener("change", updateObjs);
 $("#obj-strem").addEventListener("change", ()=>{ showStrem=$("#obj-strem").checked; buildStremLayer(); });
-$("#obj-harb").addEventListener("change", ()=>{ wantHarb=$("#obj-harb").checked; applyObjectZoom(); });
+$("#obj-harb").addEventListener("change", ()=>{ wantHarb=$("#obj-harb").checked; if(harbLayerH){ wantHarb?harbLayerH.addTo(map):map.removeLayer(harbLayerH); } });
 /* 2) Getij: getijstations (stroming-checkboxes via initCurrents) */
-$("#tide-stations").addEventListener("change", ()=>{ wantTide=$("#tide-stations").checked; applyObjectZoom(); });
+$("#tide-stations").addEventListener("change", ()=>{ wantTide=$("#tide-stations").checked; if(harbLayerG){ wantTide?harbLayerG.addTo(map):map.removeLayer(harbLayerG); } });
 /* 3) Kaart: land-/zeekaartmodus (radio), VTS-checkbox (standaard aan in zeekaartmodus), fijne dieptelijnen als losse toggles */
 function applyKmode(){
   const zee = $("#k-zeekaart").checked;
   setZeeChart(zee);
+  vtsView = zee;                 // VTS-intentie volgt de modus (aan op zeekaart)
+  if (zee && !vtsLayer) buildVtsLayer();
+  gateBand.vts = gateBand.tide = gateBand.obj = gateBand.harb = null;   // her-evalueer alle drempels bij moduswissel
   applyObjectZoom();
-  $("#k-vts").checked = zee;      // standaard: VTS aan bij zeekaart, uit bij landkaart (daarna vrij aan te passen)
-  setVts(zee);
+  updateKaartBtn();
 }
 $("#k-land").addEventListener("change", applyKmode);
 $("#k-zeekaart").addEventListener("change", applyKmode);
