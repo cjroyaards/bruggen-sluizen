@@ -666,7 +666,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-87</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-88</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1969,7 +1969,11 @@ function initCurrents(){
   $("#cur-next").addEventListener("click", ()=>stepBy(1));
   $("#cur-prevd").addEventListener("click", ()=>stepBy(-24));
   $("#cur-nextd").addEventListener("click", ()=>stepBy(24));
-  $("#cur-play").addEventListener("click", ()=>{ flowPlaying = !flowPlaying; syncPlay(); });
+  $("#cur-play").addEventListener("click", ()=>{
+    flowPlaying = !flowPlaying;
+    if (!flowPlaying){ radarStop(); Currents.setPlaying(false); Wind.setPlaying(false); }   // pauze: alles hard stoppen
+    syncPlay();
+  });
   // klik op zee → stroom- en/of wind-info (met doorklik naar detailpaneel)
   map.on("click", e=>{
     if (window.plotterArmWp || (plOn && !plWp)) return;   // klik zet een waypoint, geen popup

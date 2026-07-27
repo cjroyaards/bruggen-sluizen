@@ -5,7 +5,7 @@
 (function () {
   'use strict';
   const NHOURS = 168, PLAY_HPS = 1.4;
-  const PAD = 0.25, MAXPTS = 300, D0 = 0.1;   // basis-rasterafstand (°), verschaald tot ≤MAXPTS per zichtgebied
+  const PAD = 0.35, MAXPTS = 500, D0 = 0.1;   // basis-rasterafstand (°), verschaald tot ≤MAXPTS per zichtgebied
   // Beaufort-kleuren (knopen)
   const RAMP = [[0,'#86b6e8'],[1,'#5b9bd6'],[4,'#3fa579'],[7,'#4aa62f'],[11,'#98ba26'],
     [17,'#e6bd15'],[22,'#f6a63c'],[28,'#ee6f3a'],[34,'#e0463f'],[41,'#cf3670'],[48,'#9b4bb0'],[56,'#6d3b9e']];
@@ -13,7 +13,7 @@
   function beaufort(kn){ const b=[1,4,7,11,17,22,28,34,41,48,56,64]; let n=0; for(const t of b){ if(kn>=t) n++; } return n; }
 
   let map=null, times=null, field=null;   // field={lat0,lon0,dLat,dLon,nLat,nLon,nH,U,V,SP,GU}
-  let tFloat=0, playing=false, loading=false, everLoaded=false, fieldKey='', fieldTimer=0;
+  let tFloat=0, playing=false, loading=false, pending=false, everLoaded=false, fieldKey='', fieldTimer=0;
   let canvas=null, ctx=null, colorCanvas=null, cctx=null, particles=[], rafId=0, lastTs=0, colorDirty=true;
   let want={ arrows:false, particles:false, color:false };
   let onTimeChange=null, statusCb=null;
@@ -45,11 +45,12 @@
     return field && b.getSouth()>=field.lat0 && b.getNorth()<=field.lat0+(field.nLat-1)*field.dLat
       && b.getWest()>=field.lon0 && b.getEast()<=field.lon0+(field.nLon-1)*field.dLon;
   }
-  function scheduleField(){ clearTimeout(fieldTimer); fieldTimer=setTimeout(loadField,700); }
+  function scheduleField(){ clearTimeout(fieldTimer); fieldTimer=setTimeout(loadField,450); }
   async function loadField(){
-    if(!map||loading) return;
+    if(!map) return;
     if(!(want.arrows||want.particles||want.color)) return;
     if(fieldCovers(map.getBounds().pad(0.05))) return;         // huidig beeld al gedekt
+    if(loading){ pending=true; return; }                       // bezig → later opnieuw proberen
     const g=viewportGrid();
     const key=g.lat0.toFixed(3)+','+g.lon0.toFixed(3)+','+g.nLat+'x'+g.nLon;
     if(key===fieldKey) return;
@@ -58,6 +59,7 @@
     const responses=[]; let ok=true;
     for(let s=0;s<pts.length;s+=CHUNK){ const r=await fetchChunk(pts.slice(s,s+CHUNK)); if(!r){ ok=false; break; } responses.push(...r); }
     loading=false;
+    if(pending){ pending=false; scheduleField(); }             // tijdens laden verschoven → opnieuw
     if(!ok||!responses.length||!responses[0].hourly){ if(statusCb) statusCb('Winddata niet bereikbaar'); setTimeout(scheduleField,8000); return; }
     if(statusCb) statusCb('');
     const nH=Math.min(NHOURS, responses[0].hourly.time.length);
