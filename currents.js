@@ -18,7 +18,7 @@
   let maskLayer = null, maskData = null, maskW = 0, maskH = 0, maskT = null;
   let want = { arrows: false, particles: false, color: false, own: false };
   /* fijn lokaal veld (±1,6 km) voor het zichtgebied bij diep inzoomen */
-  const FINE = { minZoom: 10, dLat: 0.015, dLon: 0.024, maxPts: 600, pad: 0.25 };
+  const FINE = { minZoom: 8, dLat: 0.015, dLon: 0.024, maxPts: 600, pad: 0.25 };
   let fine = null, fineLoading = false, fineTimer = 0, fineKey = '';
   let onTimeChange = null, statusCb = null;
 
@@ -234,11 +234,18 @@
   function drawArrows() {
     const sz = map.getSize(), step = 50;
     ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.globalAlpha = 1;
+    const latMax = GRID.lat0 + (GRID.nLat - 1) * GRID.dLat, lonMax = GRID.lon0 + (GRID.nLon - 1) * GRID.dLon;
     for (let x = step * 0.6; x < sz.x; x += step) {
       for (let y = step * 0.6; y < sz.y; y += step) {
-        if (maskData) { const mx = x | 0, my = y | 0; if (mx < 0 || my < 0 || mx >= maskW || my >= maskH || maskData[(my * maskW + mx) * 4 + 3] <= 25) continue; }
         const ll = map.containerPointToLatLng([x, y]);
-        const uv = maskData ? sampleUV(ll.lat, ll.lng, tFloat) : sampleUVarrow(ll.lat, ll.lng, tFloat);
+        const inBase = ll.lat >= GRID.lat0 && ll.lat <= latMax && ll.lng >= GRID.lon0 && ll.lng <= lonMax;
+        let uv;
+        if (inBase) {   // NW-Europa: ongewijzigd, mét zeemasker
+          if (maskData) { const mx = x | 0, my = y | 0; if (mx < 0 || my < 0 || mx >= maskW || my >= maskH || maskData[(my * maskW + mx) * 4 + 3] <= 25) continue; }
+          uv = maskData ? sampleUV(ll.lat, ll.lng, tFloat) : sampleUVarrow(ll.lat, ll.lng, tFloat);
+        } else {         // daarbuiten: wereldwijd fijn veld (Open-Meteo Marine), geen NW-masker
+          uv = fineSample(ll.lat, ll.lng, tFloat);
+        }
         if (!uv) continue;
         const u = uv[0], v = uv[1], kmh = Math.hypot(u, v); if (kmh < 0.05) continue;
         const dx = u, dy = -v, m = Math.hypot(dx, dy) || 1, ux = dx / m, uy = dy / m;
