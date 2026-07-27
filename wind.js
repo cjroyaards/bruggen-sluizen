@@ -5,7 +5,7 @@
 (function () {
   'use strict';
   const NHOURS = 168, PLAY_HPS = 1.4;
-  const PAD = 0.3, MAXPTS = 200, D0 = 0.1;   // ruime marge rond het beeld → soepel pannen; verschaald tot ≤MAXPTS
+  const PAD = 0.5, MAXPTS = 200, D0 = 0.1;   // ruime marge → minder herhaal-calls bij pannen (quota-zuinig); punten blijven ≤MAXPTS
   // Beaufort-kleuren (knopen)
   const RAMP = [[0,'#86b6e8'],[1,'#5b9bd6'],[4,'#3fa579'],[7,'#4aa62f'],[11,'#98ba26'],
     [17,'#e6bd15'],[22,'#f6a63c'],[28,'#ee6f3a'],[34,'#e0463f'],[41,'#cf3670'],[48,'#9b4bb0'],[56,'#6d3b9e']];
@@ -16,7 +16,8 @@
   let tFloat=0, playing=false, loading=false, pending=false, everLoaded=false, fieldKey='', fieldTimer=0;
   let canvas=null, ctx=null, colorCanvas=null, cctx=null, particles=[], rafId=0, lastTs=0, colorDirty=true;
   let want={ arrows:false, particles:false, color:false };
-  let onTimeChange=null, statusCb=null;
+  let onTimeChange=null, statusCb=null, quotaUntil=0;
+  const QUOTA_MSG='Winddata: daglimiet Open-Meteo bereikt — morgen weer';
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
   /* ---- data: zichtgebied ophalen ---- */
@@ -29,7 +30,8 @@
       +'&wind_speed_unit=kn&timeformat=unixtime&timezone=GMT';
     try{
       const r=await fetch(url,{cache:'no-store'});
-      if((r.status===429||r.status>=500)&&attempt<4){ await sleep(700*(attempt+1)); return fetchChunk(ch,attempt+1); }
+      if(r.status===429){ quotaUntil=Date.now()+15*60000; return null; }   // daglimiet: niet herproberen (verspilt quota)
+      if(r.status>=500&&attempt<4){ await sleep(700*(attempt+1)); return fetchChunk(ch,attempt+1); }
       if(!r.ok) throw new Error('HTTP '+r.status);
       const j=await r.json(); return Array.isArray(j)?j:[j];
     }catch(e){ if(attempt<3){ await sleep(600*(attempt+1)); return fetchChunk(ch,attempt+1); } return null; }
@@ -50,6 +52,7 @@
     if(!map) return;
     if(!(want.arrows||want.particles||want.color)) return;
     if(fieldCovers(map.getBounds().pad(0.05))) return;         // huidig beeld al gedekt
+    if(Date.now()<quotaUntil){ if(statusCb) statusCb(QUOTA_MSG); setTimeout(scheduleField,16*60000); return; }  // daglimiet: rustig wachten
     if(loading){ pending=true; return; }                       // bezig → later opnieuw proberen
     const g=viewportGrid();
     const key=g.lat0.toFixed(3)+','+g.lon0.toFixed(3)+','+g.nLat+'x'+g.nLon;
@@ -62,7 +65,7 @@
     for(const r of results){ if(!r){ ok=false; break; } responses.push(...r); }
     loading=false;
     if(pending){ pending=false; scheduleField(); }             // tijdens laden verschoven → opnieuw
-    if(!ok||!responses.length||!responses[0].hourly){ if(statusCb) statusCb('Winddata niet bereikbaar'); setTimeout(scheduleField,8000); return; }
+    if(!ok||!responses.length||!responses[0].hourly){ const q=Date.now()<quotaUntil; if(statusCb) statusCb(q?QUOTA_MSG:'Winddata niet bereikbaar'); setTimeout(scheduleField, q?16*60000:8000); return; }
     if(statusCb) statusCb('');
     const nH=Math.min(NHOURS, responses[0].hourly.time.length);
     if(!times) times=responses[0].hourly.time.slice(0,NHOURS);

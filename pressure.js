@@ -3,9 +3,9 @@
    window.Pressure.init(map) → setOn(bool), setTime(tf), isOn(). */
 (function () {
   'use strict';
-  const NHOURS = 168, PAD = 0.35, MAXPTS = 400, D0 = 0.18, STEP = 4;   // STEP = isobaar-interval (hPa)
+  const NHOURS = 168, PAD = 0.5, MAXPTS = 340, D0 = 0.18, STEP = 4;   // ruime marge = minder herhaal-calls (quota-zuinig); STEP = isobaar-interval (hPa)
   let map=null, times=null, field=null, tFloat=0, on=false;
-  let loading=false, pending=false, fieldKey='', fieldTimer=0, lastHr=-999;
+  let loading=false, pending=false, fieldKey='', fieldTimer=0, lastHr=-999, quotaUntil=0;
   let canvas=null, ctx=null, hlLayer=null;
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   const CHUNK=100;
@@ -17,7 +17,8 @@
       +'&hourly=pressure_msl&forecast_days=7&timeformat=unixtime&timezone=GMT&models=ecmwf_ifs025';
     try{
       const r=await fetch(url,{cache:'no-store'});
-      if((r.status===429||r.status>=500)&&attempt<4){ await sleep(700*(attempt+1)); return fetchChunk(ch,attempt+1); }
+      if(r.status===429){ quotaUntil=Date.now()+15*60000; return null; }   // daglimiet: niet herproberen
+      if(r.status>=500&&attempt<4){ await sleep(700*(attempt+1)); return fetchChunk(ch,attempt+1); }
       if(!r.ok) throw new Error('HTTP '+r.status);
       const j=await r.json(); return Array.isArray(j)?j:[j];
     }catch(e){ if(attempt<3){ await sleep(600*(attempt+1)); return fetchChunk(ch,attempt+1); } return null; }
@@ -33,6 +34,7 @@
   async function load(){
     if(!map||!on) return;
     if(covers(map.getBounds().pad(0.05))){ draw(); return; }
+    if(Date.now()<quotaUntil){ setTimeout(schedule,16*60000); return; }   // daglimiet: rustig wachten
     if(loading){ pending=true; return; }
     const g=viewportGrid();
     const key=g.lat0.toFixed(3)+','+g.lon0.toFixed(3)+','+g.nLat+'x'+g.nLon;
@@ -44,7 +46,7 @@
     const resp=[]; let ok=true;
     for(const r of results){ if(!r){ ok=false; break; } resp.push(...r); }
     loading=false; if(pending){ pending=false; schedule(); }
-    if(!ok||!resp.length||!resp[0].hourly){ setTimeout(schedule,8000); return; }
+    if(!ok||!resp.length||!resp[0].hourly){ setTimeout(schedule, Date.now()<quotaUntil?16*60000:8000); return; }
     const nH=Math.min(NHOURS,resp[0].hourly.time.length); if(!times) times=resp[0].hourly.time.slice(0,NHOURS);
     const n=g.nLat*g.nLon; const P=new Float32Array(nH*n).fill(NaN);
     for(let p=0;p<n&&p<resp.length;p++){ const h=resp[p].hourly; if(!h) continue; const pr=h.pressure_msl; for(let t=0;t<nH;t++){ const v=pr[t]; if(v!=null) P[t*n+p]=v; } }
