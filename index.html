@@ -673,7 +673,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-91</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-92</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1884,13 +1884,12 @@ function initCurrents(){
   if (curInited) return;
   if (!window.Currents){ loadScriptOnce("currents.js", initCurrents); return; }
   if (!window.Wind){ loadScriptOnce("wind.js", initCurrents); return; }
-  if (!window.Pressure){ loadScriptOnce("pressure.js", initCurrents); return; }
   curInited = true;
   Currents.init(map);
   Wind.init(map);
-  Pressure.init(map);
+  loadScriptOnce("pressure.js", ()=>{ try{ if(window.Pressure) Pressure.init(map); }catch(_){} });   // luchtdruk optioneel, blokkeert wind/stroom niet
   const anyFlow = () => Currents.anyOn() || Wind.anyOn();
-  const clockOn = () => Currents.anyOn() || Wind.anyOn() || Rain.isOn() || Pressure.isOn();
+  const clockOn = () => Currents.anyOn() || Wind.anyOn() || Rain.isOn() || (window.Pressure && Pressure.isOn());
   let flowPlaying = false;
   const isPlaying = () => flowPlaying;
   // --- radar-baas-modus: radar loopt zijn eigen ~2u-lus; wind/stroom volgen die tijd via setTime ---
@@ -1907,7 +1906,7 @@ function initCurrents(){
     Rain.showIndex(radarIdx);
     const tf = tfFromMs(Rain.frameTimeAt(radarIdx));
     Currents.setTime(tf); Wind.setTime(tf);              // wind/stroom volgen de radartijd
-    if (Pressure.isOn()) Pressure.setTime(tf);
+    if (window.Pressure && Pressure.isOn()) Pressure.setTime(tf);
     $("#cur-slider").value = String(radarIdx);
     $("#cur-label").textContent = Rain.frameLabel(radarIdx);
     $("#cur-play").textContent = flowPlaying ? "❚❚" : "▶";
@@ -1936,7 +1935,7 @@ function initCurrents(){
     $("#cur-slider").value = String(tf);
     $("#cur-label").textContent = curFmtLabel(tf);
     $("#cur-play").textContent = isPlaying()?"❚❚":"▶";
-    if (Pressure.isOn()) Pressure.setTime(tf);   // luchtdruk volgt de tijd
+    if (window.Pressure && Pressure.isOn()) Pressure.setTime(tf);   // luchtdruk volgt de tijd
   };
   Currents.onTime(barTime);            // niet-radar: Currents is de klok; wind loopt parallel mee
   Wind.onTime(()=>{});
@@ -1960,7 +1959,7 @@ function initCurrents(){
     if (window.updateLegend) updateLegend();
   }
   ["lay-flow","lay-particles","wind-arrows","wind-particles","wind-color"].forEach(id => $("#"+id).addEventListener("change", applyLayers));
-  $("#pres-iso").addEventListener("change", ()=>{ Pressure.setOn($("#pres-iso").checked); if(Pressure.isOn()) Pressure.setTime(Currents.getTFloat()); refreshBar(); syncPlay(); });
+  $("#pres-iso").addEventListener("change", ()=>{ if(!window.Pressure){ $("#pres-iso").checked=false; return; } Pressure.setOn($("#pres-iso").checked); if(Pressure.isOn()) Pressure.setTime(Currents.getTFloat()); refreshBar(); syncPlay(); });
   // Eén "Stroompijlen"-laag: scherpe Copernicus-WMTS-tegels (native tot zoom 9) op afstand,
   // vanaf zoom 11 automatisch de vloeiende eigen pijlen (zelfde stromingsdata). Herschakelen bij zoomen.
   let lastDeep = null;
