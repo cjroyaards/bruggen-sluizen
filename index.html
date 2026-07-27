@@ -666,7 +666,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-82</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-83</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -2273,6 +2273,7 @@ function applyObjectZoom(){
     setChk("obj-bedien", showBedien && detail);
     setChk("obj-vast",   showVast   && detail);
     const on = (showBedien||showVast) && detail;
+    $("#mb-objs").classList.toggle("on", on);   // menuknop wit als er niets zichtbaar is
     if (on && !map.hasLayer(cluster)) map.addLayer(cluster);
     else if (!on && map.hasLayer(cluster)) map.removeLayer(cluster);
   }
