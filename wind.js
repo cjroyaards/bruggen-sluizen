@@ -1,24 +1,25 @@
 /* Windvoorspelling-laag voor de hoofdkaart (open data via Open-Meteo, GFS/ICON/HARMONIE).
+   Zichtgebied-gebaseerd: bemonstert het zichtbare kaartdeel en werkt daardoor wereldwijd.
    window.Wind.init(map) → setLayers({arrows,particles,color}), setTime(tf), setPlaying, onTime, getTimes, nowIndex, anyOn.
    Wind waait ook over land, dus geen zeemasker. Snelheid in knopen, kleur naar Beaufort. */
 (function () {
   'use strict';
-  const GRID = { lat0: 49.0, dLat: 0.4, nLat: 14, lon0: -2.4, dLon: 0.5, nLon: 18 };
   const NHOURS = 168, PLAY_HPS = 1.4;
+  const PAD = 0.25, MAXPTS = 300, D0 = 0.1;   // basis-rasterafstand (°), verschaald tot ≤MAXPTS per zichtgebied
   // Beaufort-kleuren (knopen)
   const RAMP = [[0,'#86b6e8'],[1,'#5b9bd6'],[4,'#3fa579'],[7,'#4aa62f'],[11,'#98ba26'],
     [17,'#e6bd15'],[22,'#f6a63c'],[28,'#ee6f3a'],[34,'#e0463f'],[41,'#cf3670'],[48,'#9b4bb0'],[56,'#6d3b9e']];
   function windColor(kn){ for(let k=RAMP.length-1;k>=0;k--) if(kn>=RAMP[k][0]) return RAMP[k][1]; return RAMP[0][1]; }
   function beaufort(kn){ const b=[1,4,7,11,17,22,28,34,41,48,56,64]; let n=0; for(const t of b){ if(kn>=t) n++; } return n; }
 
-  let map=null, times=null, U=null, V=null, SP=null, GU=null;
-  let tFloat=0, playing=false, loaded=false, loading=false;
+  let map=null, times=null, field=null;   // field={lat0,lon0,dLat,dLon,nLat,nLon,nH,U,V,SP,GU}
+  let tFloat=0, playing=false, loading=false, everLoaded=false, fieldKey='', fieldTimer=0;
   let canvas=null, ctx=null, colorCanvas=null, cctx=null, particles=[], rafId=0, lastTs=0, colorDirty=true;
   let want={ arrows:false, particles:false, color:false };
   let onTimeChange=null, statusCb=null;
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
-  /* ---- data ---- */
+  /* ---- data: zichtgebied ophalen ---- */
   const CHUNK=100;
   async function fetchChunk(ch, attempt){
     attempt=attempt||0;
@@ -33,38 +34,57 @@
       const j=await r.json(); return Array.isArray(j)?j:[j];
     }catch(e){ if(attempt<3){ await sleep(600*(attempt+1)); return fetchChunk(ch,attempt+1); } return null; }
   }
-  async function loadData(){
-    if(loaded||loading) return;
+  function viewportGrid(){
+    const b=map.getBounds().pad(PAD);
+    let dLat=D0, dLon=D0;
+    let nLat=Math.ceil((b.getNorth()-b.getSouth())/dLat)+1, nLon=Math.ceil((b.getEast()-b.getWest())/dLon)+1;
+    while(nLat*nLon>MAXPTS){ dLat*=1.3; dLon*=1.3; nLat=Math.ceil((b.getNorth()-b.getSouth())/dLat)+1; nLon=Math.ceil((b.getEast()-b.getWest())/dLon)+1; }
+    return {lat0:b.getSouth(), lon0:b.getWest(), dLat, dLon, nLat, nLon};
+  }
+  function fieldCovers(b){
+    return field && b.getSouth()>=field.lat0 && b.getNorth()<=field.lat0+(field.nLat-1)*field.dLat
+      && b.getWest()>=field.lon0 && b.getEast()<=field.lon0+(field.nLon-1)*field.dLon;
+  }
+  function scheduleField(){ clearTimeout(fieldTimer); fieldTimer=setTimeout(loadField,700); }
+  async function loadField(){
+    if(!map||loading) return;
+    if(!(want.arrows||want.particles||want.color)) return;
+    if(fieldCovers(map.getBounds().pad(0.05))) return;         // huidig beeld al gedekt
+    const g=viewportGrid();
+    const key=g.lat0.toFixed(3)+','+g.lon0.toFixed(3)+','+g.nLat+'x'+g.nLon;
+    if(key===fieldKey) return;
     loading=true; if(statusCb) statusCb('Winddata laden…');
-    const pts=[];
-    for(let i=0;i<GRID.nLat;i++) for(let j=0;j<GRID.nLon;j++) pts.push([+(GRID.lat0+i*GRID.dLat).toFixed(2),+(GRID.lon0+j*GRID.dLon).toFixed(2)]);
-    const defs=[]; for(let s=0;s<pts.length;s+=CHUNK) defs.push({start:s,pts:pts.slice(s,s+CHUNK)});
-    const responses=new Array(defs.length).fill(null);
-    for(let s=0;s<defs.length;s+=2){ const rs=await Promise.all(defs.slice(s,s+2).map(d=>fetchChunk(d.pts))); rs.forEach((r,i)=>{responses[s+i]=r;}); }
-    const okResp=responses.find(Boolean);
-    if(!okResp){ loading=false; if(statusCb) statusCb('Winddata niet bereikbaar'); setTimeout(loadData,15000); return; }
-    const n=GRID.nLat*GRID.nLon;
-    times=okResp[0].hourly.time.slice(0,NHOURS);
-    U=new Float32Array(NHOURS*n).fill(NaN); V=new Float32Array(NHOURS*n).fill(NaN);
-    SP=new Float32Array(NHOURS*n).fill(NaN); GU=new Float32Array(NHOURS*n).fill(NaN);
-    defs.forEach((d,ci)=>{ const resp=responses[ci]; if(!resp) return;
-      for(let k=0;k<d.pts.length&&k<resp.length;k++){ const p=d.start+k; const h=resp[k].hourly;
-        const sp=h.wind_speed_10m, dir=h.wind_direction_10m, gu=h.wind_gusts_10m;
-        for(let t=0;t<NHOURS;t++){ const s=sp[t], dd=dir[t]; if(s==null||dd==null) continue;
-          const radTo=(dd+180)*Math.PI/180;   // richting waarheen de wind waait
-          U[t*n+p]=s*Math.sin(radTo); V[t*n+p]=s*Math.cos(radTo); SP[t*n+p]=s; GU[t*n+p]=gu?gu[t]:NaN; } } });
-    loaded=true; loading=false; if(statusCb) statusCb('');
-    setTimeFloat(nowIndex()); colorDirty=true; if(onTimeChange) onTimeChange(tFloat);
+    const pts=[]; for(let i=0;i<g.nLat;i++) for(let j=0;j<g.nLon;j++) pts.push([+(g.lat0+i*g.dLat).toFixed(3),+(g.lon0+j*g.dLon).toFixed(3)]);
+    const responses=[]; let ok=true;
+    for(let s=0;s<pts.length;s+=CHUNK){ const r=await fetchChunk(pts.slice(s,s+CHUNK)); if(!r){ ok=false; break; } responses.push(...r); }
+    loading=false;
+    if(!ok||!responses.length||!responses[0].hourly){ if(statusCb) statusCb('Winddata niet bereikbaar'); setTimeout(scheduleField,8000); return; }
+    if(statusCb) statusCb('');
+    const nH=Math.min(NHOURS, responses[0].hourly.time.length);
+    if(!times) times=responses[0].hourly.time.slice(0,NHOURS);
+    const n=g.nLat*g.nLon;
+    const FU=new Float32Array(nH*n).fill(NaN), FV=new Float32Array(nH*n).fill(NaN), FSP=new Float32Array(nH*n).fill(NaN), FGU=new Float32Array(nH*n).fill(NaN);
+    for(let p=0;p<n&&p<responses.length;p++){ const h=responses[p].hourly; if(!h) continue;
+      const sp=h.wind_speed_10m, dir=h.wind_direction_10m, gu=h.wind_gusts_10m;
+      for(let t=0;t<nH;t++){ const s=sp[t], dd=dir[t]; if(s==null||dd==null) continue;
+        const radTo=(dd+180)*Math.PI/180;   // richting waarheen de wind waait
+        FU[t*n+p]=s*Math.sin(radTo); FV[t*n+p]=s*Math.cos(radTo); FSP[t*n+p]=s; FGU[t*n+p]=gu?gu[t]:NaN; } }
+    field={lat0:g.lat0,lon0:g.lon0,dLat:g.dLat,dLon:g.dLon,nLat:g.nLat,nLon:g.nLon,nH,U:FU,V:FV,SP:FSP,GU:FGU};
+    fieldKey=key;
+    if(!everLoaded){ everLoaded=true; setTimeFloat(nowIndex()); }
+    colorDirty=true; if(onTimeChange) onTimeChange(tFloat);
     if(want.particles) resetParticles();
+    scheduleField();                                            // dek zo nodig het inmiddels verschoven beeld
   }
 
   /* ---- interpolatie ---- */
   function sampleUVi(lat,lon,t){
-    const n=GRID.nLat*GRID.nLon, fi=(lat-GRID.lat0)/GRID.dLat, fj=(lon-GRID.lon0)/GRID.dLon;
+    if(!field || t<0 || t>=field.nH) return null;
+    const n=field.nLat*field.nLon, fi=(lat-field.lat0)/field.dLat, fj=(lon-field.lon0)/field.dLon;
     const i0=Math.floor(fi), j0=Math.floor(fj);
-    if(i0<0||j0<0||i0>=GRID.nLat-1||j0>=GRID.nLon-1) return null;
+    if(i0<0||j0<0||i0>=field.nLat-1||j0>=field.nLon-1) return null;
     const wi=fi-i0, wj=fj-j0; let su=0,sv=0,sw=0;
-    for(let di=0;di<=1;di++) for(let dj=0;dj<=1;dj++){ const idx=t*n+(i0+di)*GRID.nLon+(j0+dj); const u=U[idx]; if(Number.isNaN(u)) continue; const w=(di?wi:1-wi)*(dj?wj:1-wj); su+=u*w; sv+=V[idx]*w; sw+=w; }
+    for(let di=0;di<=1;di++) for(let dj=0;dj<=1;dj++){ const idx=t*n+(i0+di)*field.nLon+(j0+dj); const u=field.U[idx]; if(Number.isNaN(u)) continue; const w=(di?wi:1-wi)*(dj?wj:1-wj); su+=u*w; sv+=field.V[idx]*w; sw+=w; }
     if(sw<0.25) return null; return [su/sw,sv/sw];
   }
   function sampleUV(lat,lon,tf){
@@ -75,7 +95,7 @@
 
   /* ---- kleurveld (canvas, alleen hertekenen bij move/zoom/tijd) ---- */
   function drawColor(){
-    if(!colorCanvas||!U) return;
+    if(!colorCanvas||!field) return;
     const sz=map.getSize(); if(colorCanvas.width!==sz.x||colorCanvas.height!==sz.y){ colorCanvas.width=sz.x; colorCanvas.height=sz.y; }
     cctx.clearRect(0,0,sz.x,sz.y); const B=10;
     for(let x=0;x<sz.x;x+=B) for(let y=0;y<sz.y;y+=B){
@@ -119,7 +139,7 @@
     const dt=lastTs?Math.min(0.08,(ts-lastTs)/1000):0; lastTs=ts;
     if(playing&&times){ tFloat+=dt*PLAY_HPS; if(tFloat>=NHOURS-1) tFloat=0; colorDirty=true; if(onTimeChange) onTimeChange(tFloat); }
     if(want.color && colorDirty) drawColor();
-    if(!canvas||(!want.particles&&!want.arrows)||!U) return;
+    if(!canvas||(!want.particles&&!want.arrows)||!field) return;
     const sz=map.getSize();
     if(want.particles&&playing){
       ctx.globalCompositeOperation='destination-out'; ctx.fillStyle='rgba(0,0,0,0.045)'; ctx.fillRect(0,0,sz.x,sz.y);
@@ -156,7 +176,7 @@
     const on=want.arrows||want.particles||want.color;
     if(canvas) canvas.style.display=(want.arrows||want.particles)?'block':'none';
     if(colorCanvas) colorCanvas.style.display=want.color?'block':'none';
-    if(on&&!loaded) loadData();
+    if(on) scheduleField();
     if(want.particles) resetParticles();
     colorDirty=true;
   }
@@ -172,16 +192,16 @@
       ctx=canvas.getContext('2d'); cctx=colorCanvas.getContext('2d');
       times=defaultTimes();
       map.on('resize',()=>{ resizeCanvas(); reposition(); resetParticles(); colorDirty=true; });
-      map.on('moveend zoomend',()=>{ reposition(); resetParticles(); colorDirty=true; if(want.color) drawColor(); });
+      map.on('moveend zoomend',()=>{ reposition(); resetParticles(); colorDirty=true; if(want.arrows||want.particles||want.color) scheduleField(); if(want.color) drawColor(); });
       map.on('movestart zoomstart',()=>{ if(ctx) ctx.clearRect(0,0,canvas.width,canvas.height); if(cctx) cctx.clearRect(0,0,colorCanvas.width,colorCanvas.height); });
       resizeCanvas(); reposition(); setTimeFloat(nowIndex()); requestAnimationFrame(frame);
       return API;
     },
     setLayers(w){ const wasP=want.particles; want=Object.assign({},want,w); if(want.particles&&!wasP) playing=true; if(!(want.arrows||want.particles||want.color)) playing=false; sync(); if(onTimeChange) onTimeChange(tFloat); },
     anyOn(){ return want.arrows||want.particles||want.color; },
-    pointNow(lat,lon){ return U?pointInfo(lat,lon,tFloat):null; },
-    pointSeries(lat,lon){ if(!U) return null; const out=[]; for(let i=0;i<NHOURS;i++) out.push(pointInfo(lat,lon,i)); return out; },
-    isLoaded(){ return loaded; },
+    pointNow(lat,lon){ return field?pointInfo(lat,lon,tFloat):null; },
+    pointSeries(lat,lon){ if(!field) return null; const out=[]; for(let i=0;i<NHOURS;i++) out.push(pointInfo(lat,lon,i)); return out; },
+    isLoaded(){ return !!field; },
     setTime(tf){ playing=false; setTimeFloat(tf); if(want.color) drawColor(); if(onTimeChange) onTimeChange(tFloat); },
     setPlaying(v){ playing=v; },
     isPlaying(){ return playing; },
