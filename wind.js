@@ -5,7 +5,7 @@
 (function () {
   'use strict';
   const NHOURS = 168, PLAY_HPS = 1.4;
-  const PAD = 0.35, MAXPTS = 500, D0 = 0.1;   // basis-rasterafstand (°), verschaald tot ≤MAXPTS per zichtgebied
+  const PAD = 0.6, MAXPTS = 700, D0 = 0.1;   // ruime marge rond het beeld → soepel pannen; verschaald tot ≤MAXPTS
   // Beaufort-kleuren (knopen)
   const RAMP = [[0,'#86b6e8'],[1,'#5b9bd6'],[4,'#3fa579'],[7,'#4aa62f'],[11,'#98ba26'],
     [17,'#e6bd15'],[22,'#f6a63c'],[28,'#ee6f3a'],[34,'#e0463f'],[41,'#cf3670'],[48,'#9b4bb0'],[56,'#6d3b9e']];

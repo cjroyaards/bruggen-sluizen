@@ -18,8 +18,8 @@
   let maskLayer = null, maskData = null, maskW = 0, maskH = 0, maskT = null;
   let want = { arrows: false, particles: false, color: false, own: false };
   /* fijn lokaal veld (±1,6 km) voor het zichtgebied bij diep inzoomen */
-  const FINE = { minZoom: 8, dLat: 0.015, dLon: 0.024, maxPts: 600, pad: 0.25 };
-  let fine = null, fineLoading = false, fineTimer = 0, fineKey = '';
+  const FINE = { minZoom: 8, dLat: 0.015, dLon: 0.024, maxPts: 800, pad: 0.6 };
+  let fine = null, fineLoading = false, finePending = false, fineTimer = 0, fineKey = '';
   let onTimeChange = null, statusCb = null;
 
   const isoHour = s => new Date(s * 1000).toISOString().replace(/\.\d{3}Z$/, '.000Z');
@@ -144,10 +144,11 @@
   }
   function scheduleFine() { clearTimeout(fineTimer); fineTimer = setTimeout(loadFine, 700); }
   async function loadFine() {
-    if (!map || fineLoading) return;
+    if (!map) return;
     if (map.getZoom() < FINE.minZoom) return;
     if (!want.own && !want.particles && !want.color) return;
     if (fineCovers(map.getBounds().pad(0.05))) return;      // zichtgebied al gedekt
+    if (fineLoading) { finePending = true; return; }        // bezig → later opnieuw
     const b = map.getBounds().pad(FINE.pad);
     let dLat = FINE.dLat, dLon = FINE.dLon;
     let nLat = Math.ceil((b.getNorth() - b.getSouth()) / dLat) + 1, nLon = Math.ceil((b.getEast() - b.getWest()) / dLon) + 1;
@@ -165,6 +166,7 @@
       responses.push(...r);
     }
     fineLoading = false;
+    if (finePending) { finePending = false; scheduleFine(); }   // tijdens laden verschoven → opnieuw
     if (!ok || !responses.length || !responses[0].hourly) return;
     const nH = Math.min(72, responses[0].hourly.time.length);
     const base = (times || defaultTimes());
