@@ -673,7 +673,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-96</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-97</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -3105,14 +3105,13 @@ function loadDepthRegions(){
     }).catch(()=>{ delete depthRegionLayers[r.id]; });
   }
 }
+// EMODnet Bathymetry (DTM) overal als één consistent dieptevlak, eigen blauw→bruin-verloop, land transparant
+const EMOD_SLD = `<?xml version="1.0" encoding="UTF-8"?><StyledLayerDescriptor version="1.0.0" xmlns="http://www.opengis.net/sld"><NamedLayer><Name>emodnet:mean</Name><UserStyle><FeatureTypeStyle><Rule><RasterSymbolizer><Opacity>1.0</Opacity><ColorMap type="ramp"><ColorMapEntry color="#0a2f5e" quantity="-3000" opacity="1"/><ColorMapEntry color="#103f77" quantity="-80" opacity="1"/><ColorMapEntry color="#245fa0" quantity="-30" opacity="1"/><ColorMapEntry color="#4f93c8" quantity="-15" opacity="1"/><ColorMapEntry color="#8ec4e6" quantity="-6" opacity="1"/><ColorMapEntry color="#c3e2f0" quantity="-2" opacity="1"/><ColorMapEntry color="#dfeef3" quantity="-0.4" opacity="1"/><ColorMapEntry color="#dccba0" quantity="0" opacity="1"/><ColorMapEntry color="#b58e56" quantity="1.2" opacity="1"/><ColorMapEntry color="#8a6a3a" quantity="2.2" opacity="1"/><ColorMapEntry color="#8a6a3a" quantity="2.8" opacity="0"/></ColorMap></RasterSymbolizer></Rule></FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>`;
 function setZeeChart(on){
   zeechartView = on;
   if (on){
     // ver uitgezoomd is de zeekaart traag (heel veel dieptevlakken in beeld) → eerst wat inzoomen
     if (map && map.getZoom()<9) map.setView(map.getCenter(), 9, {animate:false});
-    if (!regionsHooked){ regionsHooked=true; map.on("moveend", ()=>{ if(zeechartView) loadDepthRegions(); }); }
-    for (const k in depthRegionLayers){ const l=depthRegionLayers[k]; if (l && l!=="loading") l.addTo(map); }
-    setTimeout(loadDepthRegions, 400);
     if (!smLayer) smLayer=L.layerGroup();
     if (!smHooked){ smHooked=true; map.on("moveend zoomend",()=>{ smSync(); buoySync(); clearTimeout(smTimer); smTimer=setTimeout(loadSeamarks,900); }); }
     setTimeout(()=>{ smSync(); loadSeamarks(); },600);
@@ -3120,14 +3119,11 @@ function setZeeChart(on){
       { maxZoom:19, subdomains:"abcd", attribution:'© OpenStreetMap © CARTO' });
     if (map.hasLayer(baseOSM)) map.removeLayer(baseOSM);
     baseLight.addTo(map);
-    // EMODnet-diepte-onderlaag (WMS, transparant over land): vult overal waar geen eigen dieptevlak is (bv. Franse Kanaalkust bij Le Havre)
+    // EMODnet-diepte overal (WMS, eigen blauw→bruin-verloop, transparant over land) — één consistente laag i.p.v. de pastel-lappendeken
     if (!emodnetDepth) emodnetDepth = L.tileLayer.wms("https://ows.emodnet-bathymetry.eu/wms", {
-      layers:"emodnet:mean_multicolour", format:"image/png", transparent:true, version:"1.3.0",
-      pane:"emodPane", opacity:0.85, maxZoom:19, attribution:"© EMODnet Bathymetry" });
+      layers:"emodnet:mean", styles:"", format:"image/png", transparent:true, version:"1.3.0",
+      sld_body:EMOD_SLD, pane:"emodPane", opacity:1, maxZoom:19, attribution:'© EMODnet Bathymetry' });
     emodnetDepth.addTo(map);
-    // Gladde EMODnet-dieptevlakken (NL + UK-oostkust + Kanaal + België): licht gekleurde dieptezones
-    if (encDepthGeo) drawSmoothDepth(encDepthGeo);
-    else fetch("data/depth_smooth.geojson?v=20260723b", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{ encDepthGeo=gj; if(zeechartView) drawSmoothDepth(gj); }).catch(()=>{});
     // Proef buitenland (EU-RIS-route): Duitse Rijn als waterlint uit de WSV Inland ENC (ELWIS, vrij gebruik)
     if (!window.deWaterLayer){
       fetch("data/de_water.geojson?v=20260722b", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{
