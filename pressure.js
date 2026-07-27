@@ -3,7 +3,7 @@
    window.Pressure.init(map) → setOn(bool), setTime(tf), isOn(). */
 (function () {
   'use strict';
-  const NHOURS = 168, PAD = 0.4, MAXPTS = 650, D0 = 0.18, STEP = 4;   // STEP = isobaar-interval (hPa)
+  const NHOURS = 168, PAD = 0.35, MAXPTS = 400, D0 = 0.18, STEP = 4;   // STEP = isobaar-interval (hPa)
   let map=null, times=null, field=null, tFloat=0, on=false;
   let loading=false, pending=false, fieldKey='', fieldTimer=0, lastHr=-999;
   let canvas=null, ctx=null, hlLayer=null;
@@ -39,8 +39,10 @@
     if(key===fieldKey){ draw(); return; }
     loading=true;
     const pts=[]; for(let i=0;i<g.nLat;i++) for(let j=0;j<g.nLon;j++) pts.push([+(g.lat0+i*g.dLat).toFixed(3),+(g.lon0+j*g.dLon).toFixed(3)]);
+    const chunks=[]; for(let s=0;s<pts.length;s+=CHUNK) chunks.push(pts.slice(s,s+CHUNK));
+    const results=await Promise.all(chunks.map(c=>fetchChunk(c)));   // parallel i.p.v. serieel
     const resp=[]; let ok=true;
-    for(let s=0;s<pts.length;s+=CHUNK){ const r=await fetchChunk(pts.slice(s,s+CHUNK)); if(!r){ ok=false; break; } resp.push(...r); }
+    for(const r of results){ if(!r){ ok=false; break; } resp.push(...r); }
     loading=false; if(pending){ pending=false; schedule(); }
     if(!ok||!resp.length||!resp[0].hourly){ setTimeout(schedule,8000); return; }
     const nH=Math.min(NHOURS,resp[0].hourly.time.length); if(!times) times=resp[0].hourly.time.slice(0,NHOURS);

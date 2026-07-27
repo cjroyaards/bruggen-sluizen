@@ -5,7 +5,7 @@
 (function () {
   'use strict';
   const NHOURS = 168, PLAY_HPS = 1.4;
-  const PAD = 0.6, MAXPTS = 700, D0 = 0.1;   // ruime marge rond het beeld → soepel pannen; verschaald tot ≤MAXPTS
+  const PAD = 0.5, MAXPTS = 420, D0 = 0.1;   // ruime marge rond het beeld → soepel pannen; verschaald tot ≤MAXPTS
   // Beaufort-kleuren (knopen)
   const RAMP = [[0,'#86b6e8'],[1,'#5b9bd6'],[4,'#3fa579'],[7,'#4aa62f'],[11,'#98ba26'],
     [17,'#e6bd15'],[22,'#f6a63c'],[28,'#ee6f3a'],[34,'#e0463f'],[41,'#cf3670'],[48,'#9b4bb0'],[56,'#6d3b9e']];
@@ -56,8 +56,10 @@
     if(key===fieldKey) return;
     loading=true; if(statusCb) statusCb('Winddata laden…');
     const pts=[]; for(let i=0;i<g.nLat;i++) for(let j=0;j<g.nLon;j++) pts.push([+(g.lat0+i*g.dLat).toFixed(3),+(g.lon0+j*g.dLon).toFixed(3)]);
+    const chunks=[]; for(let s=0;s<pts.length;s+=CHUNK) chunks.push(pts.slice(s,s+CHUNK));
+    const results=await Promise.all(chunks.map(c=>fetchChunk(c)));   // parallel i.p.v. serieel
     const responses=[]; let ok=true;
-    for(let s=0;s<pts.length;s+=CHUNK){ const r=await fetchChunk(pts.slice(s,s+CHUNK)); if(!r){ ok=false; break; } responses.push(...r); }
+    for(const r of results){ if(!r){ ok=false; break; } responses.push(...r); }
     loading=false;
     if(pending){ pending=false; scheduleField(); }             // tijdens laden verschoven → opnieuw
     if(!ok||!responses.length||!responses[0].hourly){ if(statusCb) statusCb('Winddata niet bereikbaar'); setTimeout(scheduleField,8000); return; }
