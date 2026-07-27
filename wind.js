@@ -5,7 +5,7 @@
 (function () {
   'use strict';
   const NHOURS = 168, PLAY_HPS = 1.4;
-  const PAD = 0.5, MAXPTS = 420, D0 = 0.1;   // ruime marge rond het beeld → soepel pannen; verschaald tot ≤MAXPTS
+  const PAD = 0.3, MAXPTS = 200, D0 = 0.1;   // ruime marge rond het beeld → soepel pannen; verschaald tot ≤MAXPTS
   // Beaufort-kleuren (knopen)
   const RAMP = [[0,'#86b6e8'],[1,'#5b9bd6'],[4,'#3fa579'],[7,'#4aa62f'],[11,'#98ba26'],
     [17,'#e6bd15'],[22,'#f6a63c'],[28,'#ee6f3a'],[34,'#e0463f'],[41,'#cf3670'],[48,'#9b4bb0'],[56,'#6d3b9e']];
@@ -45,7 +45,7 @@
     return field && b.getSouth()>=field.lat0 && b.getNorth()<=field.lat0+(field.nLat-1)*field.dLat
       && b.getWest()>=field.lon0 && b.getEast()<=field.lon0+(field.nLon-1)*field.dLon;
   }
-  function scheduleField(){ clearTimeout(fieldTimer); fieldTimer=setTimeout(loadField,450); }
+  function scheduleField(){ clearTimeout(fieldTimer); fieldTimer=setTimeout(loadField,300); }
   async function loadField(){
     if(!map) return;
     if(!(want.arrows||want.particles||want.color)) return;
