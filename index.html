@@ -673,7 +673,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-92</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-93</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -2279,7 +2279,7 @@ let gateBand = { vts:null, tide:null, obj:null, harb:null };   // laatste zoom-b
 function applyObjectZoom(){
   if (!map) return;
   const z = map.getZoom();
-  const th = { vts: zeechartView?ZC_MINZOOM:0, tide: zeechartView?ZC_MINZOOM:0, obj: zeechartView?ZC_MINZOOM:0, harb: zeechartView?ZC_MINZOOM:HARB_MINZOOM };
+  const th = { vts: zeechartView?ZC_MINZOOM:0, tide: zeechartView?ZC_MINZOOM:HARB_MINZOOM, obj: zeechartView?ZC_MINZOOM:0, harb: zeechartView?ZC_MINZOOM:HARB_MINZOOM };
   const setChk = (id,on)=>{ const el=$("#"+id); if(el) el.checked=on; };
   const toggleLayer = (lay,on)=>{ if(!lay) return; if(on && !map.hasLayer(lay)) lay.addTo(map); else if(!on && map.hasLayer(lay)) map.removeLayer(lay); };
   const crossed = (k)=>{ const band = z >= th[k]; const ch = band!==gateBand[k]; gateBand[k]=band; return ch ? band : null; };  // geeft de nieuwe band terug alleen bij passage
