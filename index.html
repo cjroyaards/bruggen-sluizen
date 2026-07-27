@@ -666,7 +666,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-85</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-86</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -2262,25 +2262,23 @@ let wantTide = true, wantHarb = true;   // gebruikersintentie (los van de zoom-g
 function applyObjectZoom(){
   if (!map) return;
   const z = map.getZoom();
-  const detail  = !zeechartView || z >= ZC_MINZOOM;              // VTS/objecten/getij: op zeekaart pas vanaf detail-zoom
-  const harbVis = z >= (zeechartView ? ZC_MINZOOM : HARB_MINZOOM); // havens: eigen drempel, hoger in zeekaartmodus
+  const detail = !zeechartView || z >= ZC_MINZOOM;   // zoom-gate geldt alleen voor VTS + getijstations (overzicht schoon houden)
   const setChk = (id,on)=>{ const el=$("#"+id); if(el) el.checked=on; };
   const toggleLayer = (lay,on)=>{ if(!lay) return; if(on && !map.hasLayer(lay)) lay.addTo(map); else if(!on && map.hasLayer(lay)) map.removeLayer(lay); };
-  // VTS
+  // VTS — in zeekaartmodus pas vanaf de detail-zoom
   if (vtsLayer){ const on = vtsView && detail; setChk("k-vts", on); toggleLayer(vtsLayer, on); }
-  // objecten-cluster (bruggen & sluizen)
+  // getijstations — idem
+  if (harbLayerG){ const on = wantTide && detail; setChk("tide-stations", on); toggleLayer(harbLayerG, on); }
+  // bruggen & sluizen — altijd zichtbaar/aanklikbaar (geclusterd), op elk zoomniveau
   if (cluster){
-    setChk("obj-bedien", showBedien && detail);
-    setChk("obj-vast",   showVast   && detail);
-    const on = (showBedien||showVast) && detail;
-    $("#mb-objs").classList.toggle("on", on);   // menuknop wit als er niets zichtbaar is
+    setChk("obj-bedien", showBedien); setChk("obj-vast", showVast);
+    const on = showBedien || showVast;
+    $("#mb-objs").classList.toggle("on", on);
     if (on && !map.hasLayer(cluster)) map.addLayer(cluster);
     else if (!on && map.hasLayer(cluster)) map.removeLayer(cluster);
   }
-  // getijstations
-  if (harbLayerG){ const on = wantTide && detail; setChk("tide-stations", on); toggleLayer(harbLayerG, on); }
-  // havens
-  if (harbLayerH){ const on = wantHarb && harbVis; setChk("obj-harb", on); toggleLayer(harbLayerH, on); }
+  // havens — altijd zichtbaar/aanklikbaar, op elk zoomniveau
+  if (harbLayerH){ setChk("obj-harb", wantHarb); toggleLayer(harbLayerH, wantHarb); }
 }
 /* clusteren alleen op de landkaart; in zeekaartmodus individuele (aanklikbare) stippen zonder telbollen */
 function clusterOpts(){
