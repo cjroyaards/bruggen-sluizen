@@ -673,7 +673,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260726-01</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260726-02</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -3089,6 +3089,10 @@ const DEPTH_REGIONS = [
   { id:"frankrijk_kanaal", url:"data/depth_frankrijk_kanaal.geojson?v=20260727", bbox:[48.6,-0.75,50.15,1.9] },
   { id:"biskaje", url:"data/depth_biskaje.geojson?v=20260727", bbox:[43.2,-6.6,48.7,-0.7] },
   { id:"middellandsezee", url:"data/depth_middellandsezee.geojson?v=20260727", bbox:[41.0,2.9,44.3,10.3] },
+  { id:"uk", url:"data/depth_uk.geojson?v=20260727", bbox:[49.5,-11.0,61.3,2.3] },
+  { id:"iberia_atlantic", url:"data/depth_iberia_atlantic.geojson?v=20260727", bbox:[36.0,-10.6,43.5,-1.0] },
+  { id:"canarische", url:"data/depth_canarische.geojson?v=20260727", bbox:[27.2,-18.7,29.7,-13.0] },
+  { id:"med_italie", url:"data/depth_med_italie.geojson?v=20260727", bbox:[37.0,7.4,44.3,16.6] },
 ];
 const depthRegionLayers = {};
 let regionsHooked = false;
