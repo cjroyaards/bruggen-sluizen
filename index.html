@@ -673,7 +673,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260726-05</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260726-06</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1177,13 +1177,19 @@ function winsHTML(rules, isToday, nowMin){
 function scheduleTable(per, highlightToday){
   const n = amsNow();
   const hol = isHoliday(n);
+  const groups = dayGroups(per);
   let html = `<div class="sched">`;
-  for (const g of dayGroups(per)){
+  for (const g of groups){
     const isToday = highlightToday && (hol ? g.hol : g.days.includes(n.wd));
     html += `<div class="srow${isToday?" today":""}"><div class="sday">${groupLabel(g)}</div><div class="swins">${winsHTML(g.rules, isToday, n.min)}</div></div>`;
   }
   html += `</div>`;
   if (per[2]) html += `<div class="p-note">${esc(xen(per[2]))}</div>`;
+  // feestdag bij een weekdag → toelichten dat dit de officiële RWS-regeling voor deze periode is (verschilt per seizoen)
+  if (groups.some(g=> g.hol && g.days.some(d=> d<5)))
+    html += `<div class="p-note">${LANG==="en"
+      ? "Holiday times apply to this period and can differ per season — this follows the official Rijkswaterstaat schedule."
+      : "Feestdagtijden gelden voor déze periode en kunnen per seizoen verschillen — dit volgt de officiële regeling van Rijkswaterstaat."}</div>`;
   return html;
 }
 /* ---------- getijden (Open-Meteo, live) ---------- */
