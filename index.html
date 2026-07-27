@@ -673,7 +673,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-95</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-96</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1761,6 +1761,7 @@ function closeDetail(){ $("#panel").classList.remove("open"); $("#ovl").classLis
 
 /* ---------- kaart ---------- */
 let map=null, cluster=null, stremLayer=null, meMarker=null, watchId=null, showBedien=true, showVast=true, showStrem=false;
+let emodnetDepth=null;
 let baseOSM=null, baseLight=null, iencLayer=null, seaChartLayer=null, chartDepthLayer=null, chartDepthGeo=null, zeechartView=false, rwsBathy=null, rws1m=null, chartLinesLayer=null, encDepthLayer=null, encDepthGeo=null, coastLayer=null, coastGeo=null, depthLineLayer=null, depthLineGeo=null;
 function markerColor(o){
   const st = o._mapcls || (o._mapcls = quickCls(o));
@@ -1785,6 +1786,7 @@ function initMap(){
     maxZoom: 19, attribution: "© OpenStreetMap"
   }).addTo(map);
   // panes voor de zeekaartmodus: diepte < iENC < zeekaart-symbolen (tussen basiskaart 200 en overlays 400)
+  map.createPane("emodPane"); map.getPane("emodPane").style.zIndex = 235;   // EMODnet-diepte-onderlaag: vult gaten (bv. Franse Kanaalkust)
   map.createPane("depthPane"); map.getPane("depthPane").style.zIndex = 250;
   map.createPane("bathyPane"); map.getPane("bathyPane").style.zIndex = 270;
   map.createPane("depthLinePane"); map.getPane("depthLinePane").style.zIndex = 265;
@@ -3118,6 +3120,11 @@ function setZeeChart(on){
       { maxZoom:19, subdomains:"abcd", attribution:'© OpenStreetMap © CARTO' });
     if (map.hasLayer(baseOSM)) map.removeLayer(baseOSM);
     baseLight.addTo(map);
+    // EMODnet-diepte-onderlaag (WMS, transparant over land): vult overal waar geen eigen dieptevlak is (bv. Franse Kanaalkust bij Le Havre)
+    if (!emodnetDepth) emodnetDepth = L.tileLayer.wms("https://ows.emodnet-bathymetry.eu/wms", {
+      layers:"emodnet:mean_multicolour", format:"image/png", transparent:true, version:"1.3.0",
+      pane:"emodPane", opacity:0.85, maxZoom:19, attribution:"© EMODnet Bathymetry" });
+    emodnetDepth.addTo(map);
     // Gladde EMODnet-dieptevlakken (NL + UK-oostkust + Kanaal + België): licht gekleurde dieptezones
     if (encDepthGeo) drawSmoothDepth(encDepthGeo);
     else fetch("data/depth_smooth.geojson?v=20260723b", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{ encDepthGeo=gj; if(zeechartView) drawSmoothDepth(gj); }).catch(()=>{});
@@ -3150,6 +3157,7 @@ function setZeeChart(on){
     if (depthLineLayer){ map.removeLayer(depthLineLayer); depthLineLayer=null; }
     if (encDepthLayer){ map.removeLayer(encDepthLayer); encDepthLayer=null; }
     if (iencLayer) map.removeLayer(iencLayer);
+    if (emodnetDepth && map.hasLayer(emodnetDepth)) map.removeLayer(emodnetDepth);
     if (seaChartLayer) map.removeLayer(seaChartLayer);
     if (baseLight && map.hasLayer(baseLight)) map.removeLayer(baseLight);
     if (baseOSM && !map.hasLayer(baseOSM)) baseOSM.addTo(map);

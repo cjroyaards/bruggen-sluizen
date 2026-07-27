@@ -25,7 +25,7 @@
   const isoHour = s => new Date(s * 1000).toISOString().replace(/\.\d{3}Z$/, '.000Z');
   function makeCmemsLayer(style, opacity, iso, extra) {
     return L.tileLayer(WMTS + '&STYLE=' + encodeURIComponent(style) + '&time=' + encodeURIComponent(iso),
-      Object.assign({ opacity, maxNativeZoom: 9, maxZoom: 13, pane: 'tilePane' }, extra || {}));
+      Object.assign({ opacity, maxNativeZoom: 9, maxZoom: 13, pane: 'curTilePane' }, extra || {}));
   }
   function speedColor(kmh) { for (let k = RAMP.length - 1; k >= 0; k--) if (kmh >= RAMP[k][0]) return RAMP[k][1]; return RAMP[0][1]; }
 
@@ -353,6 +353,10 @@
       map.createPane('curPane');
       const pane = map.getPane('curPane');
       pane.style.zIndex = 450; pane.style.pointerEvents = 'none';
+      // Copernicus-stroomtegels: boven de dieptevlakken/ENC (≤320), onder de zeekaart-symbolen (350)
+      map.createPane('curTilePane');
+      const tpane = map.getPane('curTilePane');
+      tpane.style.zIndex = 340; tpane.style.pointerEvents = 'none';
       canvas = document.createElement('canvas');
       canvas.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none;display:none';
       pane.appendChild(canvas); ctx = canvas.getContext('2d');
