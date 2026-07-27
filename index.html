@@ -673,7 +673,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-98</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260725-99</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -3086,6 +3086,9 @@ function loadSeamarks(){
 const DEPTH_REGIONS = [
   { id:"kanaalwest", url:"data/depth_kanaalwest.geojson?v=20260722", bbox:[48.0,-6.6,51.4,-0.7] },
   { id:"denemarken", url:"data/depth_denemarken.geojson?v=20260722", bbox:[54.2,7.6,58.2,13.0] },
+  { id:"frankrijk_kanaal", url:"data/depth_frankrijk_kanaal.geojson?v=20260727", bbox:[48.6,-0.75,50.15,1.9] },
+  { id:"biskaje", url:"data/depth_biskaje.geojson?v=20260727", bbox:[43.2,-6.6,48.7,-0.7] },
+  { id:"middellandsezee", url:"data/depth_middellandsezee.geojson?v=20260727", bbox:[41.0,2.9,44.3,10.3] },
 ];
 const depthRegionLayers = {};
 let regionsHooked = false;
