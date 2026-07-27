@@ -135,8 +135,8 @@
     colorCanvas.width=sz.x; colorCanvas.height=sz.y; // kleurveld in css-pixels
   }
   function reposition(){ if(map){ if(canvas) L.DomUtil.setPosition(canvas,map.containerPointToLayerPoint([0,0])); if(colorCanvas) L.DomUtil.setPosition(colorCanvas,map.containerPointToLayerPoint([0,0])); } }
-  function spawnParticle(pt){ const s=map.getSize(), ll=map.containerPointToLatLng([Math.random()*s.x,Math.random()*s.y]); pt.lat=ll.lat; pt.lon=ll.lng; pt.age=40+Math.random()*120; return pt; }
-  function resetParticles(){ if(!canvas) return; const z=map.getZoom(); const count=Math.min(2600,Math.round(300*Math.pow(1.5,z-5))); particles=Array.from({length:count},()=>spawnParticle({})); ctx.clearRect(0,0,canvas.width,canvas.height); }
+  function spawnParticle(pt){ const s=map.getSize(); pt.x=Math.random()*s.x; pt.y=Math.random()*s.y; pt.age=Math.random()*40; pt.life=55+Math.random()*95; return pt; }
+  function resetParticles(){ if(!canvas) return; const z=map.getZoom(); const count=Math.min(2800,Math.round(360*Math.pow(1.5,z-5))); particles=Array.from({length:count},()=>spawnParticle({})); ctx.clearRect(0,0,canvas.width,canvas.height); }
 
   function frame(ts){
     rafId=requestAnimationFrame(frame);
@@ -146,19 +146,20 @@
     if(!canvas||(!want.particles&&!want.arrows)||!field) return;
     const sz=map.getSize();
     if(want.particles&&playing){
-      ctx.globalCompositeOperation='destination-out'; ctx.fillStyle='rgba(0,0,0,0.045)'; ctx.fillRect(0,0,sz.x,sz.y);
-      ctx.globalCompositeOperation='source-over'; ctx.lineWidth=1.5; ctx.lineCap='round';
-      const speedScale=0.00050*Math.pow(1.18,map.getZoom()-6);
+      // lichte fade → vloeiende, duidelijk zichtbare 'streamlines' (Windy-stijl)
+      ctx.globalCompositeOperation='destination-out'; ctx.fillStyle='rgba(0,0,0,0.10)'; ctx.fillRect(0,0,sz.x,sz.y);
+      ctx.globalCompositeOperation='source-over'; ctx.lineWidth=2.2; ctx.lineCap='round';
+      const BASE=72;   // px/s constante loopsnelheid: animatie toont RICHTING, kleur toont SNELHEID
       for(const p of particles){
-        if(--p.age<=0){ spawnParticle(p); continue; }
-        const uv=sampleUV(p.lat,p.lon,tFloat); if(!uv){ spawnParticle(p); continue; }
+        if(p.age++>p.life){ spawnParticle(p); continue; }
+        const ll=map.containerPointToLatLng([p.x,p.y]); const uv=sampleUV(ll.lat,ll.lng,tFloat); if(!uv){ spawnParticle(p); continue; }
         const u=uv[0], v=uv[1], kn=Math.hypot(u,v);
-        const nLat=p.lat+v*speedScale/1.5, nLon=p.lon+u*speedScale/(1.5*Math.cos(p.lat*Math.PI/180));
-        const a=map.latLngToContainerPoint([p.lat,p.lon]), b=map.latLngToContainerPoint([nLat,nLon]);
-        if(b.x<-20||b.y<-20||b.x>sz.x+20||b.y>sz.y+20){ spawnParticle(p); continue; }
-        p.lat=nLat; p.lon=nLon;
-        ctx.strokeStyle=windColor(kn); ctx.globalAlpha=Math.min(0.95,0.4+kn/25);
-        ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+        const m=Math.hypot(u,v)||1, ux=u/m, uy=-v/m;   // schermrichting, noord = omhoog
+        const step=BASE*dt, nx=p.x+ux*step, ny=p.y+uy*step;
+        if(nx<-10||ny<-10||nx>sz.x+10||ny>sz.y+10){ spawnParticle(p); continue; }
+        ctx.strokeStyle=windColor(kn); ctx.globalAlpha=Math.min(1,0.62+kn/22);
+        ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(nx,ny); ctx.stroke();
+        p.x=nx; p.y=ny;
       }
       ctx.globalAlpha=1;
     } else if(!want.particles){ ctx.clearRect(0,0,sz.x,sz.y); }
