@@ -139,7 +139,7 @@
   }
   function reposition(){ if(map){ if(canvas) L.DomUtil.setPosition(canvas,map.containerPointToLayerPoint([0,0])); if(colorCanvas) L.DomUtil.setPosition(colorCanvas,map.containerPointToLayerPoint([0,0])); } }
   function spawnParticle(pt){ const s=map.getSize(); pt.x=Math.random()*s.x; pt.y=Math.random()*s.y; pt.age=Math.random()*40; pt.life=55+Math.random()*95; return pt; }
-  function resetParticles(){ if(!canvas) return; const z=map.getZoom(); const count=Math.min(2800,Math.round(360*Math.pow(1.5,z-5))); particles=Array.from({length:count},()=>spawnParticle({})); ctx.clearRect(0,0,canvas.width,canvas.height); }
+  function resetParticles(){ if(!canvas||!map) return; const sz=map.getSize(); const count=Math.min(3000,Math.max(1400,Math.round(sz.x*sz.y/380))); particles=Array.from({length:count},()=>spawnParticle({})); ctx.clearRect(0,0,canvas.width,canvas.height); }   // schermgebaseerde dichtheid: even druk bij elk zoomniveau
 
   function frame(ts){
     rafId=requestAnimationFrame(frame);
