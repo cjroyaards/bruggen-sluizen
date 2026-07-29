@@ -612,7 +612,7 @@ html.napp header input{touch-action:manipulation}
         <span class="k">Masthoogte-check</span><span>Vul je masthoogte in (vergrootglas → mast); vaste bruggen die te laag zijn krijgen dan een waarschuwing.</span>
         <span class="k">Getij NL &amp; UK</span><span>Hoog- en laagwatertijden en -hoogtes plus een getijcurve, voor Nederlandse en Britse getijstations.</span>
         <span class="k">Havens</span><span>Geselecteerde jachthavens met toegang, getijdenvenster, marifoon en sluis-/bruginfo: langs de Engelse en Belgische kust (o.a. Nieuwpoort, Oostende, Blankenberge, Zeebrugge) én — nieuw — rond het Haringvliet (Hellevoetsluis, Stellendam, Middelharnis, Stad aan 't Haringvliet, Den Bommel, Numansdorp).</span>
-        <span class="k">Getijstroom Noordzee</span><span>Eén laag "Stroompijlen" (scherpe tegels op afstand, vloeiende pijlen bij inzoomen) plus een deeltjesanimatie, met een tijdlijn tot 72 uur vooruit en klik-op-zee voor richting/snelheid op een punt. Bij inzoomen dichter bij de kust fijner bemonsterd.</span>
+        <span class="k">Getijstroom Noordzee</span><span>Eén laag "Stroompijlen" plus een deeltjesanimatie, met een tijdlijn tot 6 dagen vooruit en klik-op-zee voor richting/snelheid op een punt. Alles komt uit één model (Copernicus NWShelf, 1,5 km), dus pijlen, deeltjes en klik-info wijzen dezelfde kant op.</span>
         <span class="k">Windvoorspelling</span><span>Windpijlen, deeltjes en een kleurlaag (Beaufort), zelfde tijdlijn als de stroming; tik op de kaart voor windsnelheid (kn), Beaufort en richting waar de wind vandaan komt.</span>
         <span class="k">Weer per locatie</span><span>Open je een brug, sluis, haven of getijstation, dan verschijnt "Weer &amp; wind": temperatuur, weericoon en wind (knopen/Beaufort/richting) voor nu, plus een 6-daagse strip. Via de windlaag → klik → wind-details vergelijk je ECMWF en GFS naast elkaar (6-daagse strip + 7-daagse uurtabel).</span>
         <span class="k">Regenradar &amp; onweer</span><span>Regenradar met een animatie over het afgelopen ~2 uur die je rustig kunt doorlopen; wind en stroom lopen desgewenst op dezelfde tijd mee. ⚡-icoontjes tonen waar het weermodel onweer aangeeft.</span>
@@ -630,7 +630,7 @@ html.napp header input{touch-action:manipulation}
         <span class="k">Scheepvaartberichten</span><span>Elk uur ververst, zodat stremmingen snel doorkomen.</span>
         <span class="k">Getij NL</span><span>Dagelijks ververst; astronomische voorspelling die meerdere dagen vooruit rekent.</span>
         <span class="k">Getij UK</span><span>Dagelijks ververst; officiële voorspelling, 7 dagen vooruit.</span>
-        <span class="k">Getijstroom</span><span>Live opgehaald in je browser zodra je de laag aanzet; modelverwachting per uur, tot 72 uur vooruit.</span>
+        <span class="k">Getijstroom</span><span>Live opgehaald in je browser zodra je de laag aanzet; modelverwachting per uur, tot 6 dagen vooruit.</span>
         <span class="k">Dataset</span><span class="snapdate"></span>
         <span class="k">Berichten</span><span id="stremstamp2"></span>
         <span class="k">Objecten</span><span id="objcount"></span>
@@ -643,7 +643,7 @@ html.napp header input{touch-action:manipulation}
         <span class="k">Bruggen, sluizen &amp; berichten</span><span>Rijkswaterstaat — Fairway Information Services (vaarweginformatie.nl): de objectgegevens en de scheepvaartberichten (NtS/FTM).</span>
         <span class="k">Getij Nederland</span><span>Rijkswaterstaat WaterWebservices (waterinfo) — astronomische voorspelling, hoogtes t.o.v. <b>NAP</b>.</span>
         <span class="k">Getij Verenigd Koninkrijk</span><span>UK Hydrographic Office — Admiralty-voorspellingen, hoogtes boven <b>kaartnul (LAT)</b>.</span>
-        <span class="k">Getijstroom</span><span>Copernicus Marine Service (NWShelf-model, ~1,5 km) voor de scherpe pijlen (WMTS-tegels); het stroomveld voor de vloeiende pijlen/deeltjes via Open-Meteo (zelfde Copernicus-model), bij inzoomen dichter bij de kust fijner bemonsterd.</span>
+        <span class="k">Getijstroom</span><span>Copernicus Marine Service, NWShelf-model (~1,5 km). Pijlen en kleurvlakken zijn de kant-en-klare WMTS-tegels; de deeltjes en de eigen pijlen komen uit hetzelfde model door de uo/vo-tegels terug te rekenen naar m/s. De klik-info en de 12-uurstabel worden per punt exact bij het model opgevraagd.</span>
         <span class="k">Wind</span><span>Open-Meteo — open weermodeldata (o.a. <b>GFS</b> van NOAA en <b>ICON</b> van DWD; dezelfde modellen die ook in GRIB-bestanden zitten). 10&nbsp;m-windsnelheid, -richting en windstoten, uurlijks tot 72&nbsp;uur vooruit, live in je browser opgehaald. Modelvoorspelling — geen waarneming; bij hard weer kan de werkelijke wind afwijken.</span>
         <span class="k">Getijcurve UK-havens</span><span>Waar geen officieel Admiralty-station is: modelcurve van Open-Meteo/ECMWF (t.o.v. gemiddeld zeeniveau) — alleen om het ritme te zien.</span>
         <span class="k">Weer (locatiedetail)</span><span>Open-Meteo — model ECMWF voor temperatuur, weericoon en wind op 10 m; in het wind-detailpaneel ook GFS ter vergelijking. Live in je browser opgehaald, tot 7 dagen vooruit. Modelvoorspelling, geen waarneming.</span>
@@ -673,7 +673,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260726-07</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260729-02</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1954,11 +1954,14 @@ function initCurrents(){
     const sl = $("#cur-slider");
     if (!on) return;
     if (Rain.isOn()){ sl.min="0"; sl.max=String(Math.max(1,Rain.count()-1)); sl.step="1"; radarShow(radarIdx); }
-    else { sl.min="0"; sl.max="167"; sl.step="0.04"; barTime(Currents.getTFloat()); }
+    else { sl.min="0"; sl.max=String(Currents.NHOURS-1); sl.step="0.04"; barTime(Currents.getTFloat()); }
   }
   CURBAR_API = { refreshBar, syncPlay, radarReset: ()=>{ radarIdx = Math.max(0, Rain.count()-1); } };
   function applyLayers(){
-    const flow = $("#lay-flow").checked, deep = map.getZoom()>=11;
+    // Copernicus levert echte tegels t/m zoom 12; daarboven zouden ze opgeschaald en wazig zijn.
+    // Vanaf zoom 13 dus onze eigen vloeiende pijlen — die komen sinds b20260729-02 uit precies
+    // hetzelfde NWShelf-veld (gedecodeerde uo/vo-tegels), dus de richting blijft gelijk.
+    const flow = $("#lay-flow").checked, deep = map.getZoom()>=13;
     Currents.setLayers({ arrows: flow && !deep, own: flow && deep, particles:$("#lay-particles").checked, color:false });
     Wind.setLayers({ arrows:$("#wind-arrows").checked, particles:$("#wind-particles").checked, color:$("#wind-color").checked });
     if (!Rain.isOn()) flowPlaying = Currents.isPlaying() || Wind.isPlaying();   // deeltjes-autostart alleen buiten radarmodus
@@ -1968,12 +1971,12 @@ function initCurrents(){
   }
   ["lay-flow","lay-particles","wind-arrows","wind-particles","wind-color"].forEach(id => $("#"+id).addEventListener("change", applyLayers));
   $("#pres-iso").addEventListener("change", ()=>{ if(!window.Pressure){ $("#pres-iso").checked=false; return; } Pressure.setOn($("#pres-iso").checked); if(Pressure.isOn()) Pressure.setTime(Currents.getTFloat()); refreshBar(); syncPlay(); });
-  // Eén "Stroompijlen"-laag: scherpe Copernicus-WMTS-tegels (native tot zoom 9) op afstand,
-  // vanaf zoom 11 automatisch de vloeiende eigen pijlen (zelfde stromingsdata). Herschakelen bij zoomen.
+  // Eén "Stroompijlen"-laag, één model (Copernicus NWShelf ~1,5 km): scherpe WMTS-tegels t/m
+  // zoom 12, daarboven de eigen vloeiende pijlen uit hetzelfde veld. Herschakelen bij zoomen.
   let lastDeep = null;
   map.on("zoomend", ()=>{
     if (!$("#lay-flow").checked) return;
-    const deep = map.getZoom()>=11;
+    const deep = map.getZoom()>=13;
     if (deep !== lastDeep){ lastDeep = deep; applyLayers(); }
   });
   const bothTime = tf => { flowPlaying = false; Currents.setTime(tf); Wind.setTime(tf); syncPlay(); barTime(tf); };
@@ -1994,16 +1997,19 @@ function initCurrents(){
     syncPlay();
   });
   // klik op zee → stroom- en/of wind-info (met doorklik naar detailpaneel)
-  map.on("click", e=>{
+  map.on("click", async e=>{
     if (window.plotterArmWp || (plOn && !plWp)) return;   // klik zet een waypoint, geen popup
     if (!Currents.anyOn() && !Wind.anyOn()) return;
     let parts = [];
     if (Currents.anyOn()){
-      const info = Currents.pointNow(e.latlng.lat, e.latlng.lng);
+      // exacte modelwaarde op dit punt (één GetFeatureInfo, ~40 ms); valt terug op het
+      // getekende veld als de bevraging niet lukt
+      const info = (await Currents.pointNowExact(e.latlng.lat, e.latlng.lng))
+                || Currents.pointNow(e.latlng.lat, e.latlng.lng);
       if (info){ const card = curDirCardinal(info.dirTo);
         parts.push(`<div><b>${info.kn.toFixed(1)} kn</b> ${LANG==="en"?"current":"stroom"} · ${card.abbr} (${Math.round(info.dirTo)}°) <span style="display:inline-block;transform:rotate(${info.dirTo}deg)">↑</span><br>
           <a href="#" class="curDetail" data-lat="${e.latlng.lat}" data-lon="${e.latlng.lng}" style="color:var(--accent);font-weight:600">${LANG==="en"?"current details →":"stroom-details →"}</a></div>`);
-      } else if (!Currents.isLoaded()) parts.push(`<div style="color:var(--muted)">${LANG==="en"?"Loading current data…":"Stroomdata laden…"}</div>`);
+      }
     }
     if (Wind.anyOn()){
       const w = Wind.pointNow(e.latlng.lat, e.latlng.lng);
@@ -2151,22 +2157,26 @@ function curDirCardinal(deg){
   const i = Math.round(deg/45)%8;
   return { abbr:(LANG==="en"?enAbbr:nlAbbr)[i], word:(LANG==="en"?enWord:nlWord)[i] };
 }
-function openCurrentDetail(lat, lon){
+async function openCurrentDetail(lat, lon){
   panelRefresh = ()=>openCurrentDetail(lat, lon);
-  const now = Currents.pointNow(lat, lon);
-  const series = Currents.pointSeries(lat, lon);
+  const now = (await Currents.pointNowExact(lat, lon)) || Currents.pointNow(lat, lon);
   const times = Currents.getTimes();
   const T = k => LANG==="en" ? k.en : k.nl;
   const card = now ? curDirCardinal(now.dirTo) : null;
-  let rows = "";
-  if (series && times){
-    const nowIdx = Math.round(Currents.getTFloat());
+  const nowIdx = Math.round(Currents.getTFloat());
+  // De tabel komt niet uit het getekende veld maar rechtstreeks uit het model (GetFeatureInfo,
+  // ~40 ms per uur): exact de NWShelf-waarde op 1,5 km, in blokjes van 4 opgehaald.
+  const rows = `<tr><td colspan="3" style="color:var(--muted)">${T({nl:"laden…",en:"loading…"})}</td></tr>`;
+  Currents.seriesExact(lat, lon, nowIdx, 13).then(series => {
+    const tb = $("#cur-series"); if (!tb || !series) return;
+    let html = "";
     for (let i=nowIdx; i<Math.min(nowIdx+13, series.length); i++){
       const s = series[i]; if (!s) continue;
       const ms = times[i]*1000, c = curDirCardinal(s.dirTo);
-      rows += `<tr${i===nowIdx?' style="font-weight:650"':''}><td>${fmtClock(ms)}</td><td>${(s.kmh/1.852).toFixed(1)} kn</td><td><span class="dircell">${c.abbr} ${Math.round(s.dirTo)}°${dirArrow(s.dirTo,15)}</span></td></tr>`;
+      html += `<tr${i===nowIdx?' style="font-weight:650"':''}><td>${fmtClock(ms)}</td><td>${s.kn.toFixed(1)} kn</td><td><span class="dircell">${c.abbr} ${Math.round(s.dirTo)}°${dirArrow(s.dirTo,15)}</span></td></tr>`;
     }
-  }
+    tb.innerHTML = html || `<tr><td colspan="3" style="color:var(--muted)">${T({nl:"geen data",en:"no data"})}</td></tr>`;
+  }).catch(()=>{});
   $("#panel").innerHTML = `
     <button class="p-close" id="pclose">${T({nl:"sluiten ✕",en:"close ✕"})}</button>
     <div class="p-h">${T({nl:"Getijstroom",en:"Tidal current"})}</div>
@@ -2176,9 +2186,9 @@ function openCurrentDetail(lat, lon){
       ${T({nl:"stroomt naar het",en:"flowing towards the"})} <b>${card.word}</b> (${Math.round(now.dirTo)}°) ${dirArrow(now.dirTo,20)}</p>
       <div class="tlegend" style="margin-top:6px">${curFmtLabel(Currents.getTFloat())}</div></div>`
       : `<div class="p-note">${T({nl:"Geen stroomdata op dit punt (land of buiten het model).",en:"No current data here (land or outside the model)."})}</div>`}
-    ${rows ? `<div class="p-sec"><h3>${T({nl:"Verwachting (12 uur)",en:"Forecast (12 h)"})}</h3>
-      <table class="times" style="font-size:13px"><tr style="color:var(--muted)"><td>${T({nl:"tijd",en:"time"})} (${tzShort()})</td><td>${T({nl:"snelheid",en:"speed"})}</td><td>${T({nl:"richting",en:"dir"})}</td></tr>${rows}</table></div>` : ""}
-    <div class="p-note">${T({nl:"Astronomische getijstroom (Copernicus). Wind kan de werkelijke stroom beïnvloeden.",en:"Astronomical tidal current (Copernicus). Wind can affect the actual current."})}</div>`;
+    ${now ? `<div class="p-sec"><h3>${T({nl:"Verwachting (12 uur)",en:"Forecast (12 h)"})}</h3>
+      <table class="times" style="font-size:13px"><tr style="color:var(--muted)"><td>${T({nl:"tijd",en:"time"})} (${tzShort()})</td><td>${T({nl:"snelheid",en:"speed"})}</td><td>${T({nl:"richting",en:"dir"})}</td></tr><tbody id="cur-series">${rows}</tbody></table></div>` : ""}
+    <div class="p-note">${T({nl:"Astronomische getijstroom (Copernicus NWShelf, 1,5 km). Wind kan de werkelijke stroom beïnvloeden.",en:"Astronomical tidal current (Copernicus NWShelf, 1.5 km). Wind can affect the actual current."})}</div>`;
   $("#panel").classList.add("open"); $("#ovl").classList.add("open");
   $("#pclose").onclick = closeDetail;
 }
@@ -3431,7 +3441,7 @@ function applyStaticLang(){
         <span class="k">Mast-height check</span><span>Enter your mast height (magnifier → mast); fixed bridges that are too low then get a warning.</span>
         <span class="k">Tides NL &amp; UK</span><span>High- and low-water times and heights plus a tide curve, for Dutch and British tide stations.</span>
         <span class="k">Harbours</span><span>Curated marinas with access, tidal window, VHF and lock/bridge info: along the English and Belgian coast (Nieuwpoort, Ostend, Blankenberge, Zeebrugge) and — new — around the Haringvliet (Hellevoetsluis, Stellendam, Middelharnis, Stad aan 't Haringvliet, Den Bommel, Numansdorp).</span>
-        <span class="k">North Sea currents</span><span>One "current arrows" layer (sharp tiles at a distance, smooth arrows when zoomed in) plus a particle animation, with a timeline up to 72 h ahead and tap-the-sea for direction/speed at a point. Sampled more finely near the coast when zoomed in.</span>
+        <span class="k">North Sea currents</span><span>One "current arrows" layer (sharp tiles at a distance, smooth arrows when zoomed in) plus a particle animation, with a timeline up to 6 days ahead and tap-the-sea for direction/speed at a point. Everything comes from one model (Copernicus NWShelf, 1.5 km), so arrows, particles and tap info all agree.</span>
         <span class="k">Wind forecast</span><span>Wind arrows, particles and a colour layer (Beaufort), same timeline as the current; tap the map for wind speed (kn), Beaufort and the direction the wind comes from.</span>
         <span class="k">Weather per location</span><span>Open a bridge, lock, harbour or tide station and you get "Weather &amp; wind": temperature, weather icon and wind (knots/Beaufort/direction) for now, plus a 6-day strip. Via the wind layer → tap → wind details you can compare ECMWF and GFS side by side (6-day strip + 7-day hourly table).</span>
         <span class="k">Rain radar &amp; thunder</span><span>Rain radar with an animation over the past ~2 hours you can step through calmly; wind and current can follow the same time. ⚡ icons show where the model indicates thunderstorms.</span>
@@ -3449,7 +3459,7 @@ function applyStaticLang(){
         <span class="k">Notices to skippers</span><span>Refreshed hourly, so closures come through quickly.</span>
         <span class="k">Tides NL</span><span>Refreshed daily; astronomical prediction computed several days ahead.</span>
         <span class="k">Tides UK</span><span>Refreshed daily; official prediction, 7 days ahead.</span>
-        <span class="k">Tidal current</span><span>Fetched live in your browser when you enable the layer; hourly model forecast, up to 72 h ahead.</span>
+        <span class="k">Tidal current</span><span>Fetched live in your browser when you enable the layer; hourly model forecast, up to 6 days ahead.</span>
         <span class="k">Dataset</span><span class="snapdate"></span>
         <span class="k">Notices</span><span id="stremstamp2"></span>
         <span class="k">Objects</span><span id="objcount"></span>
@@ -3462,7 +3472,7 @@ function applyStaticLang(){
         <span class="k">Bridges, locks &amp; notices</span><span>Rijkswaterstaat — Fairway Information Services (vaarweginformatie.nl): the object data and the notices to skippers (NtS/FTM). Dutch descriptions stay in Dutch.</span>
         <span class="k">Tides Netherlands</span><span>Rijkswaterstaat WaterWebservices (waterinfo) — astronomical prediction, heights relative to <b>NAP</b>.</span>
         <span class="k">Tides United Kingdom</span><span>UK Hydrographic Office — Admiralty predictions, heights above <b>chart datum (LAT)</b>.</span>
-        <span class="k">Tidal current</span><span>Copernicus Marine Service (NWShelf model, ~1.5 km) for the sharp arrows (WMTS tiles); the current field for the smooth arrows/particles via Open-Meteo (same Copernicus model), sampled more finely near the coast when zoomed in.</span>
+        <span class="k">Tidal current</span><span>Copernicus Marine Service, NWShelf model (~1.5 km). Arrows and colour bands are the ready-made WMTS tiles; the particles and the smooth arrows come from the same model by decoding the uo/vo tiles back to m/s. Tap info and the 12-hour table are queried from the model per point.</span>
         <span class="k">Wind</span><span>Open-Meteo — open weather-model data (incl. <b>GFS</b> from NOAA and <b>ICON</b> from DWD; the same models found in GRIB files). 10&nbsp;m wind speed, direction and gusts, hourly up to 72&nbsp;h ahead, fetched live in your browser. Model forecast — not an observation; in heavy weather the real wind may differ.</span>
         <span class="k">Tide curve, UK harbours</span><span>Where there is no official Admiralty station: model curve from Open-Meteo/ECMWF (rel. to mean sea level) — only to show the rhythm.</span>
         <span class="k">Weather (location detail)</span><span>Open-Meteo — ECMWF model for temperature, weather icon and 10&nbsp;m wind; the wind-detail panel also shows GFS for comparison. Fetched live in your browser, up to 7 days ahead. Model forecast, not an observation.</span>

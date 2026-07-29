@@ -16,8 +16,13 @@ NMEA-koppeling. Tweetalig NL/EN. Live op de GitHub Pages-URL van deze repo.
 
 - **`index.html`** — de hele app: HTML, CSS én de hoofd-JavaScript in één
   bestand (~2900 regels). Bewust één bestand: simpel te deployen en te cachen.
-- **`currents.js` / `wind.js`** — stroming- en windlagen (Open-Meteo-API,
-  deeltjesanimatie, kleurlagen, 7-daagse puntvoorspelling). Delen één tijdbalk.
+- **`currents.js`** — getijstroomlaag, volledig op Copernicus Marine (NWShelf, 1,5 km).
+  Pijlen en kleurvlakken zijn WMTS-tegels; het veld voor de deeltjes en de eigen pijlen
+  komt uit dezelfde bron door de uo/vo-kleurtegels via de GetLegend-colormap terug te
+  rekenen naar m/s (alfa=0 is meteen het landmasker). Klik-info en de 12-uurstabel via
+  GetFeatureInfo. Tot 6 dagen vooruit. Getest met `scripts/test_currents_decode.js`.
+- **`wind.js`** — windlaag (Open-Meteo-API, deeltjesanimatie, kleurlagen,
+  7-daagse puntvoorspelling). Deelt de tijdbalk met `currents.js`.
 - **`data/`** — alle vooraf gebouwde databestanden (zie hieronder).
 - **`scripts/`** — Python-scripts die de data bouwen/verversen.
 - **`assets/`** — Leaflet, markercluster, app-iconen (kompasroos).

@@ -1,33 +1,58 @@
-/* Getijdestromen-laag voor de hoofdkaart (Copernicus Marine).
-   window.Currents.init(map) → daarna setLayers({arrows,particles,color}), setTime(tf),
+/* Getijdestromen-laag voor de hoofdkaart — volledig op Copernicus Marine (NWShelf, 1,5 km).
+
+   Databron: de WMTS van Copernicus serveert uo (oost) en vo (noord) als kleurtegels met een
+   bekende colormap. Via GetLegend halen we de 256 kleurstops + het waardebereik op en decoderen
+   we de tegels terug naar echte m/s. Twee PNG's = een compleet stroomveld op modelresolutie.
+   De alfa-laag van diezelfde tegel is meteen het landmasker (0 = land of buiten het model).
+
+   Eerder kwam dit veld van Open-Meteo (wereldwijd SMOC, ~8 km). Dat model kent de geulen en
+   zeegaten niet: in het Marsdiep gaf het 24 uur lang de vulwaarde 0,2 km/h bij 0°, terwijl
+   Copernicus daar een nette getijcyclus van 1,3–2,8 kn laat zien. Vandaar deze overstap.
+
+   window.Currents.init(map) → daarna setLayers({arrows,particles,color,own}), setTime(tf),
    setPlaying(bool), onTime(cb), getTimes(), nowIndex(). */
 (function () {
   'use strict';
-  const GRID = { lat0: 50.0, dLat: 0.4, nLat: 28, lon0: -4.0, dLon: 0.6, nLon: 23 };
-  const NHOURS = 168, PLAY_HPS = 1.4;
-  const CMEMS_LAYER = 'NWSHELF_ANALYSISFORECAST_PHY_004_013/cmems_mod_nws_phy-cur_anfc_1.5km-2D_PT1H-i_202511/sea_water_velocity';
-  const WMTS = 'https://wmts.marine.copernicus.eu/teroWmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0'
-    + '&LAYER=' + encodeURIComponent(CMEMS_LAYER)
-    + '&TILEMATRIXSET=EPSG:3857&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/png';
+  const WMTS = 'https://wmts.marine.copernicus.eu/teroWmts';
+  const DS = 'NWSHELF_ANALYSISFORECAST_PHY_004_013/cmems_mod_nws_phy-cur_anfc_1.5km-2D_PT1H-i_202511/';
+  const VEC = DS + 'sea_water_velocity';          // gerenderde pijlen/kleurvlakken
+  const DATA_STYLE = 'cmap:balance,range:-2.5/2.5';
+  const NHOURS = 144, PLAY_HPS = 1.4;             // Copernicus reikt ~6 dagen vooruit
   const RAMP = [[0, '#5f9be0'], [0.93, '#3d84d8'], [1.85, '#2f74cf'], [2.8, '#215fb0'], [3.7, '#184f95'], [4.6, '#0d366b']];
+  /* gedecodeerde resolutie per tegel: 256px → 64x64. Bij dataZ = kaartzoom-1 is één datacel
+     ~8 schermpixels; ruim genoeg voor pijlen (om de 50 px) en deeltjes, en 16x minder geheugen. */
+  const N = 64, DZ_MIN = 6, DZ_MAX = 12, CACHE_MAX = 260, MAX_INFLIGHT = 6;
+  const NODATA = -32768;
 
-  let map = null, times = null, U = null, V = null, seaCells = [], seaMask = null;
-  let tFloat = 0, playing = false, loaded = false, loading = false;
+  let map = null, times = null;
+  let tFloat = 0, playing = false, loading = false;
   let canvas = null, ctx = null, particles = [], rafId = 0, lastTs = 0;
   let arrowFade = null, colorFade = null, lastWmtsHour = -1;
-  let maskLayer = null, maskData = null, maskW = 0, maskH = 0, maskT = null;
   let want = { arrows: false, particles: false, color: false, own: false };
-  /* fijn lokaal veld (±1,6 km) voor het zichtgebied bij diep inzoomen */
-  const FINE = { minZoom: 8, dLat: 0.015, dLon: 0.024, maxPts: 800, pad: 0.6 };
-  let fine = null, fineLoading = false, finePending = false, fineTimer = 0, fineKey = '';
   let onTimeChange = null, statusCb = null;
 
   const isoHour = s => new Date(s * 1000).toISOString().replace(/\.\d{3}Z$/, '.000Z');
-  function makeCmemsLayer(style, opacity, iso, extra) {
-    return L.tileLayer(WMTS + '&STYLE=' + encodeURIComponent(style) + '&time=' + encodeURIComponent(iso),
-      Object.assign({ opacity, maxNativeZoom: 9, maxZoom: 13, pane: 'curTilePane' }, extra || {}));
-  }
+  const rad = d => d * Math.PI / 180;
   function speedColor(kmh) { for (let k = RAMP.length - 1; k >= 0; k--) if (kmh >= RAMP[k][0]) return RAMP[k][1]; return RAMP[0][1]; }
+
+  function qs(o) { return Object.keys(o).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(o[k])).join('&'); }
+  function tileURL(layer, style, z, x, y, iso) {
+    return WMTS + '?' + qs({ SERVICE: 'WMTS', REQUEST: 'GetTile', VERSION: '1.0.0', LAYER: layer,
+      TILEMATRIXSET: 'EPSG:3857', TILEMATRIX: z, TILEROW: y, TILECOL: x, FORMAT: 'image/png', STYLE: style, time: iso });
+  }
+
+  /* ---- gerenderde Copernicus-lagen (pijlen / kleurvlakken) ---- */
+  function makeCmemsLayer(style, opacity, iso, extra) {
+    // {z}/{x}/{y} moeten letterlijk in de template blijven, dus die zetten we er ná het encoderen bij
+    const url = WMTS + '?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0'
+      + '&LAYER=' + encodeURIComponent(VEC)
+      + '&TILEMATRIXSET=EPSG:3857&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/png'
+      + '&STYLE=' + encodeURIComponent(style) + '&time=' + encodeURIComponent(iso);
+    return L.tileLayer(url,
+      // Copernicus serveert echte tegels t/m TILEMATRIX 12 (z13+ = lege PNG) → maxNativeZoom 12.
+      // maxZoom 19: daarboven schalen de z12-tegels op i.p.v. te verdwijnen.
+      Object.assign({ opacity, maxNativeZoom: 12, maxZoom: 19, pane: 'curTilePane' }, extra || {}));
+  }
 
   /* ---- crossfade-manager per WMTS-laag ---- */
   function makeFadeManager(style, maxOpacity) {
@@ -37,7 +62,10 @@
       const lyr = makeCmemsLayer(style, 0, isoHour(times[hr])); lyr._allLoaded = false;
       lyr.on('load', () => { lyr._allLoaded = true; });
       lyr.addTo(map); lyr.setOpacity(0); layers.set(hr, lyr);
-      if (layers.size > 8) { let far = -1, fd = -1; for (const h of layers.keys()) { if (h === visibleHour || Math.abs(h - visibleHour) <= 1) continue; const d = Math.abs(h - visibleHour); if (d > fd) { fd = d; far = h; } } if (far >= 0) { map.removeLayer(layers.get(far)); layers.delete(far); } }
+      // opruimen: nooit het uur dat we nét hebben aangemaakt weggooien. Bij een sprong van meer
+      // dan 8 uur (dagknoppen, "nu", of de lus aan het eind van het afspelen) was hr zelf het
+      // verst van visibleHour en verdween de laag meteen weer → pijlen helemaal weg.
+      if (layers.size > 8) { let far = -1, fd = -1; for (const h of layers.keys()) { if (h === hr || h === visibleHour || Math.abs(h - visibleHour) <= 1) continue; const d = Math.abs(h - visibleHour); if (d > fd) { fd = d; far = h; } } if (far >= 0) { map.removeLayer(layers.get(far)); layers.delete(far); } }
       return lyr;
     }
     function fadeTo(target, prev) {
@@ -62,193 +90,180 @@
     return { show, clear, setOn(v) { on = v; if (!v) clear(); }, get on() { return on; }, get visibleHour() { return visibleHour; } };
   }
 
-  /* ---- kustlijnmasker uit de kleurlaag ---- */
-  const maskCanvas = document.createElement('canvas');
-  const mctx = maskCanvas.getContext('2d', { willReadFrequently: true });
-  function ensureMask(wantMask) {
-    if (wantMask && !maskLayer && times) {
-      // maxZoom 19: voorbij het native bereik (13) schalen de tegels op — als alfamasker prima,
-      // anders is het masker bij diep inzoomen leeg en verdwijnen alle eigen pijlen
-      maskLayer = makeCmemsLayer('cmap:speed,vectorStyle:solid', 0, isoHour(times[Math.round(tFloat)]), { crossOrigin: 'anonymous', maxZoom: 19 });
-      maskLayer.addTo(map); maskLayer.on('load', scheduleMaskRedraw);
-    } else if (!wantMask && maskLayer) { map.removeLayer(maskLayer); maskLayer = null; maskData = null; }
+  /* ================= kleurtegels → echte m/s ================= */
+  /* De colormap is een pad van 256 kleuren door de RGB-ruimte. Terugzoeken doen we exact
+     (dichtstbijzijnde van de 256), met een memo per unieke kleur — een tegel bevat er maar
+     een paar honderd, dus na de eerste tegel is het puur hash-lookup. */
+  let cmap = null, vMin = 0, vMax = 0, lutPromise = null;
+  const colorMemo = new Map();
+  function ensureLUT() {
+    if (lutPromise) return lutPromise;
+    const url = WMTS + '?' + qs({ SERVICE: 'WMTS', REQUEST: 'GetLegend', LAYER: DS + 'uo', STYLE: DATA_STYLE, FORMAT: 'application/json' });
+    lutPromise = fetch(url).then(r => r.json()).then(j => {
+      const c = j.continuous; cmap = c.cmap.colorMap; vMin = c.valueMin; vMax = c.valueMax;
+      return true;
+    }).catch(() => { lutPromise = null; return false; });
+    return lutPromise;
   }
-  function scheduleMaskRedraw() { clearTimeout(maskT); maskT = setTimeout(redrawMask, 60); }
-  function redrawMask() {
-    if (!maskLayer) return;
-    const sz = map.getSize();
-    if (maskCanvas.width !== sz.x || maskCanvas.height !== sz.y) { maskCanvas.width = sz.x; maskCanvas.height = sz.y; }
-    mctx.clearRect(0, 0, sz.x, sz.y);
-    const z = map.getZoom(), tiles = maskLayer._tiles || {};
-    let drawn = 0;
-    for (const k in tiles) {
-      const t = tiles[k]; if (!t || !t.el || !t.el.complete || t.el.naturalWidth === 0 || !t.coords) continue;
-      const nw = map.unproject(L.point(t.coords.x * 256, t.coords.y * 256), t.coords.z);
-      const p = map.latLngToContainerPoint(nw); const scale = 256 * Math.pow(2, z - t.coords.z);
-      try { mctx.drawImage(t.el, p.x, p.y, scale, scale); drawn++; } catch (e) {}
+  function decodeColor(r, g, b) {
+    const key = (r << 16) | (g << 8) | b;
+    let idx = colorMemo.get(key);
+    if (idx === undefined) {
+      let best = Infinity; idx = 0;
+      for (let k = 0; k < cmap.length; k++) {
+        const c = cmap[k], dr = c[0] - r, dg = c[1] - g, db = c[2] - b, d = dr * dr + dg * dg + db * db;
+        if (d < best) { best = d; idx = k; }
+      }
+      if (colorMemo.size < 40000) colorMemo.set(key, idx);
     }
-    if (!drawn) { maskData = null; return; }   // geen tegels → val terug op de grove zee-cellen i.p.v. alles maskeren
-    try { maskData = mctx.getImageData(0, 0, sz.x, sz.y).data; maskW = sz.x; maskH = sz.y; } catch (e) { maskData = null; }
+    return vMin + (vMax - vMin) * idx / (cmap.length - 1);
   }
 
-  /* ---- data (Open-Meteo / Copernicus SMOC) ---- */
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const CHUNK = 100;
-  async function fetchChunk(ch, attempt) {
-    attempt = attempt || 0;
-    const url = 'https://marine-api.open-meteo.com/v1/marine?latitude=' + ch.map(p => p[0]).join(',')
-      + '&longitude=' + ch.map(p => p[1]).join(',')
-      + '&hourly=ocean_current_velocity,ocean_current_direction&forecast_days=7&cell_selection=sea&timeformat=unixtime&timezone=GMT';
-    try {
-      const r = await fetch(url, { cache: 'no-store' });
-      if ((r.status === 429 || r.status >= 500) && attempt < 4) { await sleep(700 * (attempt + 1)); return fetchChunk(ch, attempt + 1); }
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const j = await r.json(); return Array.isArray(j) ? j : [j];
-    } catch (e) { if (attempt < 3) { await sleep(600 * (attempt + 1)); return fetchChunk(ch, attempt + 1); } return null; }
+  const decCanvas = document.createElement('canvas');
+  decCanvas.width = decCanvas.height = 256;
+  const dctx = decCanvas.getContext('2d', { willReadFrequently: true });
+  dctx.imageSmoothingEnabled = false;    // nooit interpoleren: gemengde kleuren decoderen fout
+  function pixelsOf(img) {
+    dctx.clearRect(0, 0, 256, 256); dctx.drawImage(img, 0, 0, 256, 256);
+    return dctx.getImageData(0, 0, 256, 256).data;
   }
-  async function loadData() {
-    if (loaded || loading) return;
-    loading = true; if (statusCb) statusCb('Stromingsdata laden…');
-    const pts = [];
-    for (let i = 0; i < GRID.nLat; i++) for (let j = 0; j < GRID.nLon; j++) pts.push([+(GRID.lat0 + i * GRID.dLat).toFixed(2), +(GRID.lon0 + j * GRID.dLon).toFixed(2)]);
-    const defs = []; for (let s = 0; s < pts.length; s += CHUNK) defs.push({ start: s, pts: pts.slice(s, s + CHUNK) });
-    const responses = new Array(defs.length).fill(null);
-    for (let s = 0; s < defs.length; s += 2) { const batch = defs.slice(s, s + 2); const rs = await Promise.all(batch.map(d => fetchChunk(d.pts))); rs.forEach((r, i) => { responses[s + i] = r; }); }
-    const okResp = responses.find(Boolean);
-    if (!okResp) { loading = false; if (statusCb) statusCb('Stromingsdata niet bereikbaar'); setTimeout(loadData, 15000); return; }
-    const n = GRID.nLat * GRID.nLon;
-    times = okResp[0].hourly.time.slice(0, NHOURS);
-    U = new Float32Array(NHOURS * n).fill(NaN); V = new Float32Array(NHOURS * n).fill(NaN); seaCells = []; seaMask = new Uint8Array(n);
-    defs.forEach((d, ci) => { const resp = responses[ci]; if (!resp) return; for (let k = 0; k < d.pts.length && k < resp.length; k++) { const p = d.start + k; const h = resp[k].hourly, vel = h.ocean_current_velocity, dir = h.ocean_current_direction; let isSea = false; for (let t = 0; t < NHOURS; t++) { const sp = vel[t], dd = dir[t]; if (sp == null || dd == null) continue; const rad = dd * Math.PI / 180; U[t * n + p] = sp * Math.sin(rad); V[t * n + p] = sp * Math.cos(rad); isSea = true; } if (isSea) { seaCells.push(p); seaMask[p] = 1; } } });
-    loaded = true; loading = false; if (statusCb) statusCb('');
-    setTimeFloat(nowIndex()); if (onTimeChange) onTimeChange(tFloat);
-    if (want.particles) resetParticles();   // nu pas echte zeecellen → deeltjes met coördinaten
-  }
-
-  /* ---- fijn veld: bemonster het 1,5km-model lokaal zodra je diep inzoomt ---- */
-  async function fetchFineChunk(ch, attempt) {
-    attempt = attempt || 0;
-    const url = 'https://marine-api.open-meteo.com/v1/marine?latitude=' + ch.map(p => p[0]).join(',')
-      + '&longitude=' + ch.map(p => p[1]).join(',')
-      + '&hourly=ocean_current_velocity,ocean_current_direction&forecast_days=3&cell_selection=sea&timeformat=unixtime&timezone=GMT';
-    try {
-      const r = await fetch(url, { cache: 'no-store' });
-      if ((r.status === 429 || r.status >= 500) && attempt < 3) { await sleep(700 * (attempt + 1)); return fetchFineChunk(ch, attempt + 1); }
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const j = await r.json(); return Array.isArray(j) ? j : [j];
-    } catch (e) { if (attempt < 2) { await sleep(600 * (attempt + 1)); return fetchFineChunk(ch, attempt + 1); } return null; }
-  }
-  function fineCovers(b) {
-    return fine && b.getSouth() >= fine.lat0 && b.getNorth() <= fine.lat0 + (fine.nLat - 1) * fine.dLat
-      && b.getWest() >= fine.lon0 && b.getEast() <= fine.lon0 + (fine.nLon - 1) * fine.dLon;
-  }
-  function scheduleFine() { clearTimeout(fineTimer); fineTimer = setTimeout(loadFine, 700); }
-  async function loadFine() {
-    if (!map) return;
-    if (map.getZoom() < FINE.minZoom) return;
-    if (!want.own && !want.particles && !want.color) return;
-    if (fineCovers(map.getBounds().pad(0.05))) return;      // zichtgebied al gedekt
-    if (fineLoading) { finePending = true; return; }        // bezig → later opnieuw
-    const b = map.getBounds().pad(FINE.pad);
-    let dLat = FINE.dLat, dLon = FINE.dLon;
-    let nLat = Math.ceil((b.getNorth() - b.getSouth()) / dLat) + 1, nLon = Math.ceil((b.getEast() - b.getWest()) / dLon) + 1;
-    while (nLat * nLon > FINE.maxPts) { dLat *= 1.3; dLon *= 1.3; nLat = Math.ceil((b.getNorth() - b.getSouth()) / dLat) + 1; nLon = Math.ceil((b.getEast() - b.getWest()) / dLon) + 1; }
-    const lat0 = b.getSouth(), lon0 = b.getWest();
-    const key = lat0.toFixed(3) + ',' + lon0.toFixed(3) + ',' + nLat + 'x' + nLon;
-    if (key === fineKey) return;
-    fineLoading = true;
-    const pts = []; for (let i = 0; i < nLat; i++) for (let j = 0; j < nLon; j++) pts.push([+(lat0 + i * dLat).toFixed(4), +(lon0 + j * dLon).toFixed(4)]);
-    const responses = [];
-    let ok = true;
-    for (let s = 0; s < pts.length; s += CHUNK) {
-      const r = await fetchFineChunk(pts.slice(s, s + CHUNK));
-      if (!r) { ok = false; break; }
-      responses.push(...r);
-    }
-    fineLoading = false;
-    if (finePending) { finePending = false; scheduleFine(); }   // tijdens laden verschoven → opnieuw
-    if (!ok || !responses.length || !responses[0].hourly) return;
-    const nH = Math.min(72, responses[0].hourly.time.length);
-    const base = (times || defaultTimes());
-    const t0 = Math.round((responses[0].hourly.time[0] - base[0]) / 3600);
-    const n = nLat * nLon;
-    const FU = new Float32Array(nH * n).fill(NaN), FV = new Float32Array(nH * n).fill(NaN);
-    for (let p = 0; p < n && p < responses.length; p++) {
-      const h = responses[p].hourly; if (!h) continue;
-      const vel = h.ocean_current_velocity, dir = h.ocean_current_direction;
-      for (let t = 0; t < nH; t++) {
-        const sp = vel[t], dd = dir[t]; if (sp == null || dd == null) continue;
-        const rad = dd * Math.PI / 180;
-        FU[t * n + p] = sp * Math.sin(rad); FV[t * n + p] = sp * Math.cos(rad);
+  /* 256x256 RGBA → N x N waarden (×1000, NODATA waar de tegel doorzichtig is).
+     Alfa < 250 = land, buiten het model, óf een gemengde randpixel langs de kustlijn:
+     die laatste zouden een kleur buiten de ramp geven, dus we gooien ze bewust weg. */
+  function decodePlane(data) {
+    const out = new Int16Array(N * N), step = 256 / N, half = step >> 1;
+    for (let j = 0; j < N; j++) {
+      const sy = j * step + half;
+      for (let i = 0; i < N; i++) {
+        const p = ((sy * 256) + (i * step + half)) * 4;
+        out[j * N + i] = data[p + 3] < 250 ? NODATA : Math.round(decodeColor(data[p], data[p + 1], data[p + 2]) * 1000);
       }
     }
-    fine = { lat0, lon0, dLat, dLon, nLat, nLon, nH, t0, U: FU, V: FV };
-    fineKey = key;
-    scheduleFine();                                          // dek zo nodig meteen het inmiddels verschoven beeld
+    return out;
   }
-  function fineSampleAt(lat, lon, t) {
-    const n = fine.nLat * fine.nLon, fi = (lat - fine.lat0) / fine.dLat, fj = (lon - fine.lon0) / fine.dLon;
-    const i0 = Math.floor(fi), j0 = Math.floor(fj);
-    if (i0 < 0 || j0 < 0 || i0 >= fine.nLat - 1 || j0 >= fine.nLon - 1) return null;
-    const wi = fi - i0, wj = fj - j0; let su = 0, sv = 0, sw = 0;
-    for (let di = 0; di <= 1; di++) for (let dj = 0; dj <= 1; dj++) {
-      const idx = t * n + (i0 + di) * fine.nLon + (j0 + dj); const u = fine.U[idx]; if (Number.isNaN(u)) continue;
-      const w = (di ? wi : 1 - wi) * (dj ? wj : 1 - wj); su += u * w; sv += fine.V[idx] * w; sw += w;
+
+  /* ---- tegelcache (LRU) ---- */
+  const fields = new Map();          // "z/x/y/h" → {u:Int16Array, v:Int16Array} (u=null = mislukt)
+  const inflight = new Set();
+  const queued = new Set();          // wat er in `pending` staat, om dubbelingen te weren
+  const retryAt = new Map();         // key → tijdstip waarop opnieuw proberen mag
+  let pending = [], okCount = 0, misses = 0;
+  const fkey = (z, x, y, h) => z + '/' + x + '/' + y + '/' + h;
+  function touch(k, val) {
+    if (val) { fields.delete(k); fields.set(k, val); }
+    while (fields.size > CACHE_MAX) {
+      const old = fields.keys().next().value;
+      if (fields.get(old).u) okCount--;
+      fields.delete(old); retryAt.delete(old);
     }
-    if (sw < 0.25) return null; return [su / sw, sv / sw];
   }
-  function fineSample(lat, lon, tf) {
-    if (!fine || !map || map.getZoom() < FINE.minZoom) return null;
-    const lt = tf - fine.t0; if (lt < -1e-3 || lt > fine.nH - 1) return null;
-    const t0i = Math.max(0, Math.min(fine.nH - 1, Math.floor(lt))), w = lt - t0i;
-    const a = fineSampleAt(lat, lon, t0i);
-    if (w < 1e-3 || t0i >= fine.nH - 1) return a;
-    const b = fineSampleAt(lat, lon, t0i + 1);
+  function loadImage(url) {
+    return new Promise((res, rej) => {
+      const im = new Image(); im.crossOrigin = 'anonymous';
+      im.onload = () => res(im); im.onerror = rej; im.src = url;
+    });
+  }
+  function drainQueue() {
+    while (pending.length && inflight.size < MAX_INFLIGHT) {
+      const nx = pending.shift(); queued.delete(fkey(nx[0], nx[1], nx[2], nx[3]));
+      fetchField(nx[0], nx[1], nx[2], nx[3]);
+    }
+  }
+  async function fetchField(z, x, y, h) {
+    const k = fkey(z, x, y, h);
+    if (inflight.has(k)) return;
+    const f = fields.get(k);
+    if (f && (f.u || Date.now() < (retryAt.get(k) || 0))) return;   // gelukt, of nog in de wachttijd
+    if (inflight.size >= MAX_INFLIGHT) {
+      if (!queued.has(k) && pending.length < 60) { queued.add(k); pending.push([z, x, y, h]); }
+      return;
+    }
+    inflight.add(k);
+    try {
+      if (!(await ensureLUT())) throw new Error('geen legenda');
+      const iso = isoHour(times[h]);
+      const [iu, iv] = await Promise.all([
+        loadImage(tileURL(DS + 'uo', DATA_STYLE, z, x, y, iso)),
+        loadImage(tileURL(DS + 'vo', DATA_STYLE, z, x, y, iso))
+      ]);
+      touch(k, { u: decodePlane(pixelsOf(iu)), v: decodePlane(pixelsOf(iv)) });
+      okCount++; retryAt.delete(k); misses = 0;
+      if (statusCb && loading) { loading = false; statusCb(''); }
+    } catch (e) {
+      // mislukt: markeren en een oplopende wachttijd zetten i.p.v. per tegel een losse timer,
+      // anders vuren er bij een storing honderden hertimers tegelijk af
+      const n = Math.min(6, (f && f.tries || 0) + 1);
+      touch(k, { u: null, v: null, tries: n });
+      retryAt.set(k, Date.now() + 5000 * Math.pow(2, n - 1));
+      if (statusCb && loading && ++misses >= 3) { loading = false; statusCb('Stromingsdata niet bereikbaar'); }
+    } finally {
+      inflight.delete(k);
+      drainQueue();
+    }
+  }
+
+  /* Datazoom = kaartzoom (max 12). Met N=64 is één datacel dan ~4 schermpixels; een niveau
+     lager schoot het Marsdiep er 9° naast omdat de bemonstering in een buurcel van het model
+     viel. Vanaf zoom 12 is de cel (~90 m) veel fijner dan het model zelf (1,5 km). */
+  function dataZ() { return Math.max(DZ_MIN, Math.min(DZ_MAX, map ? map.getZoom() : DZ_MIN)); }
+  function gridXY(lat, lon, z) {
+    const n = Math.pow(2, z);
+    return [(lon + 180) / 360 * n,
+            (1 - Math.log(Math.tan(rad(lat)) + 1 / Math.cos(rad(lat))) / Math.PI) / 2 * n];
+  }
+  /* u,v in km/h op één uur; null = geen data of nog niet binnen */
+  function sampleAt(lat, lon, h, z) {
+    if (!times || h < 0 || h >= NHOURS) return null;
+    const g = gridXY(lat, lon, z), n = Math.pow(2, z);
+    if (g[0] < 0 || g[1] < 0 || g[0] >= n || g[1] >= n) return null;
+    const tx = Math.floor(g[0]), ty = Math.floor(g[1]), k = fkey(z, tx, ty, h);
+    const f = fields.get(k);
+    if (!f) { fetchField(z, tx, ty, h); return null; }
+    if (!f.u) return null;
+    const i = Math.min(N - 1, ((g[0] - tx) * N) | 0), j = Math.min(N - 1, ((g[1] - ty) * N) | 0);
+    const uu = f.u[j * N + i], vv = f.v[j * N + i];
+    if (uu === NODATA || vv === NODATA) return null;
+    return [uu * 0.0036, vv * 0.0036];        // milli-m/s → km/h
+  }
+  function sampleUV(lat, lon, tf) {
+    const z = dataZ(), h0 = Math.floor(tf), w = tf - h0;
+    const a = sampleAt(lat, lon, h0, z);
+    if (w < 1e-3 || h0 >= NHOURS - 1) return a;
+    const b = sampleAt(lat, lon, h0 + 1, z);
     if (!a) return b; if (!b) return a;
     return [a[0] * (1 - w) + b[0] * w, a[1] * (1 - w) + b[1] * w];
   }
 
-  /* ---- interpolatie ---- */
-  function sampleUVi(lat, lon, t) {
-    const n = GRID.nLat * GRID.nLon, fi = (lat - GRID.lat0) / GRID.dLat, fj = (lon - GRID.lon0) / GRID.dLon;
-    const i0 = Math.floor(fi), j0 = Math.floor(fj);
-    if (i0 < 0 || j0 < 0 || i0 >= GRID.nLat - 1 || j0 >= GRID.nLon - 1) return null;
-    const wi = fi - i0, wj = fj - j0; let su = 0, sv = 0, sw = 0;
-    for (let di = 0; di <= 1; di++) for (let dj = 0; dj <= 1; dj++) { const idx = t * n + (i0 + di) * GRID.nLon + (j0 + dj); const u = U[idx]; if (Number.isNaN(u)) continue; const w = (di ? wi : 1 - wi) * (dj ? wj : 1 - wj); su += u * w; sv += V[idx] * w; sw += w; }
-    if (sw < 0.25) return null; return [su / sw, sv / sw];
+  /* zichtgebied vooruit inladen: alle tegels voor het huidige én het volgende uur */
+  let lastPrefetch = '';
+  function prefetchView(force) {
+    if (!map || !times) return;
+    if (!(want.particles || want.own)) return;
+    const z = dataZ(), b = map.getBounds().pad(0.25);
+    const nw = gridXY(b.getNorth(), b.getWest(), z), se = gridXY(b.getSouth(), b.getEast(), z);
+    const x0 = Math.floor(nw[0]), x1 = Math.floor(se[0]), y0 = Math.floor(nw[1]), y1 = Math.floor(se[1]);
+    const h0 = Math.floor(tFloat), h1 = Math.min(NHOURS - 1, h0 + 1);
+    const sig = z + ':' + x0 + ',' + x1 + ',' + y0 + ',' + y1 + ':' + h0;
+    if (!force && sig === lastPrefetch) return;
+    lastPrefetch = sig; pending = []; queued.clear();
+    if ((x1 - x0 + 1) * (y1 - y0 + 1) > 42) return;      // absurd uitgezoomd: laat de tegels met rust
+    if (statusCb && !okCount) { loading = true; statusCb('Stromingsdata laden…'); }
+    // Tijdens afspelen verspringt het uur elke ~0,7 s. Dan alleen het lopende uur halen; het
+    // volgende uur (voor de tijdinterpolatie) komt vanzelf via sampleAt, netjes afgeknepen door
+    // MAX_INFLIGHT. Anders verdubbelde het aantal verzoeken en kneep Copernicus ons af.
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
+      fetchField(z, x, y, h0); if (!playing && h1 !== h0) fetchField(z, x, y, h1);
+    }
   }
-  function sampleUV(lat, lon, tf) {
-    const f = fineSample(lat, lon, tf); if (f) return f;    // fijn veld gaat vóór (alleen actief bij diep inzoomen)
-    const t0 = Math.floor(tf), w = tf - t0, a = sampleUVi(lat, lon, t0);
-    if (w < 1e-3 || t0 >= NHOURS - 1) return a; const b = sampleUVi(lat, lon, t0 + 1);
-    if (!a) return b; if (!b) return a; return [a[0] * (1 - w) + b[0] * w, a[1] * (1 - w) + b[1] * w];
-  }
-  function isSeaAt(lat, lon) { if (!seaMask) return true; const i = Math.round((lat - GRID.lat0) / GRID.dLat), j = Math.round((lon - GRID.lon0) / GRID.dLon); if (i < 0 || j < 0 || i >= GRID.nLat || j >= GRID.nLon) return false; return seaMask[i * GRID.nLon + j] === 1; }
-  function sampleUVarrow(lat, lon, tf) {
-    const f = fineSample(lat, lon, tf); if (f) return f;    // fijn veld kent de geulen die het grove landmasker mist
-    if (!seaMask) return null;
-    const fi = (lat - GRID.lat0) / GRID.dLat, fj = (lon - GRID.lon0) / GRID.dLon, i0 = Math.floor(fi), j0 = Math.floor(fj);
-    if (i0 < 0 || j0 < 0 || i0 >= GRID.nLat - 1 || j0 >= GRID.nLon - 1) return null;
-    for (let di = 0; di <= 1; di++) for (let dj = 0; dj <= 1; dj++) if (!seaMask[(i0 + di) * GRID.nLon + (j0 + dj)]) return null;
-    return sampleUV(lat, lon, tf);
-  }
-  /* eigen vloeiende pijlen — uit het (in de tijd geïnterpoleerde) veld, land-gemaskeerd */
+
+  /* ---- eigen vloeiende pijlen (zelfde veld als de gerenderde tegels) ---- */
   function drawArrows() {
     const sz = map.getSize(), step = 50;
     ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.globalAlpha = 1;
-    const latMax = GRID.lat0 + (GRID.nLat - 1) * GRID.dLat, lonMax = GRID.lon0 + (GRID.nLon - 1) * GRID.dLon;
     for (let x = step * 0.6; x < sz.x; x += step) {
       for (let y = step * 0.6; y < sz.y; y += step) {
         const ll = map.containerPointToLatLng([x, y]);
-        const inBase = ll.lat >= GRID.lat0 && ll.lat <= latMax && ll.lng >= GRID.lon0 && ll.lng <= lonMax;
-        let uv;
-        if (inBase) {   // NW-Europa: ongewijzigd, mét zeemasker
-          if (maskData) { const mx = x | 0, my = y | 0; if (mx < 0 || my < 0 || mx >= maskW || my >= maskH || maskData[(my * maskW + mx) * 4 + 3] <= 25) continue; }
-          uv = maskData ? sampleUV(ll.lat, ll.lng, tFloat) : sampleUVarrow(ll.lat, ll.lng, tFloat);
-        } else {         // daarbuiten: wereldwijd fijn veld (Open-Meteo Marine), geen NW-masker
-          uv = fineSample(ll.lat, ll.lng, tFloat);
-        }
-        if (!uv) continue;
+        const uv = sampleUV(ll.lat, ll.lng, tFloat); if (!uv) continue;
         const u = uv[0], v = uv[1], kmh = Math.hypot(u, v); if (kmh < 0.05) continue;
         const dx = u, dy = -v, m = Math.hypot(dx, dy) || 1, ux = dx / m, uy = dy / m;
         const len = Math.min(step * 0.58, 9 + kmh * 5);
@@ -267,62 +282,90 @@
   function resizeCanvas() { const sz = map.getSize(); canvas.width = sz.x * devicePixelRatio; canvas.height = sz.y * devicePixelRatio; canvas.style.width = sz.x + 'px'; canvas.style.height = sz.y + 'px'; ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); }
   // canvas tekent in container-coördinaten; plaats hem op het layer-punt van container[0,0] zodat hij met de kaart meebeweegt
   function reposition() { if (canvas && map) L.DomUtil.setPosition(canvas, map.containerPointToLayerPoint([0, 0])); }
+  /* op zee zetten door te proberen: het veld zelf is nu het masker (alfa uit de tegel) */
   function spawnParticle(pt) {
-    const b = map.getBounds();
-    if (seaCells.length) for (let tries = 0; tries < 30; tries++) { const c = seaCells[(Math.random() * seaCells.length) | 0]; const lat = GRID.lat0 + ((c / GRID.nLon) | 0) * GRID.dLat + (Math.random() - .5) * GRID.dLat; const lon = GRID.lon0 + (c % GRID.nLon) * GRID.dLon + (Math.random() - .5) * GRID.dLon; if (b.contains([lat, lon]) && isSeaAt(lat, lon)) { pt.lat = lat; pt.lon = lon; pt.age = 60 + Math.random() * 140; return pt; } }
-    const s = map.getSize(), ll = map.containerPointToLatLng([Math.random() * s.x, Math.random() * s.y]); pt.lat = ll.lat; pt.lon = ll.lng; pt.age = 20 + Math.random() * 60; return pt;
+    const s = map.getSize();
+    for (let tries = 0; tries < 12; tries++) {
+      const ll = map.containerPointToLatLng([Math.random() * s.x, Math.random() * s.y]);
+      if (sampleUV(ll.lat, ll.lng, tFloat)) { pt.lat = ll.lat; pt.lon = ll.lng; pt.age = 60 + Math.random() * 140; return pt; }
+    }
+    pt.lat = null; pt.lon = null; pt.age = 5 + Math.random() * 25; return pt;   // niks gevonden: kort wachten
   }
   function resetParticles() { if (!canvas) return; const z = map.getZoom(); const count = Math.min(2600, Math.round(280 * Math.pow(1.5, z - 5))); particles = Array.from({ length: count }, () => spawnParticle({})); ctx.clearRect(0, 0, canvas.width, canvas.height); }
 
   function frame(ts) {
     rafId = requestAnimationFrame(frame);
     const dt = lastTs ? Math.min(0.08, (ts - lastTs) / 1000) : 0; lastTs = ts;
-    if (playing && times) { tFloat += dt * PLAY_HPS; if (tFloat >= NHOURS - 1) tFloat = 0; updateWmtsTime(); if (onTimeChange) onTimeChange(tFloat); }
-    if (!canvas || (!want.particles && !want.own) || !U) return;
+    if (playing && times) {
+      tFloat += dt * PLAY_HPS; if (tFloat >= NHOURS - 1) tFloat = 0;
+      updateWmtsTime(); prefetchView(); if (onTimeChange) onTimeChange(tFloat);
+    }
+    if (!canvas || (!want.particles && !want.own)) return;
     const sz = map.getSize();
     if (want.particles && playing) {
       ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = 'rgba(0,0,0,0.040)'; ctx.fillRect(0, 0, sz.x, sz.y);
       ctx.globalCompositeOperation = 'source-over'; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
       const speedScale = 0.00060 * Math.pow(1.18, map.getZoom() - 6);
       for (const p of particles) {
-        if (--p.age <= 0) { spawnParticle(p); continue; }
+        if (--p.age <= 0 || p.lat == null) { spawnParticle(p); continue; }
         const uv = sampleUV(p.lat, p.lon, tFloat); if (!uv) { spawnParticle(p); continue; }
         const u = uv[0], v = uv[1], kmh = Math.hypot(u, v);
-        const nLat = p.lat + v * speedScale / 1.5, nLon = p.lon + u * speedScale / (1.5 * Math.cos(p.lat * Math.PI / 180));
+        const nLat = p.lat + v * speedScale / 1.5, nLon = p.lon + u * speedScale / (1.5 * Math.cos(rad(p.lat)));
         const a = map.latLngToContainerPoint([p.lat, p.lon]), b2 = map.latLngToContainerPoint([nLat, nLon]);
         if (b2.x < -20 || b2.y < -20 || b2.x > sz.x + 20 || b2.y > sz.y + 20) { spawnParticle(p); continue; }
-        let onLand; if (maskData) { const mx = b2.x | 0, my = b2.y | 0; onLand = mx < 0 || my < 0 || mx >= maskW || my >= maskH || maskData[(my * maskW + mx) * 4 + 3] <= 25; } else onLand = !isSeaAt(nLat, nLon);
-        if (onLand) { spawnParticle(p); continue; }
+        if (!sampleUV(nLat, nLon, tFloat)) { spawnParticle(p); continue; }     // loopt het land op
         p.lat = nLat; p.lon = nLon;
         ctx.strokeStyle = speedColor(kmh); ctx.globalAlpha = Math.min(0.95, 0.4 + kmh / 4);
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b2.x, b2.y); ctx.stroke();
       }
       ctx.globalAlpha = 1;
-    } else if (!want.particles) {
-      ctx.clearRect(0, 0, sz.x, sz.y);   // eigen-pijlen-modus: schoon canvas
+    } else if (!want.particles || want.own) {
+      // schoon canvas als er geen bewegende deeltjes op staan. Ook bij deeltjes-in-pauze mét
+      // eigen pijlen: anders stapelen de pijlen elke frame op de bevroren sporen op.
+      ctx.clearRect(0, 0, sz.x, sz.y);
     }
     // (want.particles && !playing → canvas bevroren; pauze stopt de beweging zichtbaar)
     if (want.own) drawArrows();
   }
-  /* alle vier omliggende modelcellen moeten zee zijn — anders lekt de interpolatie tot ver boven land */
-  function seaCell4(lat, lon) {
-    if (!seaMask) return false;
-    const fi = (lat - GRID.lat0) / GRID.dLat, fj = (lon - GRID.lon0) / GRID.dLon, i0 = Math.floor(fi), j0 = Math.floor(fj);
-    if (i0 < 0 || j0 < 0 || i0 >= GRID.nLat - 1 || j0 >= GRID.nLon - 1) return false;
-    for (let di = 0; di <= 1; di++) for (let dj = 0; dj <= 1; dj++) if (!seaMask[(i0 + di) * GRID.nLon + (j0 + dj)]) return false;
-    return true;
-  }
-  /* stroom op een punt (nu / per uur) voor de klik-info — alleen op echte zee */
+
+  /* ---- puntinfo ---- */
   function pointInfo(lat, lon, tf) {
-    if (!seaCell4(lat, lon)) return null;
     const uv = sampleUV(lat, lon, tf); if (!uv) return null;
     const u = uv[0], v = uv[1], kmh = Math.hypot(u, v);
     return { kmh, kn: kmh / 1.852, ms: kmh / 3.6, dirTo: (Math.atan2(u, v) * 180 / Math.PI + 360) % 360 };
   }
-  function pointSeries(lat, lon) {
-    if (!seaCell4(lat, lon)) return null;
-    const out = [];
-    for (let t = 0; t < NHOURS; t++) { const uv = sampleUVi(lat, lon, t); out.push(uv ? { kmh: Math.hypot(uv[0], uv[1]), dirTo: (Math.atan2(uv[0], uv[1]) * 180 / Math.PI + 360) % 360 } : null); }
+  /* exacte waarde op één punt en uur, rechtstreeks uit het model (GetFeatureInfo, ~40 ms) */
+  function gfiURL(lat, lon, h) {
+    const z = 12, g = gridXY(lat, lon, z), x = Math.floor(g[0]), y = Math.floor(g[1]);
+    return WMTS + '?' + qs({ SERVICE: 'WMTS', REQUEST: 'GetFeatureInfo', VERSION: '1.0.0', LAYER: VEC,
+      TILEMATRIXSET: 'EPSG:3857', TILEMATRIX: z, TILEROW: y, TILECOL: x, FORMAT: 'image/png',
+      STYLE: 'cmap:speed,vectorStyle:vector', time: isoHour(times[h]), INFOFORMAT: 'application/json',
+      I: Math.floor((g[0] - x) * 256), J: Math.floor((g[1] - y) * 256) });
+  }
+  async function exactAt(lat, lon, h) {
+    try {
+      // harde time-out: zonder dit blijft een klik op "stroom-details" hangen als Copernicus traag is
+      const ac = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const tmr = ac && setTimeout(() => ac.abort(), 6000);
+      const r = await fetch(gfiURL(lat, lon, h), ac ? { signal: ac.signal } : undefined);
+      if (tmr) clearTimeout(tmr);
+      const j = await r.json();
+      const p = j && j.features && j.features[0] && j.features[0].properties;
+      if (!p || p.component1Value == null || p.component2Value == null) return null;
+      const u = p.component1Value * 3.6, v = p.component2Value * 3.6, kmh = Math.hypot(u, v);
+      return { kmh, kn: kmh / 1.852, ms: kmh / 3.6, dirTo: (Math.atan2(u, v) * 180 / Math.PI + 360) % 360 };
+    } catch (e) { return null; }
+  }
+  /* reeks van `count` uren vanaf index i0 — in blokjes van 4 tegelijk, zodat de server niet knijpt */
+  async function seriesExact(lat, lon, i0, count) {
+    if (!times) return null;
+    const idx = []; for (let i = i0; i < Math.min(NHOURS, i0 + count); i++) idx.push(i);
+    const out = new Array(NHOURS).fill(null);
+    for (let s = 0; s < idx.length; s += 4) {
+      const chunk = idx.slice(s, s + 4);
+      const rs = await Promise.all(chunk.map(i => exactAt(lat, lon, i)));
+      chunk.forEach((i, k) => { out[i] = rs[k]; });
+    }
     return out;
   }
 
@@ -330,7 +373,7 @@
   function defaultTimes() { const midnight = Math.floor(Date.now() / 86400000) * 86400; return Array.from({ length: NHOURS }, (_, i) => midnight + i * 3600); }
   function nowIndex() { const now = Date.now() / 1000; let best = 0; for (let i = 0; i < times.length; i++) if (Math.abs(times[i] - now) < Math.abs(times[best] - now)) best = i; return best; }
   function updateWmtsTime() { if (!times) return; const hr = Math.round(tFloat); if (hr === lastWmtsHour) return; lastWmtsHour = hr; if (arrowFade && arrowFade.on) arrowFade.show(hr); if (colorFade && colorFade.on) colorFade.show(hr); }
-  function setTimeFloat(tf) { tFloat = Math.max(0, Math.min(NHOURS - 1, tf)); updateWmtsTime(); }
+  function setTimeFloat(tf) { tFloat = Math.max(0, Math.min(NHOURS - 1, tf)); updateWmtsTime(); prefetchView(); }
 
   function sync() {
     if (!arrowFade) return;
@@ -339,11 +382,9 @@
     colorFade.setOn(want.color); if (want.color && colorFade.visibleHour < 0) colorFade.show(hr);
     lastWmtsHour = hr;
     const canvasOn = want.particles || want.own;
-    ensureMask(canvasOn); if (canvasOn) scheduleMaskRedraw();
     if (canvas) canvas.style.display = canvasOn ? 'block' : 'none';
-    if ((want.arrows || want.color || canvasOn) && !loaded) loadData();   // grid ook laden voor klik-info
+    prefetchView(true);
     if (want.particles) resetParticles();
-    scheduleFine();
   }
 
   const API = {
@@ -361,19 +402,23 @@
       canvas.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none;display:none';
       pane.appendChild(canvas); ctx = canvas.getContext('2d');
       times = defaultTimes();
+      ensureLUT();
       arrowFade = makeFadeManager('cmap:speed,vectorStyle:vector', 0.92);
       colorFade = makeFadeManager('cmap:speed,vectorStyle:solid', 0.55);
-      map.on('resize', () => { resizeCanvas(); reposition(); resetParticles(); scheduleMaskRedraw(); });
-      map.on('moveend zoomend', () => { reposition(); resetParticles(); scheduleMaskRedraw(); scheduleFine(); });
+      // resetParticles() bemonstert het veld en trekt daarmee tegels aan: alleen doen als de
+      // deeltjes ook echt aanstaan, anders haalt een pan met alleen pijlen data op voor niets
+      map.on('resize', () => { resizeCanvas(); reposition(); if (want.particles) resetParticles(); prefetchView(true); });
+      map.on('moveend zoomend', () => { reposition(); if (want.particles) resetParticles(); prefetchView(); });
       map.on('movestart zoomstart', () => ctx && ctx.clearRect(0, 0, canvas.width, canvas.height));
       resizeCanvas(); reposition(); setTimeFloat(nowIndex()); requestAnimationFrame(frame);
       return API;
     },
     setLayers(w) { const wasP = want.particles; want = Object.assign({}, want, w); if (want.particles && !wasP) playing = true; if (!(want.arrows || want.particles || want.color || want.own)) playing = false; sync(); if (onTimeChange) onTimeChange(tFloat); },
     anyOn() { return want.arrows || want.particles || want.color || want.own; },
-    pointNow(lat, lon) { return U ? pointInfo(lat, lon, tFloat) : null; },
-    pointSeries(lat, lon) { return U ? pointSeries(lat, lon) : null; },
-    isLoaded() { return loaded; },
+    pointNow(lat, lon) { return pointInfo(lat, lon, tFloat); },
+    pointNowExact(lat, lon) { return exactAt(lat, lon, Math.round(tFloat)); },
+    seriesExact,
+    isLoaded() { return okCount > 0; },
     setTime(tf) { playing = false; setTimeFloat(tf); if (onTimeChange) onTimeChange(tFloat); },
     setPlaying(v) { playing = v; },
     isPlaying() { return playing; },
