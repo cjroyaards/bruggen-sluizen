@@ -49,9 +49,10 @@
       + '&TILEMATRIXSET=EPSG:3857&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/png'
       + '&STYLE=' + encodeURIComponent(style) + '&time=' + encodeURIComponent(iso);
     return L.tileLayer(url,
-      // Copernicus serveert echte tegels t/m TILEMATRIX 12 (z13+ = lege PNG) → maxNativeZoom 12.
-      // maxZoom 19: daarboven schalen de z12-tegels op i.p.v. te verdwijnen.
-      Object.assign({ opacity, maxNativeZoom: 12, maxZoom: 19, pane: 'curTilePane' }, extra || {}));
+      // Copernicus tekent de pijlen op elk zoomniveau (getest t/m 18); lege tegels die je soms
+      // ziet zijn landtegels, geen servicegrens. Native t/m 16, daarboven opschalen.
+      // updateWhenIdle: geen tegels ophalen tijdens de zoom-animatie, dat scheelt veel verkeer.
+      Object.assign({ opacity, maxNativeZoom: 16, maxZoom: 19, updateWhenIdle: true, pane: 'curTilePane' }, extra || {}));
   }
 
   /* ---- crossfade-manager per WMTS-laag ---- */
@@ -65,7 +66,10 @@
       // opruimen: nooit het uur dat we nét hebben aangemaakt weggooien. Bij een sprong van meer
       // dan 8 uur (dagknoppen, "nu", of de lus aan het eind van het afspelen) was hr zelf het
       // verst van visibleHour en verdween de laag meteen weer → pijlen helemaal weg.
-      if (layers.size > 8) { let far = -1, fd = -1; for (const h of layers.keys()) { if (h === hr || h === visibleHour || Math.abs(h - visibleHour) <= 1) continue; const d = Math.abs(h - visibleHour); if (d > fd) { fd = d; far = h; } } if (far >= 0) { map.removeLayer(layers.get(far)); layers.delete(far); } }
+      // Elke laag die aan de kaart hangt haalt een heel scherm tegels op, ook op opacity 0.
+      // Daarom er maar drie tegelijk aanhouden (zichtbaar, vorige, volgende) — met acht liep
+      // het bij elke zoom op tot honderd verzoeken en kneep Copernicus ons af.
+      while (layers.size > 3) { let far = -1, fd = -1; for (const h of layers.keys()) { if (h === hr || h === visibleHour || Math.abs(h - visibleHour) <= 1) continue; const d = Math.abs(h - visibleHour); if (d > fd) { fd = d; far = h; } } if (far < 0) break; map.removeLayer(layers.get(far)); layers.delete(far); }
       return lyr;
     }
     function fadeTo(target, prev) {
@@ -77,7 +81,8 @@
     function show(hr) {
       if (!times || !on) return;
       const target = layerFor(hr), prev = layers.get(visibleHour); if (target === prev) return;
-      visibleHour = hr; layerFor(Math.min(NHOURS - 1, hr + 1));
+      visibleHour = hr;
+      if (playing) layerFor(Math.min(NHOURS - 1, hr + 1));   // alleen vooruitladen als de tijd loopt
       layers.forEach(l => { if (l !== target && l !== prev) l.setOpacity(0); });
       // pas infaden als álle tegels binnen zijn → in één keer, geen piecemeal-gepop
       if (target._allLoaded) { fadeTo(target, prev); }

@@ -643,7 +643,7 @@ html.napp header input{touch-action:manipulation}
         <span class="k">Bruggen, sluizen &amp; berichten</span><span>Rijkswaterstaat — Fairway Information Services (vaarweginformatie.nl): de objectgegevens en de scheepvaartberichten (NtS/FTM).</span>
         <span class="k">Getij Nederland</span><span>Rijkswaterstaat WaterWebservices (waterinfo) — astronomische voorspelling, hoogtes t.o.v. <b>NAP</b>.</span>
         <span class="k">Getij Verenigd Koninkrijk</span><span>UK Hydrographic Office — Admiralty-voorspellingen, hoogtes boven <b>kaartnul (LAT)</b>.</span>
-        <span class="k">Getijstroom</span><span>Copernicus Marine Service, NWShelf-model (~1,5 km). Pijlen en kleurvlakken zijn de kant-en-klare WMTS-tegels; de deeltjes en de eigen pijlen komen uit hetzelfde model door de uo/vo-tegels terug te rekenen naar m/s. De klik-info en de 12-uurstabel worden per punt exact bij het model opgevraagd.</span>
+        <span class="k">Getijstroom</span><span>Copernicus Marine Service, NWShelf-model (~1,5 km). Pijlen en kleurvlakken zijn de kant-en-klare WMTS-tegels; de deeltjesanimatie komt uit hetzelfde model door de uo/vo-tegels terug te rekenen naar m/s. De klik-info en de 12-uurstabel worden per punt exact bij het model opgevraagd.</span>
         <span class="k">Wind</span><span>Open-Meteo — open weermodeldata (o.a. <b>GFS</b> van NOAA en <b>ICON</b> van DWD; dezelfde modellen die ook in GRIB-bestanden zitten). 10&nbsp;m-windsnelheid, -richting en windstoten, uurlijks tot 72&nbsp;uur vooruit, live in je browser opgehaald. Modelvoorspelling — geen waarneming; bij hard weer kan de werkelijke wind afwijken.</span>
         <span class="k">Getijcurve UK-havens</span><span>Waar geen officieel Admiralty-station is: modelcurve van Open-Meteo/ECMWF (t.o.v. gemiddeld zeeniveau) — alleen om het ritme te zien.</span>
         <span class="k">Weer (locatiedetail)</span><span>Open-Meteo — model ECMWF voor temperatuur, weericoon en wind op 10 m; in het wind-detailpaneel ook GFS ter vergelijking. Live in je browser opgehaald, tot 7 dagen vooruit. Modelvoorspelling, geen waarneming.</span>
@@ -673,7 +673,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260729-02</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260729-03</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1958,11 +1958,11 @@ function initCurrents(){
   }
   CURBAR_API = { refreshBar, syncPlay, radarReset: ()=>{ radarIdx = Math.max(0, Rain.count()-1); } };
   function applyLayers(){
-    // Copernicus levert echte tegels t/m zoom 12; daarboven zouden ze opgeschaald en wazig zijn.
-    // Vanaf zoom 13 dus onze eigen vloeiende pijlen — die komen sinds b20260729-02 uit precies
-    // hetzelfde NWShelf-veld (gedecodeerde uo/vo-tegels), dus de richting blijft gelijk.
-    const flow = $("#lay-flow").checked, deep = map.getZoom()>=13;
-    Currents.setLayers({ arrows: flow && !deep, own: flow && deep, particles:$("#lay-particles").checked, color:false });
+    // Geen zoom-afhankelijke omschakeling: Copernicus tekent de pijlen op élk zoomniveau.
+    // De oude wissel naar eigen pijlen was gebaseerd op een verkeerde aanname (lege tegels bij
+    // diep inzoomen bleken landtegels) en liet de pijlen bij inzoomen verdwijnen.
+    const flow = $("#lay-flow").checked;
+    Currents.setLayers({ arrows: flow, own: false, particles:$("#lay-particles").checked, color:false });
     Wind.setLayers({ arrows:$("#wind-arrows").checked, particles:$("#wind-particles").checked, color:$("#wind-color").checked });
     if (!Rain.isOn()) flowPlaying = Currents.isPlaying() || Wind.isPlaying();   // deeltjes-autostart alleen buiten radarmodus
     syncPlay();
@@ -1971,14 +1971,8 @@ function initCurrents(){
   }
   ["lay-flow","lay-particles","wind-arrows","wind-particles","wind-color"].forEach(id => $("#"+id).addEventListener("change", applyLayers));
   $("#pres-iso").addEventListener("change", ()=>{ if(!window.Pressure){ $("#pres-iso").checked=false; return; } Pressure.setOn($("#pres-iso").checked); if(Pressure.isOn()) Pressure.setTime(Currents.getTFloat()); refreshBar(); syncPlay(); });
-  // Eén "Stroompijlen"-laag, één model (Copernicus NWShelf ~1,5 km): scherpe WMTS-tegels t/m
-  // zoom 12, daarboven de eigen vloeiende pijlen uit hetzelfde veld. Herschakelen bij zoomen.
-  let lastDeep = null;
-  map.on("zoomend", ()=>{
-    if (!$("#lay-flow").checked) return;
-    const deep = map.getZoom()>=13;
-    if (deep !== lastDeep){ lastDeep = deep; applyLayers(); }
-  });
+  // Eén "Stroompijlen"-laag, één model (Copernicus NWShelf ~1,5 km), op elk zoomniveau dezelfde
+  // WMTS-tegels. Geen herschakeling bij zoomen — Leaflet ververst de tegels zelf.
   const bothTime = tf => { flowPlaying = false; Currents.setTime(tf); Wind.setTime(tf); syncPlay(); barTime(tf); };
   const radarScrub = i => { flowPlaying=false; radarStop(); radarShow(i); $("#cur-play").textContent="▶"; };
   $("#cur-slider").addEventListener("input", ()=>{ Rain.isOn() ? radarScrub(+$("#cur-slider").value) : bothTime(+$("#cur-slider").value); });
@@ -3472,7 +3466,7 @@ function applyStaticLang(){
         <span class="k">Bridges, locks &amp; notices</span><span>Rijkswaterstaat — Fairway Information Services (vaarweginformatie.nl): the object data and the notices to skippers (NtS/FTM). Dutch descriptions stay in Dutch.</span>
         <span class="k">Tides Netherlands</span><span>Rijkswaterstaat WaterWebservices (waterinfo) — astronomical prediction, heights relative to <b>NAP</b>.</span>
         <span class="k">Tides United Kingdom</span><span>UK Hydrographic Office — Admiralty predictions, heights above <b>chart datum (LAT)</b>.</span>
-        <span class="k">Tidal current</span><span>Copernicus Marine Service, NWShelf model (~1.5 km). Arrows and colour bands are the ready-made WMTS tiles; the particles and the smooth arrows come from the same model by decoding the uo/vo tiles back to m/s. Tap info and the 12-hour table are queried from the model per point.</span>
+        <span class="k">Tidal current</span><span>Copernicus Marine Service, NWShelf model (~1.5 km). Arrows and colour bands are the ready-made WMTS tiles; the particle animation comes from the same model by decoding the uo/vo tiles back to m/s. Tap info and the 12-hour table are queried from the model per point.</span>
         <span class="k">Wind</span><span>Open-Meteo — open weather-model data (incl. <b>GFS</b> from NOAA and <b>ICON</b> from DWD; the same models found in GRIB files). 10&nbsp;m wind speed, direction and gusts, hourly up to 72&nbsp;h ahead, fetched live in your browser. Model forecast — not an observation; in heavy weather the real wind may differ.</span>
         <span class="k">Tide curve, UK harbours</span><span>Where there is no official Admiralty station: model curve from Open-Meteo/ECMWF (rel. to mean sea level) — only to show the rhythm.</span>
         <span class="k">Weather (location detail)</span><span>Open-Meteo — ECMWF model for temperature, weather icon and 10&nbsp;m wind; the wind-detail panel also shows GFS for comparison. Fetched live in your browser, up to 7 days ahead. Model forecast, not an observation.</span>
