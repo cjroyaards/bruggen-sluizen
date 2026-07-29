@@ -53,7 +53,10 @@ const L = { tileLayer: maakLaag, DomUtil: { setPosition: () => {} } };
 /* ---- canvas / document / fetch ---- */
 const ctx2d = new Proxy({}, { get: (t, p) => (p === 'getImageData' ? () => ({ data: new Uint8Array(256 * 256 * 4) }) : () => {}) });
 const document = { createElement: () => ({ width: 0, height: 0, style: {}, getContext: () => ctx2d, appendChild: () => {} }) };
-const legenda = JSON.parse(fs.readFileSync('/tmp/legend.json', 'utf8'));
+/* Minimale nep-legenda: deze test gaat over laagbeheer, niet over decoderen (dat doet
+   test_currents_decode.js met echte Copernicus-data). Zo is deze test standalone. */
+const legenda = { continuous: { valueMin: -2.5, valueMax: 2.5,
+  cmap: { colorMap: Array.from({ length: 256 }, (_, i) => [i, 255 - i, (i * 7) % 256]) } } };
 const sandbox = {
   L, document, console, Math, Date, JSON, Object, Array, Number, String, Promise, Set, Map,
   Int16Array, Uint8Array, Float32Array, Error, isNaN, parseInt, parseFloat, setTimeout, clearTimeout,
