@@ -115,6 +115,31 @@ check('grote pijlen: tileSize 512 + zoomOffset -1', laag.options.tileSize === 51
       'tileSize ' + laag.options.tileSize + ', zoomOffset ' + laag.options.zoomOffset);
 check('{z}/{x}/{y} staan letterlijk in de template', /TILEMATRIX=\{z\}&TILEROW=\{y\}&TILECOL=\{x\}/.test(laag.url));
 
+/* Welk TILEMATRIX vraagt Leaflet werkelijk op? Met de echte functies uit assets/leaflet.min.js.
+   Bij maximaal inzoomen moet dat het echte niveau zijn (kaartzoom-1), niet een opgeschaalde
+   lagere tegel — daar bleven de pijlen eerder op weg. */
+const lsrc = fs.readFileSync(path.join(__dirname, '..', 'assets', 'leaflet.min.js'), 'utf8');
+function leafletFn(naam) {
+  const i = lsrc.indexOf(naam + ':function');
+  let j = lsrc.indexOf('{', i), d = 0;
+  for (let k = j; k < lsrc.length; k++) {
+    if (lsrc[k] === '{') d++;
+    else if (lsrc[k] === '}') { d--; if (!d) return eval('({' + lsrc.slice(i, k + 1) + '})')[naam]; }
+  }
+}
+const clampZoom = leafletFn('_clampZoom'), zoomForUrl = leafletFn('_getZoomForUrl');
+const o = laag.options;
+console.log('\nopgevraagd TILEMATRIX per kaartzoom\n');
+for (const z of [10, 14, 17, 18, 19]) {
+  const tz = (o.maxZoom !== undefined && z > o.maxZoom) ? undefined : clampZoom.call({ options: o }, z);
+  const u = tz === undefined ? null : zoomForUrl.call({ options: o, _tileZoom: tz });
+  const schaal = tz === undefined ? Infinity : Math.pow(2, z - tz);
+  check(`kaartzoom ${z}: echt niveau, niet opgeschaald`, u === z - 1 && schaal === 1,
+        u === null ? 'laag uitgeschakeld' : 'TILEMATRIX ' + u + ', schaal x' + schaal);
+}
+check('geen maxNativeZoom-klem meer', o.maxNativeZoom === undefined);
+check('updateWhenIdle op de Leaflet-standaard', o.updateWhenIdle === undefined);
+
 console.log('\ntijdsprongen (dagknoppen, "nu", einde afspeellus)\n');
 zoomNaar(10);
 Currents.setTime(0); ladenKlaar();

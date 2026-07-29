@@ -54,11 +54,12 @@
       + '&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/png'
       + '&STYLE=' + encodeURIComponent(style) + '&time=' + encodeURIComponent(iso);
     return L.tileLayer(url,
-      // Copernicus tekent de pijlen op elk zoomniveau (getest t/m 18); lege tegels die je soms
-      // ziet zijn landtegels, geen servicegrens. maxNativeZoom 17 → hoogste aanvraag is {z}=16.
-      // updateWhenIdle: geen tegels ophalen tijdens de zoom-animatie, dat scheelt veel verkeer.
-      Object.assign({ opacity, tileSize: 512, zoomOffset: -1, maxNativeZoom: 17, maxZoom: 19,
-        updateWhenIdle: true, pane: 'curTilePane' }, extra || {}));
+      // Géén maxNativeZoom: Copernicus rendert elk niveau zelf (t/m TILEMATRIX 18 nagemeten,
+      // ook in het Marsdiep). Met een klem eindigde je bij maximaal inzoomen in het opschaalpad
+      // van Leaflet en bleven de pijlen weg. Nu vraagt hij overal gewoon het echte niveau op.
+      // Ook geen updateWhenIdle: dat stelt het laden uit tot de kaart stilligt.
+      Object.assign({ opacity, tileSize: 512, zoomOffset: -1, maxZoom: 19,
+        pane: 'curTilePane' }, extra || {}));
   }
 
   /* ---- crossfade-manager per WMTS-laag ---- */
