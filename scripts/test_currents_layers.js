@@ -109,6 +109,12 @@ for (let i = 0; i < 5; i++) { zoomNaar(17); zoomNaar(8); }
 check('na 5x heen en weer zoomen: pijlen nog zichtbaar', zichtbareLagen().length > 0, zichtbareLagen().length + ' laag/lagen');
 check('niet meer dan ' + MAX_LAGEN + ' tegellagen aan de kaart', opDeKaart.size <= MAX_LAGEN, opDeKaart.size + ' lagen');
 
+const laag = [...opDeKaart][0];
+check('grote pijlen: @2x-tegelset', /EPSG%3A3857%402x/.test(laag.url), laag.url.match(/TILEMATRIXSET=[^&]*/)[0]);
+check('grote pijlen: tileSize 512 + zoomOffset -1', laag.options.tileSize === 512 && laag.options.zoomOffset === -1,
+      'tileSize ' + laag.options.tileSize + ', zoomOffset ' + laag.options.zoomOffset);
+check('{z}/{x}/{y} staan letterlijk in de template', /TILEMATRIX=\{z\}&TILEROW=\{y\}&TILECOL=\{x\}/.test(laag.url));
+
 console.log('\ntijdsprongen (dagknoppen, "nu", einde afspeellus)\n');
 zoomNaar(10);
 Currents.setTime(0); ladenKlaar();

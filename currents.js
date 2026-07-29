@@ -43,16 +43,22 @@
 
   /* ---- gerenderde Copernicus-lagen (pijlen / kleurvlakken) ---- */
   function makeCmemsLayer(style, opacity, iso, extra) {
+    // De @2x-tegelset levert 512 px per tegel en tekent de pijlen op dubbele pixelgrootte.
+    // Met tileSize 512 + zoomOffset -1 vraagt Leaflet één niveau lager op, dus de kaartschaal
+    // blijft gelijk maar de pijlen worden twee keer zo groot (en half zo dicht) — en scherp,
+    // want het is een echte render en geen opgeschaald plaatje. Scheelt ook 3/4 van de verzoeken.
     // {z}/{x}/{y} moeten letterlijk in de template blijven, dus die zetten we er ná het encoderen bij
     const url = WMTS + '?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0'
       + '&LAYER=' + encodeURIComponent(VEC)
-      + '&TILEMATRIXSET=EPSG:3857&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/png'
+      + '&TILEMATRIXSET=' + encodeURIComponent('EPSG:3857@2x')
+      + '&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/png'
       + '&STYLE=' + encodeURIComponent(style) + '&time=' + encodeURIComponent(iso);
     return L.tileLayer(url,
       // Copernicus tekent de pijlen op elk zoomniveau (getest t/m 18); lege tegels die je soms
-      // ziet zijn landtegels, geen servicegrens. Native t/m 16, daarboven opschalen.
+      // ziet zijn landtegels, geen servicegrens. maxNativeZoom 17 → hoogste aanvraag is {z}=16.
       // updateWhenIdle: geen tegels ophalen tijdens de zoom-animatie, dat scheelt veel verkeer.
-      Object.assign({ opacity, maxNativeZoom: 16, maxZoom: 19, updateWhenIdle: true, pane: 'curTilePane' }, extra || {}));
+      Object.assign({ opacity, tileSize: 512, zoomOffset: -1, maxNativeZoom: 17, maxZoom: 19,
+        updateWhenIdle: true, pane: 'curTilePane' }, extra || {}));
   }
 
   /* ---- crossfade-manager per WMTS-laag ---- */
