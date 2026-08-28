@@ -609,7 +609,7 @@ html.napp header input{touch-action:manipulation}
         <span class="k">Bruggen &amp; sluizen</span><span>Bedieningstijden per periode van het jaar, doorvaarthoogte, marifoonkanaal en telefoonnummer, en of een object bedienbaar of vast is.</span>
         <span class="k">Scheepvaartberichten</span><span>Actuele en aangekondigde stremmingen en beperkingen, met doorklik naar het volledige bericht op vaarweginformatie.nl.</span>
         <span class="k">Masthoogte-check</span><span>Vul je masthoogte in (vergrootglas → mast); vaste bruggen die te laag zijn krijgen dan een waarschuwing.</span>
-        <span class="k">Routeplanner</span><span>Kaartknop "Route": tik start en bestemming aan en zie de route over het binnenwaternetwerk, met alle bruggen en sluizen op volgorde van passage — inclusief laagste vaste brug en smalste doorvaart. Indicatief; groot open water zit nog niet in het netwerk.</span>
+        <span class="k">Routeplanner</span><span>Kaartknop "Route": tik start en bestemming aan en zie de route over vaarwegen én groot open water (IJsselmeer, Markermeer, Randmeren, Zeeuwse wateren), met alle bruggen en sluizen op volgorde van passage — inclusief laagste vaste brug en smalste doorvaart. Indicatief: op open water volgt de route niet de betonde geulen; Waddenzee en Noordzee zitten er niet in.</span>
         <span class="k">Getij NL &amp; UK</span><span>Hoog- en laagwatertijden en -hoogtes plus een getijcurve, voor Nederlandse en Britse getijstations.</span>
         <span class="k">Havens</span><span>Geselecteerde jachthavens met toegang, getijdenvenster, marifoon en sluis-/bruginfo: langs de Engelse en Belgische kust (o.a. Nieuwpoort, Oostende, Blankenberge, Zeebrugge) én — nieuw — rond het Haringvliet (Hellevoetsluis, Stellendam, Middelharnis, Stad aan 't Haringvliet, Den Bommel, Numansdorp).</span>
         <span class="k">Getijstroom Noordzee</span><span>Eén laag "Stroompijlen" plus een deeltjesanimatie, met een tijdlijn tot 6 dagen vooruit en klik-op-zee voor richting/snelheid op een punt. Alles komt uit één model (Copernicus NWShelf, 1,5 km), dus pijlen, deeltjes en klik-info wijzen dezelfde kant op.</span>
@@ -673,7 +673,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260828-02</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260828-03</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -3441,7 +3441,7 @@ function applyStaticLang(){
         <span class="k">Bridges &amp; locks</span><span>Operating times per season, clearance height, VHF channel and phone number, and whether an object is operated or fixed.</span>
         <span class="k">Notices to skippers</span><span>Current and announced closures and restrictions, with a link through to the full notice on vaarweginformatie.nl.</span>
         <span class="k">Mast-height check</span><span>Enter your mast height (magnifier → mast); fixed bridges that are too low then get a warning.</span>
-        <span class="k">Route planner</span><span>Map button "Route": tap start and destination to see the route across the inland waterway network, with all bridges and locks in order of passage — including the lowest fixed bridge and narrowest passage. Indicative; large open water is not in the network yet.</span>
+        <span class="k">Route planner</span><span>Map button "Route": tap start and destination to see the route across waterways and large open water (IJsselmeer, Markermeer, border lakes, Zeeland waters), with all bridges and locks in order of passage — including the lowest fixed bridge and narrowest passage. Indicative: on open water the route does not follow the buoyed channels; the Wadden Sea and North Sea are not included.</span>
         <span class="k">Tides NL &amp; UK</span><span>High- and low-water times and heights plus a tide curve, for Dutch and British tide stations.</span>
         <span class="k">Harbours</span><span>Curated marinas with access, tidal window, VHF and lock/bridge info: along the English and Belgian coast (Nieuwpoort, Ostend, Blankenberge, Zeebrugge) and — new — around the Haringvliet (Hellevoetsluis, Stellendam, Middelharnis, Stad aan 't Haringvliet, Den Bommel, Numansdorp).</span>
         <span class="k">North Sea currents</span><span>One "current arrows" layer (sharp tiles at a distance, smooth arrows when zoomed in) plus a particle animation, with a timeline up to 6 days ahead and tap-the-sea for direction/speed at a point. Everything comes from one model (Copernicus NWShelf, 1.5 km), so arrows, particles and tap info all agree.</span>

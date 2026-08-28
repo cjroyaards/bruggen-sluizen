@@ -8,7 +8,7 @@ window.RoutePlanner = (function(){
 const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
   title:"Route planner", hintStart:"Tap the starting point on the map", hintEnd:"Now tap the destination",
   loading:"Loading waterway network…", calc:"Calculating route…",
-  none:"No route found — the points may not be connected via the inland network (large open water is not included yet).",
+  none:"No route found — the points may not be connected via the network (the Wadden Sea and North Sea are not included).",
   neu:"new route", total:"total", bridges:"bridges", locks:"locks", fixed:"fixed",
   lowest:"lowest fixed bridge", narrowest:"narrowest passage",
   mastwarn:(hf,m)=>`Warning: lowest fixed bridge ${hf} m is too low for mast ${m} m`,
@@ -17,7 +17,7 @@ const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
 } : {
   title:"Routeplanner", hintStart:"Tik het startpunt aan op de kaart", hintEnd:"Tik nu de bestemming aan",
   loading:"Vaarwegennetwerk laden…", calc:"Route berekenen…",
-  none:"Geen route gevonden — mogelijk zijn de punten niet verbonden via het binnenwaternetwerk (groot open water zit er nog niet in).",
+  none:"Geen route gevonden — mogelijk zijn de punten niet verbonden via het netwerk (Waddenzee en Noordzee zitten er niet in).",
   neu:"nieuwe route", total:"totaal", bridges:"bruggen", locks:"sluizen", fixed:"vast",
   lowest:"laagste vaste brug", narrowest:"smalste doorvaart",
   mastwarn:(hf,m)=>`Let op: laagste vaste brug ${hf} m is te laag voor mast ${m} m`,
@@ -309,8 +309,20 @@ function setCursor(on){
   map.getContainer().classList.toggle("rp-arming", !!on);
 }
 
+/* eigen SVG-laag voor de route: de standaard canvas-renderer (preferCanvas) laat
+   paden op iOS/Safari soms verdwijnen bij zoomen; SVG transformeert betrouwbaar */
+let routeRenderer = null;
+function renderer(){
+  if (!routeRenderer){
+    map.createPane("routePane");
+    map.getPane("routePane").style.zIndex = 430;
+    routeRenderer = L.svg({pane:"routePane"});
+  }
+  return routeRenderer;
+}
+
 function dot(latlng, color, label){
-  return L.circleMarker(latlng,{radius:7,color:"#fff",weight:2,fillColor:color,fillOpacity:1,pane:"markerPane"})
+  return L.circleMarker(latlng,{radius:7,color:"#fff",weight:2,fillColor:color,fillOpacity:1,renderer:renderer()})
     .bindTooltip(label,{direction:"top",offset:[0,-8]}).addTo(map);
 }
 
@@ -336,8 +348,8 @@ async function compute(a, b){
   if (!r){ hint(TXT.none); panel.querySelector(".rp-actions").hidden=false; return; }
   hint("");
   const latlngs = r.geo.map(p=>[p[0]/1e5, p[1]/1e5]);
-  lineBack  = L.polyline(latlngs,{color:"#fff",weight:8,opacity:.85}).addTo(map);
-  lineFront = L.polyline(latlngs,{color:"#7c3aed",weight:4,opacity:.95}).addTo(map);
+  lineBack  = L.polyline(latlngs,{color:"#fff",weight:8,opacity:.85,renderer:renderer()}).addTo(map);
+  lineFront = L.polyline(latlngs,{color:"#7c3aed",weight:4,opacity:.95,renderer:renderer()}).addTo(map);
   map.fitBounds(lineFront.getBounds(), innerWidth<=640
     ? {paddingTopLeft:[30,90], paddingBottomRight:[30, Math.round(innerHeight*0.60)]}
     : {paddingTopLeft:[70,90], paddingBottomRight:[Math.min(370,innerWidth*.4),40]});

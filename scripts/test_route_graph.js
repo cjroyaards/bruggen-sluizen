@@ -54,7 +54,7 @@ function check(naam, cond, extra) {
   const sb = snap(Math.round(53.216e5), Math.round(6.57e5));    // Groningen
   const r = sa && sb && RP.findRoute(sa, sb);
   check("Amsterdam->Groningen gevonden", !!r);
-  if (r) check("lengte plausibel (250-400 km)", r.meters > 250e3 && r.meters < 400e3,
+  if (r) check("lengte plausibel (150-400 km)", r.meters > 150e3 && r.meters < 400e3,
                (r.meters / 1000).toFixed(0) + " km");
 }
 
@@ -66,7 +66,37 @@ function check(naam, cond, extra) {
   check("korte route zelfde vaarweg", !!r && r.meters < 2000, r ? Math.round(r.meters) + " m" : "geen");
 }
 
-/* 4. Onbereikbaar: punt ver op zee snapt niet */
+/* 4. Open water: dwars over het IJsselmeer */
+{
+  const sa = snap(Math.round(52.700e5), Math.round(5.300e5));   // Enkhuizen
+  const sb = snap(Math.round(52.880e5), Math.round(5.360e5));   // Stavoren
+  const r = sa && sb && RP.findRoute(sa, sb);
+  check("Enkhuizen->Stavoren over IJsselmeer", !!r && r.meters > 19e3 && r.meters < 26e3,
+        r ? (r.meters / 1000).toFixed(1) + " km" : "geen");
+}
+
+/* 5. Dijkcheck: Houtribdijk mag alleen via een sluis/naviduct gepasseerd worden */
+{
+  const sa = snap(Math.round(52.700e5), Math.round(5.300e5));   // Enkhuizen (IJsselmeerzijde)
+  const sb = snap(Math.round(52.517e5), Math.round(5.435e5));   // Lelystad (Markermeerzijde)
+  const r = sa && sb && RP.findRoute(sa, sb);
+  const sluizen = r ? RP.objsOnRoute(r.geo).filter(i => i.o.t === "S").map(i => i.o.n) : [];
+  check("Houtribdijk alleen via sluis/naviduct", !!r && sluizen.some(n => /Naviduct|Houtrib|sluis/i.test(n)),
+        sluizen.join(", ") || "geen sluizen");
+}
+
+/* 6. Zeeland-keten: Willemstad -> Middelburg via de Deltawateren */
+{
+  const sa = snap(Math.round(51.690e5), Math.round(4.436e5));
+  const sb = snap(Math.round(51.500e5), Math.round(3.610e5));
+  const r = sa && sb && RP.findRoute(sa, sb);
+  const sluizen = r ? RP.objsOnRoute(r.geo).filter(i => i.o.t === "S").map(i => i.o.n) : [];
+  check("Willemstad->Middelburg gevonden", !!r && r.meters > 60e3 && r.meters < 110e3,
+        r ? (r.meters / 1000).toFixed(0) + " km" : "geen");
+  check("route passeert Volkeraksluizen", sluizen.includes("Volkeraksluizen"), sluizen.join(", "));
+}
+
+/* 7. Onbereikbaar: punt ver op zee snapt niet */
 {
   const s = snap(Math.round(54.5e5), Math.round(4.0e5));
   check("punt op open zee snapt niet", s === null);
