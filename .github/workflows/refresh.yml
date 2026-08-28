@@ -52,3 +52,6 @@ jobs:
             git commit -m "data: automatische verversing"
             git push
           fi
+
+      - name: Alarm bij verouderde data (>48 uur)
+        run: python3 scripts/check_fresh.py
