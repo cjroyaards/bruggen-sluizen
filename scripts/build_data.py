@@ -303,7 +303,7 @@ def build_strem():
     print(f"strem.json: {len(strem)} berichten")
 
 
-def write_meta(full):
+def write_meta(static_ok, strem_ok):
     meta_path = os.path.join(OUT, "meta.json")
     meta = {}
     if os.path.exists(meta_path):
@@ -312,8 +312,9 @@ def write_meta(full):
         except Exception:  # noqa: BLE001
             meta = {}
     now = int(time.time() * 1000)
-    meta["stremTs"] = now
-    if full:
+    if strem_ok:
+        meta["stremTs"] = now
+    if static_ok:
         meta["staticTs"] = now
     json.dump(meta, open(meta_path, "w"))
 
@@ -321,8 +322,17 @@ def write_meta(full):
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     full = "--full" in sys.argv
+    static_ok = strem_ok = False
     if full:
-        build_full()
-    build_strem()
-    write_meta(full)
+        try:
+            build_full()
+            static_ok = True
+        except SystemExit as e:
+            print(f"WAARSCHUWING: volledige dataset niet ververst, oude data blijft staan ({e})", file=sys.stderr)
+    try:
+        build_strem()
+        strem_ok = True
+    except SystemExit as e:
+        print(f"WAARSCHUWING: stremmingen niet ververst, oude data blijft staan ({e})", file=sys.stderr)
+    write_meta(static_ok, strem_ok)
     print("klaar")
