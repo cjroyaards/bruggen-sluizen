@@ -234,11 +234,13 @@ let mStart=null, mEnd=null, lineBack=null, lineFront=null, panel=null, clickBoun
 function css(){
   const s=document.createElement("style");
   s.textContent=`
+#routepanel[hidden]{display:none !important}
 #routepanel{position:absolute;top:56px;right:10px;z-index:1100;width:348px;max-width:calc(100vw - 20px);
   max-height:calc(100% - 76px);display:flex;flex-direction:column;background:var(--surface);
   border:1px solid var(--grid);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:13.5px}
-#routepanel .rp-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--grid);font-weight:700}
-#routepanel .rp-head .rp-x{margin-left:auto;cursor:pointer;color:var(--muted);font-size:15px;padding:2px 5px}
+#routepanel .rp-head{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 12px;border-bottom:1px solid var(--grid);font-weight:700}
+#routepanel .rp-head .rp-x{margin-left:auto;cursor:pointer;color:var(--ink2);font-size:16px;line-height:1;
+  padding:8px 12px;background:none;border:1px solid var(--grid);border-radius:8px;touch-action:manipulation}
 #routepanel .rp-hint{padding:9px 12px;color:var(--ink2)}
 #routepanel .rp-sum{padding:9px 12px;border-bottom:1px solid var(--grid);color:var(--ink);line-height:1.5}
 #routepanel .rp-sum b{font-size:15px}
@@ -266,7 +268,7 @@ function initPanel(){
   if (panel) return;
   css();
   panel = el(`<div id="routepanel" hidden>
-    <div class="rp-head"><span>${TXT.title}</span><span class="rp-x" title="sluiten">✕</span></div>
+    <div class="rp-head"><span>${TXT.title}</span><button type="button" class="rp-x" aria-label="sluiten" title="sluiten">✕</button></div>
     <div class="rp-hint" id="rp-hint"></div>
     <div class="rp-actions" hidden><button id="rp-new">${TXT.neu}</button></div>
     <div class="rp-sum" id="rp-sum" hidden></div>
@@ -274,8 +276,13 @@ function initPanel(){
     <div class="rp-disc">${TXT.disc}</div>
   </div>`);
   document.getElementById("v-kaart").appendChild(panel);
-  panel.querySelector(".rp-x").onclick = off;
+  panel.querySelector(".rp-x").addEventListener("click", e=>{ e.preventDefault(); e.stopPropagation(); off(); });
   panel.querySelector("#rp-new").onclick = restart;
+  /* Escape sluit de planner — maar als het detailpaneel open is, sluit die eerst
+     (capture-fase: wij kijken vóórdat index.html het detail al gesloten heeft) */
+  document.addEventListener("keydown", e=>{
+    if (e.key==="Escape" && mode!==0 && !document.querySelector("#panel.open")) off();
+  }, true);
 }
 
 function hint(t){ const e=panel.querySelector("#rp-hint"); e.textContent=t; e.hidden=!t; }
