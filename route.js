@@ -12,7 +12,8 @@ const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
   neu:"new route", total:"total", bridges:"bridges", locks:"locks", fixed:"fixed",
   lowest:"lowest fixed bridge", narrowest:"narrowest passage",
   mastwarn:(hf,m)=>`Warning: lowest fixed bridge ${hf} m is too low for mast ${m} m`,
-  disc:"Indicative, based on OpenStreetMap waterways — not an official route planner. Check operating times, clearances and depths yourself.",
+  discTitle:"Bridge and lock planner — not a navigation route",
+  disc:"This shows <b>which bridges and locks</b> lie along your way, so you can check operating times and clearances in advance. It is <b>not a sailing route</b>: the line is not a fairway, ignores depth, buoyage and channels, and on open water runs straight across. An object very close to the line may be listed without you actually passing it. Always navigate on the official chart.",
   start:"Start", end:"Destination"
 } : {
   title:"Routeplanner", hintStart:"Tik het startpunt aan op de kaart", hintEnd:"Tik nu de bestemming aan",
@@ -21,7 +22,8 @@ const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
   neu:"nieuwe route", total:"totaal", bridges:"bruggen", locks:"sluizen", fixed:"vast",
   lowest:"laagste vaste brug", narrowest:"smalste doorvaart",
   mastwarn:(hf,m)=>`Let op: laagste vaste brug ${hf} m is te laag voor mast ${m} m`,
-  disc:"Indicatief, op basis van OpenStreetMap-vaarwegen — geen officiële routeplanner. Controleer bedieningstijden, hoogtes en diepgang zelf.",
+  discTitle:"Bruggen- en sluizenplanner — geen vaarroute",
+  disc:"Dit laat zien <b>welke bruggen en sluizen</b> op je weg liggen, zodat je bedieningstijden en doorvaarthoogtes vooraf kunt nakijken. Het is <b>geen vaarroute</b>: de lijn is geen vaargeul, houdt geen rekening met diepte, betonning of geulen, en gaat op open water rechtdoor. Een object vlak langs de lijn kan meegeteld worden zonder dat je het echt passeert. Vaar altijd op de officiële kaart.",
   start:"Start", end:"Bestemming"
 };
 
@@ -33,7 +35,17 @@ function key(la, lo){ return la+","+lo; }
 function mPerLat(){ return 1.1132; }               // meter per 1e-5 graad
 function mPerLon(la1e5){ return 1.1132*Math.cos(la1e5/1e5*Math.PI/180); }
 
+let SPANS = [];            // lange brugoverspanningen: {pts:[[la,lo],…], ids:[…]}
+function decodeSpans(raw){
+  SPANS = (raw.spans||[]).map(([flat, ids])=>{
+    const pts=[[flat[0],flat[1]]];
+    for (let i=2;i<flat.length;i+=2) pts.push([pts[pts.length-1][0]+flat[i], pts[pts.length-1][1]+flat[i+1]]);
+    return {pts, ids};
+  });
+}
+
 function decodeNet(raw){
+  decodeSpans(raw);
   const edges = [], adj = new Map();
   for (const [ni, flat] of raw.e){
     const n = flat.length/2;
@@ -223,6 +235,32 @@ function objsOnRoute(geo, maxM){
     }
     if (best && best.d<=maxM) out.push({o, along:best.along});
   }
+
+  /* lange bruggen over open water (Zeelandbrug, Ketelbrug, …) staan in de
+     RWS-data als één punt, maar overspannen kilometers. Kruist de route de
+     overspanningslijn, dan hoort de brug er hoe dan ook bij. */
+  const gehad = new Set(out.map(i=>i.o.t+i.o.id));
+  const kruis = (p1,p2,p3,p4)=>{
+    const d=(p4[1]-p3[1])*(p2[0]-p1[0])-(p4[0]-p3[0])*(p2[1]-p1[1]);
+    if (!d) return null;
+    const ua=((p4[0]-p3[0])*(p1[1]-p3[1])-(p4[1]-p3[1])*(p1[0]-p3[0]))/d;
+    const ub=((p2[0]-p1[0])*(p1[1]-p3[1])-(p2[1]-p1[1])*(p1[0]-p3[0]))/d;
+    return (ua>=0&&ua<=1&&ub>=0&&ub<=1) ? ua : null;
+  };
+  for (const sp of SPANS){
+    let hit = null;
+    for (let i=0;i<n-1 && hit===null;i++){
+      for (let j=0;j<sp.pts.length-1;j++){
+        const ua = kruis(pts[i], pts[i+1], sp.pts[j], sp.pts[j+1]);
+        if (ua!==null){ hit = cum[i] + ua*(cum[i+1]-cum[i]); break; }
+      }
+    }
+    if (hit===null) continue;
+    for (const id of sp.ids){
+      const o = DATA.objs.find(x=> x.t==="B" && x.id===id);
+      if (o && !gehad.has("B"+id)){ gehad.add("B"+id); out.push({o, along:hit, span:true}); }
+    }
+  }
   out.sort((a,b)=>a.along-b.along);
   return out;
 }
@@ -245,6 +283,7 @@ function css(){
 #routepanel .rp-sum{padding:9px 12px;border-bottom:1px solid var(--grid);color:var(--ink);line-height:1.5}
 #routepanel .rp-sum b{font-size:15px}
 #routepanel .rp-warn{border-left:3px solid var(--serious);background:var(--chip-ser-bg);border-radius:6px;padding:6px 10px;margin-top:6px}
+#routepanel .rp-note{margin-top:7px;color:var(--serious);font-size:11.5px;font-weight:600}
 #routepanel .rp-list{overflow-y:auto;padding:4px 8px 8px;flex:1}
 #routepanel .rp-item{position:relative;margin-top:8px}
 #routepanel .rp-km{position:absolute;top:-7px;left:10px;z-index:5;background:var(--brand);color:#fff;border-radius:8px;
@@ -253,7 +292,9 @@ function css(){
 #routepanel .rp-actions{padding:7px 12px;border-bottom:1px solid var(--grid)}
 #routepanel .rp-actions button{background:var(--surface);border:1px solid var(--grid);border-radius:8px;
   padding:5px 11px;font-size:12.5px;color:var(--ink2);cursor:pointer}
-#routepanel .rp-disc{padding:7px 12px;color:var(--muted);font-size:11px;border-top:1px solid var(--grid)}
+#routepanel .rp-disc{padding:8px 12px 10px;color:var(--ink2);font-size:11.5px;line-height:1.45;
+  border-top:1px solid var(--grid);background:var(--chip-ser-bg)}
+#routepanel .rp-disc-t{display:block;color:var(--serious);font-size:12px;margin-bottom:3px}
 .rp-arming .leaflet-marker-pane *,.rp-arming .leaflet-shadow-pane *{pointer-events:none !important}
 .rp-arming .leaflet-marker-pane,.rp-arming .leaflet-shadow-pane{pointer-events:none !important}
 @media (max-width:640px){
@@ -273,7 +314,7 @@ function initPanel(){
     <div class="rp-actions" hidden><button id="rp-new">${TXT.neu}</button></div>
     <div class="rp-sum" id="rp-sum" hidden></div>
     <div class="rp-list" id="rp-list"></div>
-    <div class="rp-disc">${TXT.disc}</div>
+    <div class="rp-disc"><b class="rp-disc-t">⚠ ${TXT.discTitle}</b>${TXT.disc}</div>
   </div>`);
   document.getElementById("v-kaart").appendChild(panel);
   panel.querySelector(".rp-x").addEventListener("click", e=>{ e.preventDefault(); e.stopPropagation(); off(); });
@@ -373,6 +414,7 @@ function render(r){
   if (narrow!=null) sum += ` · ${TXT.narrowest}: ${fmt1(narrow)} m`;
   if (mv!=null && lowest && lowest.o.hf < mv+0.2)
     sum += `<div class="rp-warn">${esc(TXT.mastwarn(fmt1(lowest.o.hf), fmt1(mv)))}</div>`;
+  sum += `<div class="rp-note">${TXT.discTitle}</div>`;
   const sm = panel.querySelector("#rp-sum"); sm.innerHTML=sum; sm.hidden=false;
   panel.querySelector(".rp-actions").hidden=false;
   panel.querySelector("#rp-list").innerHTML = items.map(i=>

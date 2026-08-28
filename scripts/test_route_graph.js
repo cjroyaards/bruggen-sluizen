@@ -96,7 +96,18 @@ function check(naam, cond, extra) {
   check("route passeert Volkeraksluizen", sluizen.includes("Volkeraksluizen"), sluizen.join(", "));
 }
 
-/* 7. Onbereikbaar: punt ver op zee snapt niet */
+/* 7. Lange overspanning: Veerse Meer -> Zierikzee moet de Zeelandbrug melden */
+{
+  const sa = snap(Math.round(51.546e5), Math.round(3.772e5));
+  const sb = snap(Math.round(51.635e5), Math.round(3.917e5));
+  const r = sa && sb && RP.findRoute(sa, sb);
+  const namen = r ? RP.objsOnRoute(r.geo).map(i => i.o.n) : [];
+  check("Zeelandbrug op route Veerse Meer->Zierikzee", namen.some(n => /Zeelandbrug/.test(n)),
+        namen.join(", ") || "geen");
+  check("Zandkreeksluis op die route", namen.includes("Zandkreeksluis"));
+}
+
+/* 8. Onbereikbaar: punt ver op zee snapt niet */
 {
   const s = snap(Math.round(54.5e5), Math.round(4.0e5));
   check("punt op open zee snapt niet", s === null);

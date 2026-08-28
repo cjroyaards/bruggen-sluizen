@@ -138,31 +138,73 @@ def fetch_lakes():
     raise SystemExit("FOUT: Overpass (meren) niet bereikbaar")
 
 
+SPAN_CACHE = "/tmp/osm_spans.json"
+
+
+def fetch_spans(bboxes):
+    """Lange brugoverspanningen (Zeelandbrug, Ketelbrug, …) uit OSM.
+    Op open water staat een brug in de RWS-data als één of twee punten, terwijl
+    het bouwwerk kilometers lang is — een route kruist hem dan zonder dat het
+    puntje binnen 60 m ligt. Daarom halen we de echte overspanningslijnen op."""
+    if os.path.exists(SPAN_CACHE):
+        return json.load(open(SPAN_CACHE))
+    delen = "".join(f'way["bridge"]["highway"]{b};way["bridge"]["railway"]{b};' for b in bboxes)
+    q = f"[out:json][timeout:600];({delen});out geom;"
+    for m in MIRRORS:
+        for _ in range(2):
+            try:
+                print("Overpass (bruggen):", m)
+                req = urllib.request.Request(m, data=urllib.parse.urlencode({"data": q}).encode(),
+                                             headers={"User-Agent": "openpilot-net (bruggen-sluizen)"})
+                with urllib.request.urlopen(req, timeout=900) as r:
+                    d = json.load(r)
+                json.dump(d, open(SPAN_CACHE, "w"))
+                return d
+            except Exception as e:  # noqa: BLE001
+                print(f"  mislukt ({e})", file=sys.stderr)
+                time.sleep(10)
+    print("  bruggen niet opgehaald; overspanningen overgeslagen", file=sys.stderr)
+    return {"elements": []}
+
+
 def assemble_rings(el):
-    """Ringen (outer én inner, allebei nodig voor even-odd) uit een way of relation."""
+    """Ringen als (rol, ring)-paren ('o' buiten, 'i' gat) uit een way of relation.
+    Eindpunten worden op 1e-7 graad afgerond gekoppeld via een index, zodat ook
+    grote multipolygonen (Grevelingen: 195 leden) betrouwbaar sluiten."""
+    def key(p):
+        return (round(p[0] * 1e7), round(p[1] * 1e7))
+
     if el["type"] == "way":
         g = [(p["lat"], p["lon"]) for p in el.get("geometry", [])]
-        return [g] if len(g) > 3 and g[0] == g[-1] else []
-    segs = []
-    for m in el.get("members", []):
-        if m.get("type") == "way" and m.get("role") in ("outer", "inner", ""):
-            g = [(p["lat"], p["lon"]) for p in m.get("geometry", [])]
-            if len(g) >= 2:
-                segs.append(g)
+        return [("o", g)] if len(g) > 3 and key(g[0]) == key(g[-1]) else []
     rings = []
-    while segs:
-        cur = segs.pop()
-        while cur[0] != cur[-1]:
-            for i, s in enumerate(segs):
-                if s[0] == cur[-1]:   cur = cur + s[1:]; break
-                if s[-1] == cur[-1]:  cur = cur + s[-2::-1]; break
-                if s[-1] == cur[0]:   cur = s[:-1] + cur; break
-                if s[0] == cur[0]:    cur = s[::-1][:-1] + cur; break
-            else:
-                break                 # open keten: weggooien
-            segs.pop(i)
-        if cur[0] == cur[-1] and len(cur) > 3:
-            rings.append(cur)
+    for rol in (("outer", ""), ("inner",)):       # rollen apart: eilanden die de oever
+        segs = []                                  # raken mogen de buitenring niet kapen
+        for m in el.get("members", []):
+            if m.get("type") == "way" and m.get("role", "") in rol:
+                g = [(p["lat"], p["lon"]) for p in m.get("geometry", [])]
+                if len(g) >= 2:
+                    segs.append(g)
+        idx = {}
+        for i, s in enumerate(segs):
+            for k in (key(s[0]), key(s[-1])):
+                idx.setdefault(k, []).append(i)
+        used = [False] * len(segs)
+        for start in range(len(segs)):
+            if used[start]:
+                continue
+            used[start] = True
+            cur = list(segs[start])
+            while key(cur[0]) != key(cur[-1]):
+                k = key(cur[-1])
+                volgende = next((j for j in idx.get(k, []) if not used[j]), None)
+                if volgende is None:
+                    break                          # open keten
+                used[volgende] = True
+                s = segs[volgende]
+                cur += s[1:] if key(s[0]) == k else s[-2::-1]
+            if key(cur[0]) == key(cur[-1]) and len(cur) > 3:
+                rings.append(("o" if "outer" in rol or "" in rol else "i", cur))
     return rings
 
 
@@ -176,36 +218,40 @@ def lake_grids(edges, names, name_idx, nid):
         naam = el["tags"].get("name", "")
         for rx, sp in LAKES:
             if _re.match(rx, naam):
-                rings = [dp_simplify(r, 30.0) for r in assemble_rings(el)]
-                rings = [r for r in rings if len(r) > 3]
+                rings = [(rol, dp_simplify(r, 30.0)) for rol, r in assemble_rings(el)]
+                rings = [(rol, r) for rol, r in rings if len(r) > 3]
                 if rings:
                     lakes.append({"naam": naam, "sp": sp, "rings": rings})
                 break
     # zelfde naam meermaals (bv. Volkerak als way én relation): grootste houden
     best = {}
     for lk in lakes:
-        n = sum(len(r) for r in lk["rings"])
+        n = sum(len(r) for _, r in lk["rings"])
         if lk["naam"] not in best or n > best[lk["naam"]][0]:
             best[lk["naam"]] = (n, lk)
     lakes = [v[1] for v in best.values()]
     print(f"{len(lakes)} meerpolygonen")
 
     def inside(pts, rings):
-        """even-odd puntinpolygoon, gevectoriseerd en in blokken (geheugen); pts (N,2) lat,lon"""
+        """puntinpolygoon met de winding-regel (nonzero) — robuust tegen zichzelf
+        kruisende buitenringen (Grevelingen) — outer-union minus inner-union;
+        gevectoriseerd en in blokken (geheugen); pts (N,2) lat,lon"""
         pts = np.asarray(pts, float)
-        res = np.zeros(len(pts), bool)
-        for ring in rings:
+        in_o = np.zeros(len(pts), bool)
+        in_i = np.zeros(len(pts), bool)
+        for rol, ring in rings:
             r = np.asarray(ring, float)
             y1, x1 = r[:-1, 0][None, :], r[:-1, 1][None, :]
             y2, x2 = r[1:, 0][None, :],  r[1:, 1][None, :]
-            with np.errstate(divide="ignore", invalid="ignore"):
-                helling = (x2 - x1) / (y2 - y1)
+            doel = in_o if rol == "o" else in_i
             for i in range(0, len(pts), 1000):
                 py = pts[i:i + 1000, 0][:, None]
                 px = pts[i:i + 1000, 1][:, None]
-                cross = ((y1 > py) != (y2 > py)) & (px < x1 + (py - y1) * helling)
-                res[i:i + 1000] ^= (cross.sum(axis=1) % 2).astype(bool)
-        return res
+                links = (x2 - x1) * (py - y1) - (px - x1) * (y2 - y1)
+                wn = (((y1 <= py) & (y2 > py) & (links > 0)).sum(axis=1)
+                      - ((y1 > py) & (y2 <= py) & (links < 0)).sum(axis=1))
+                doel[i:i + 1000] |= wn != 0
+        return in_o & ~in_i
 
     # bestaande knooppunten (voor aanhechting) in een celindex
     endpoints = set()
@@ -225,7 +271,7 @@ def lake_grids(edges, names, name_idx, nid):
     for li, lk in enumerate(lakes):
         rings, sp = lk["rings"], lk["sp"]
         nm = nid(lk["naam"])
-        allpts = np.array([p for r in rings for p in r], float)
+        allpts = np.array([p for _, r in rings for p in r], float)
         la0, la1 = allpts[:, 0].min(), allpts[:, 0].max()
         lo0, lo1 = allpts[:, 1].min(), allpts[:, 1].max()
         latm = (la0 + la1) / 2
@@ -396,7 +442,7 @@ def lake_grids(edges, names, name_idx, nid):
     # aan elkaar knopen (bv. een gridje dat nét niet aan de sluisaanloop hecht)
     lake_bbox = []
     for lk in lakes:
-        allp = np.array([p for r in lk["rings"] for p in r], float)
+        allp = np.array([p for _, r in lk["rings"] for p in r], float)
         lake_bbox.append((allp[:, 0].min(), allp[:, 0].max(), allp[:, 1].min(), allp[:, 1].max()))
 
     def inside_any(pts):
@@ -467,6 +513,51 @@ def lake_grids(edges, names, name_idx, nid):
     print(f"vaargrid: {n_nodes} gridpunten, {n_edges} gridkanten, {n_conn} aanhechtingen, "
           f"{n_stitch} meerkoppelingen, {n_lock} sluisdoorgangen, {n_bridge} componentbruggen")
 
+    # ---- lange brugoverspanningen over open water ------------------------
+    spans = []
+    bboxes = []
+    for lk, (b0, b1, b2, b3) in zip(lakes, lake_bbox):
+        bboxes.append(f"({b0:.4f},{b2:.4f},{b1:.4f},{b3:.4f})")
+    ways = [w for w in fetch_spans(bboxes)["elements"] if w.get("type") == "way" and w.get("geometry")]
+    try:
+        stat2 = json.load(gzip.open(os.path.join(os.path.dirname(OUT), "static.json.gz")))
+        bruggen = [o for o in stat2["objs"] if o.get("t") == "B"]
+    except Exception:  # noqa: BLE001
+        bruggen = []
+    gezien = set()
+    for w in ways:
+        g = [(p["lat"], p["lon"]) for p in w["geometry"]]
+        lengte = sum(math.hypot((b[0] - a[0]) * 111320,
+                                (b[1] - a[1]) * 111320 * math.cos(math.radians(a[0])))
+                     for a, b in zip(g, g[1:]))
+        if lengte < 250:
+            continue
+        mid = np.array([[(g[len(g) // 2][0]), (g[len(g) // 2][1])]])
+        if not inside_any(mid).any():
+            continue                                  # brug niet over groot open water
+        simp = dp_simplify(g, 40.0)
+        ip = [(round(la * 1e5), round(lo * 1e5)) for la, lo in simp]
+        sleutel = (ip[0], ip[-1])
+        if sleutel in gezien:
+            continue
+        gezien.add(sleutel)
+        # bijbehorende RWS-brugobjecten: binnen 2,5 km van de overspanningslijn
+        ids = []
+        for o in bruggen:
+            ola, olo = o["lat"], o["lon"]
+            best = min(math.hypot((ola - a[0]) * 111320,
+                                  (olo - a[1]) * 111320 * math.cos(math.radians(ola))) for a in simp)
+            if best < 2500:
+                ids.append(o["id"])
+        if not ids:
+            continue
+        flat = [ip[0][0], ip[0][1]]
+        for (la, lo), (pla, plo) in zip(ip[1:], ip[:-1]):
+            flat += [la - pla, lo - plo]
+        spans.append([flat, ids])
+    print(f"overspanningen: {len(spans)} bruggen over open water")
+    return spans
+
 
 def main():
     d = fetch()
@@ -519,9 +610,9 @@ def main():
                 flat += [la - pla, lo - plo]
             edges.append([nm, flat])
 
-    lake_grids(edges, names, name_idx, nid)
+    spans = lake_grids(edges, names, name_idx, nid)
 
-    out = {"v": 1, "names": names, "e": edges}
+    out = {"v": 1, "names": names, "e": edges, "spans": spans}
     raw = json.dumps(out, separators=(",", ":")).encode()
     with gzip.open(OUT, "wb", compresslevel=9) as f:
         f.write(raw)
