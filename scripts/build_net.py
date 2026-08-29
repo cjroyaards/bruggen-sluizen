@@ -346,6 +346,45 @@ def lake_grids(edges, names, name_idx, nid):
         endpoints.add((la, lo))
     ep = np.array(sorted(endpoints), dtype=np.int64) if endpoints else np.zeros((0, 2), np.int64)
 
+    lake_bbox = []
+    for lk in lakes:
+        allp = np.array([p for _, r in lk["rings"] for p in r], float)
+        lake_bbox.append((allp[:, 0].min(), allp[:, 0].max(), allp[:, 1].min(), allp[:, 1].max()))
+
+    def inside_any(pts):
+        res = np.zeros(len(pts), bool)
+        mn_la, mn_lo = pts[:, 0].min(), pts[:, 1].min()
+        mx_la, mx_lo = pts[:, 0].max(), pts[:, 1].max()
+        for lk, (b0, b1, b2, b3) in zip(lakes, lake_bbox):
+            if mx_la < b0 or mn_la > b1 or mx_lo < b2 or mn_lo > b3:
+                continue
+            res |= inside(pts, lk["rings"])
+            if res.all():
+                break
+        return res
+
+    def aaneengesloten_water(pts):
+        """Loopt de hele lijn over water? Elk tussenpunt (om de ~35 m) moet in
+        een watervlak liggen; ligt er ook maar één punt op het droge, dan zit er
+        een dijk of dam tussen en mag je daar niet oversteken. Aangrenzende
+        wateren delen in OSM hun grenslijn zonder te overlappen, dus eisen dat
+        twee vlakken elkaar overlappen zou juist de Zeeuwse wateren afsluiten."""
+        mn_la, mn_lo = pts[:, 0].min(), pts[:, 1].min()
+        mx_la, mx_lo = pts[:, 0].max(), pts[:, 1].max()
+        dekking = []
+        for lk, (b0, b1, b2, b3) in zip(lakes, lake_bbox):
+            if mx_la < b0 or mn_la > b1 or mx_lo < b2 or mn_lo > b3:
+                continue
+            m = inside(pts, lk["rings"])
+            if m.any():
+                dekking.append(m)
+        if not dekking:
+            return False
+        samen = dekking[0].copy()
+        for m in dekking[1:]:
+            samen |= m
+        return bool(samen.all())
+
     all_grid = {}                     # (la1e5,lo1e5) -> lake-index (voor onderlinge hechting)
     DIRS = [(1, 0), (0, 1), (1, 1), (1, -1), (2, 1), (1, 2), (2, -1), (1, -2)]
     n_nodes = n_edges = n_conn = 0
@@ -438,17 +477,11 @@ def lake_grids(edges, names, name_idx, nid):
                             continue
                         # élk tussenpunt (om de ~90 m) moet in een van beide watervlakken
                         # liggen — anders steek je een dam over (Houtribdijk!)
-                        ns = max(6, int(dist / 90))
+                        ns = max(8, int(dist / 35))
                         ts = [(i + 1) / (ns + 1) for i in range(ns)]
                         samp = np2.array([[(ka[0] + t * (kb[0] - ka[0])) / 1e5,
                                            (ka[1] + t * (kb[1] - ka[1])) / 1e5] for t in ts])
-                        ok_a = inside(samp, ring_by_lake[la_])
-                        ok_b = inside(samp, ring_by_lake[lb_])
-                        # élk tussenpunt in water én ergens een punt dat in béíde
-                        # watervlakken ligt: dan sluiten ze op elkaar aan. Zonder
-                        # zo'n overlap zit er iets tussen (Houtribdijk!) en mag je
-                        # alleen via een sluis of kanaal oversteken.
-                        if (ok_a | ok_b).all() and (ok_a & ok_b).any():
+                        if aaneengesloten_water(samp):
                             edges.append([nid("open water"), [ka[0], ka[1], kb[0] - ka[0], kb[1] - ka[1]], KF_OPEN])
                             n_stitch += 1
     # sluizen die niet aan het lijnennetwerk liggen (bv. Krammersluizen in de
@@ -531,34 +564,6 @@ def lake_grids(edges, names, name_idx, nid):
                 n_lock += 1
     # vangnet: losse netwerkcomponenten die via open water bereikbaar zijn alsnog
     # aan elkaar knopen (bv. een gridje dat nét niet aan de sluisaanloop hecht)
-    lake_bbox = []
-    for lk in lakes:
-        allp = np.array([p for _, r in lk["rings"] for p in r], float)
-        lake_bbox.append((allp[:, 0].min(), allp[:, 0].max(), allp[:, 1].min(), allp[:, 1].max()))
-
-    def inside_any(pts):
-        res = np.zeros(len(pts), bool)
-        mn_la, mn_lo = pts[:, 0].min(), pts[:, 1].min()
-        mx_la, mx_lo = pts[:, 0].max(), pts[:, 1].max()
-        for lk, (b0, b1, b2, b3) in zip(lakes, lake_bbox):
-            if mx_la < b0 or mn_la > b1 or mx_lo < b2 or mn_lo > b3:
-                continue
-            res |= inside(pts, lk["rings"])
-            if res.all():
-                break
-        return res
-
-    def inside_one(pts):
-        """helemaal binnen één en hetzelfde watervlak — zo kan een verbinding
-        nooit ongemerkt van het ene naar het andere water springen"""
-        mn_la, mn_lo = pts[:, 0].min(), pts[:, 1].min()
-        mx_la, mx_lo = pts[:, 0].max(), pts[:, 1].max()
-        for lk, (b0, b1, b2, b3) in zip(lakes, lake_bbox):
-            if mx_la < b0 or mn_la > b1 or mx_lo < b2 or mn_lo > b3:
-                continue
-            if inside(pts, lk["rings"]).all():
-                return True
-        return False
 
     from collections import defaultdict as _dd
     adj = _dd(list)
@@ -606,11 +611,11 @@ def lake_grids(edges, names, name_idx, nid):
                         dist = math.hypot(dy, dx)
                         if dist > 2200:
                             continue
-                        ns = max(6, int(dist / 90))
+                        ns = max(8, int(dist / 35))
                         samp = np.array([[(ka[0] + (i + 1) / (ns + 1) * (kb[0] - ka[0])) / 1e5,
                                           (ka[1] + (i + 1) / (ns + 1) * (kb[1] - ka[1])) / 1e5]
                                          for i in range(ns)])
-                        if inside_one(samp):
+                        if aaneengesloten_water(samp):
                             edges.append([nid("open water"), [ka[0], ka[1], kb[0] - ka[0], kb[1] - ka[1]], KF_OPEN])
                             gedaan.add(paar)
                             n_bridge += 1
@@ -651,7 +656,7 @@ def lake_grids(edges, names, name_idx, nid):
             ola, olo = o["lat"], o["lon"]
             best = min(math.hypot((ola - a[0]) * 111320,
                                   (olo - a[1]) * 111320 * math.cos(math.radians(ola))) for a in simp)
-            if best < 2500:
+            if best < 150:
                 ids.append(o["id"])
         if not ids:
             continue

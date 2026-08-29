@@ -6,7 +6,7 @@ window.RoutePlanner = (function(){
 "use strict";
 
 const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
-  title:"Route planner", hintStart:"Tap the starting point on the map", hintEnd:"Now tap the destination",
+  title:"Route planner", hintStart:"Click the starting point; right-click sets the destination", hintEnd:"Now tap the destination", hintVolgende:"Click again for a via point · right-click sets the destination",
   loading:"Loading waterway network…", calc:"Calculating route…",
   none:"No route found. Tap a bit further from the bank, in open water. Still nothing: reload the page (the network is refreshed weekly). The Wadden Sea and North Sea are not included.",
   neu:"new route", total:"total", bridges:"bridges", locks:"locks", fixed:"fixed",
@@ -18,7 +18,7 @@ const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
   disc:"This shows <b>which bridges and locks</b> lie along your way, so you can check operating times and clearances in advance. It is <b>not a sailing route</b>: the line is not a fairway, ignores depth, buoyage and channels, and on open water runs straight across. An object very close to the line may be listed without you actually passing it. Always navigate on the official chart.",
   start:"Start", end:"Destination"
 } : {
-  title:"Routeplanner", hintStart:"Tik het startpunt aan op de kaart", hintEnd:"Tik nu de bestemming aan",
+  title:"Routeplanner", hintStart:"Klik het startpunt aan; rechtsklik zet de bestemming", hintEnd:"Tik nu de bestemming aan", hintVolgende:"Nog een klik = via-punt · rechtsklik zet de bestemming",
   loading:"Vaarwegennetwerk laden…", calc:"Route berekenen…",
   none:"Geen route gevonden. Tik iets verder uit de kant, midden op het water. Werkt het dan nog niet: herlaad de pagina (het netwerk wordt wekelijks bijgewerkt). Waddenzee en Noordzee zitten er niet in.",
   neu:"nieuwe route", total:"totaal", bridges:"bruggen", locks:"sluizen", fixed:"vast",
@@ -294,6 +294,7 @@ function nodigeHoogte(){
 /* ---------- UI ---------- */
 let mode=0;                    // 0 uit, 1 wacht start, 2 wacht eind, 3 route, 4 wacht via-punt
 let punten=[];                 // [{latlng, marker}] — start, via-punten, bestemming
+let eindGezet=false;           // is de bestemming al met rechtsklik gezet?
 let lineBack=null, lineFront=null, panel=null, clickBound=false;
 
 function css(){
@@ -400,7 +401,7 @@ function clearRoute(){
   panel.querySelector("#rp-list").innerHTML="";
 }
 
-function restart(){ clearRoute(); mode=1; hint(TXT.hintStart); setCursor(true); }
+function restart(){ clearRoute(); eindGezet=false; mode=1; hint(TXT.hintStart); setCursor(true); }
 
 /* via-punt invoegen op de plek waar het de minste omweg kost */
 function voegVia(latlng){
@@ -442,20 +443,41 @@ function dot(latlng, color, label){
     .bindTooltip(label,{direction:"top",offset:[0,-8]}).addTo(map);
 }
 
+/* Klikken: 1e klik = start, elke volgende klik = via-punt (achteraan),
+   rechtsklik (of lang indrukken op een tik-scherm) = bestemming. */
 function onMapClick(e){
-  if (mode===1){
-    punten=[{latlng:e.latlng, marker:dot(e.latlng, "#0ca30c", TXT.start)}];
-    mode=2; hint(TXT.hintEnd);
-  } else if (mode===2){
-    punten.push({latlng:e.latlng, marker:dot(e.latlng, "#d03b3b", TXT.end)});
-    mode=3; setCursor(false);
-    compute();
-  } else if (mode===4){
+  if (mode===0) return;
+  if (mode===4){                       // via-knop: invoegen op de beste plek
     voegVia(e.latlng);
     mode=3; setCursor(false);
     panel.querySelector("#rp-via").classList.remove("arm");
     compute();
+    return;
   }
+  if (!punten.length){
+    punten=[{latlng:e.latlng, marker:dot(e.latlng,"#0ca30c",TXT.start)}];
+    mode=2; hint(TXT.hintVolgende);
+    return;
+  }
+  if (mode===3 && eindGezet){          // route af: klik voegt een via-punt toe
+    punten.splice(punten.length-1, 0, {latlng:e.latlng, marker:dot(e.latlng,"#7c3aed",TXT.via)});
+    compute();
+    return;
+  }
+  punten.push({latlng:e.latlng, marker:dot(e.latlng,"#7c3aed",TXT.via)});
+  hint(TXT.hintVolgende);
+}
+
+/* rechtsklik / lang indrukken zet de bestemming en rekent de route */
+function onMapEnd(e){
+  if (mode===0 || !punten.length) return;
+  if (eindGezet){                      // bestemming verplaatsen
+    const laatste = punten.pop();
+    if (laatste.marker) map.removeLayer(laatste.marker);
+  }
+  punten.push({latlng:e.latlng, marker:dot(e.latlng,"#d03b3b",TXT.end)});
+  eindGezet=true; mode=3; setCursor(false);
+  compute();
 }
 
 async function compute(){
@@ -514,7 +536,7 @@ function render(r){
 
 function toggle(){
   initPanel();
-  if (!clickBound){ map.on("click", onMapClick); clickBound=true; }
+  if (!clickBound){ map.on("click", onMapClick); map.on("contextmenu", onMapEnd); clickBound=true; }
   if (mode!==0){ off(); return; }
   panel.hidden=false;
   loadNet();                       // vast beginnen met laden
