@@ -612,7 +612,7 @@ def main():
 
     spans = lake_grids(edges, names, name_idx, nid)
 
-    out = {"v": 1, "names": names, "e": edges, "spans": spans}
+    out = {"v": 1, "built": int(time.time() * 1000), "names": names, "e": edges, "spans": spans}
     raw = json.dumps(out, separators=(",", ":")).encode()
     with gzip.open(OUT, "wb", compresslevel=9) as f:
         f.write(raw)

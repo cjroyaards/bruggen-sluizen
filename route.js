@@ -8,7 +8,7 @@ window.RoutePlanner = (function(){
 const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
   title:"Route planner", hintStart:"Tap the starting point on the map", hintEnd:"Now tap the destination",
   loading:"Loading waterway network…", calc:"Calculating route…",
-  none:"No route found — the points may not be connected via the network (the Wadden Sea and North Sea are not included).",
+  none:"No route found. Tap a bit further from the bank, in open water. Still nothing: reload the page (the network is refreshed weekly). The Wadden Sea and North Sea are not included.",
   neu:"new route", total:"total", bridges:"bridges", locks:"locks", fixed:"fixed",
   lowest:"lowest fixed bridge", narrowest:"narrowest passage",
   mastwarn:(hf,m)=>`Warning: lowest fixed bridge ${hf} m is too low for mast ${m} m`,
@@ -18,7 +18,7 @@ const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
 } : {
   title:"Routeplanner", hintStart:"Tik het startpunt aan op de kaart", hintEnd:"Tik nu de bestemming aan",
   loading:"Vaarwegennetwerk laden…", calc:"Route berekenen…",
-  none:"Geen route gevonden — mogelijk zijn de punten niet verbonden via het netwerk (Waddenzee en Noordzee zitten er niet in).",
+  none:"Geen route gevonden. Tik iets verder uit de kant, midden op het water. Werkt het dan nog niet: herlaad de pagina (het netwerk wordt wekelijks bijgewerkt). Waddenzee en Noordzee zitten er niet in.",
   neu:"nieuwe route", total:"totaal", bridges:"bruggen", locks:"sluizen", fixed:"vast",
   lowest:"laagste vaste brug", narrowest:"smalste doorvaart",
   mastwarn:(hf,m)=>`Let op: laagste vaste brug ${hf} m is te laag voor mast ${m} m`,
@@ -30,6 +30,7 @@ const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
 /* ---------- graaf ---------- */
 let NET = null;            // {edges:[{pts:Int32Array, len, name}], adj:Map(nodeKey->[{ei,end}])}
 let netPromise = null;
+let NETBUILT = null;       // wanneer het netwerkbestand gebouwd is (ms)
 
 function key(la, lo){ return la+","+lo; }
 function mPerLat(){ return 1.1132; }               // meter per 1e-5 graad
@@ -68,7 +69,7 @@ function decodeNet(raw){
 
 function loadNet(){
   if (netPromise) return netPromise;
-  netPromise = fetchGz("data/net.json.gz").then(raw=>{ NET = decodeNet(raw); return NET; });
+  netPromise = fetchGz("data/net.json.gz").then(raw=>{ NETBUILT = raw.built||null; NET = decodeNet(raw); stampNet(); return NET; });
   return netPromise;
 }
 
@@ -295,6 +296,7 @@ function css(){
 #routepanel .rp-disc{padding:8px 12px 10px;color:var(--ink2);font-size:11.5px;line-height:1.45;
   border-top:1px solid var(--grid);background:var(--chip-ser-bg)}
 #routepanel .rp-disc-t{display:block;color:var(--serious);font-size:12px;margin-bottom:3px}
+#routepanel .rp-stamp{margin-top:5px;color:var(--muted);font-size:10.5px}
 .rp-arming .leaflet-marker-pane *,.rp-arming .leaflet-shadow-pane *{pointer-events:none !important}
 .rp-arming .leaflet-marker-pane,.rp-arming .leaflet-shadow-pane{pointer-events:none !important}
 @media (max-width:640px){
@@ -314,7 +316,8 @@ function initPanel(){
     <div class="rp-actions" hidden><button id="rp-new">${TXT.neu}</button></div>
     <div class="rp-sum" id="rp-sum" hidden></div>
     <div class="rp-list" id="rp-list"></div>
-    <div class="rp-disc"><b class="rp-disc-t">⚠ ${TXT.discTitle}</b>${TXT.disc}</div>
+    <div class="rp-disc"><b class="rp-disc-t">⚠ ${TXT.discTitle}</b>${TXT.disc}
+      <div id="rp-stamp" class="rp-stamp"></div></div>
   </div>`);
   document.getElementById("v-kaart").appendChild(panel);
   panel.querySelector(".rp-x").addEventListener("click", e=>{ e.preventDefault(); e.stopPropagation(); off(); });
@@ -327,6 +330,19 @@ function initPanel(){
 }
 
 function hint(t){ const e=panel.querySelector("#rp-hint"); e.textContent=t; e.hidden=!t; }
+
+/* netwerkdatum tonen: zo is meteen te zien of een oud tabblad nog oude data heeft */
+function stampNet(){
+  if (!panel || !NETBUILT) return;
+  const el = panel.querySelector("#rp-stamp");
+  if (!el) return;
+  const d = new Intl.DateTimeFormat(LANG==="en"?"en-GB":"nl-NL",
+              {day:"numeric",month:"short",year:"numeric"}).format(new Date(NETBUILT));
+  const oud = (Date.now()-NETBUILT) > 21*86400000;
+  el.textContent = (LANG==="en"?"waterway network of ":"vaarwegennetwerk van ") + d
+                 + (oud ? (LANG==="en"?" · reload the page for the latest":" · herlaad de pagina voor de nieuwste") : "");
+  el.style.color = oud ? "var(--serious)" : "";
+}
 
 function clearRoute(){
   for (const ly of [mStart,mEnd,lineBack,lineFront]) if (ly) map.removeLayer(ly);
