@@ -440,6 +440,18 @@ def lake_grids(edges, names, name_idx, nid):
             sel = ep[(ep[:, 0] > (la0 - .01) * 1e5) & (ep[:, 0] < (la1 + .01) * 1e5)
                      & (ep[:, 1] > (lo0 - .01) * 1e5) & (ep[:, 1] < (lo1 + .01) * 1e5)]
             gridpts = np.array(list(idx.values()), dtype=np.int64)
+            # alleen aanhechten aan knooppunten die zélf aan dit water liggen:
+            # een punt dat kilometers landinwaarts ligt (Muiderberg achter de
+            # zeedijk) mag nooit met een rechte lijn aan het IJmeer geknoopt
+            # worden — daar hoort een sluis te zitten.
+            if len(sel):
+                bij = np.zeros(len(sel), bool)
+                rla, rlo = 150 / 111320.0, 150 / (111320.0 * math.cos(math.radians(latm)))
+                grond = sel / 1e5
+                for oy in (-1, 0, 1):
+                    for ox in (-1, 0, 1):
+                        bij |= inside(grond + [oy * rla, ox * rlo], rings)
+                sel = sel[bij]
             for la, lo in sel:
                 dv = (gridpts - [la, lo]).astype(float)
                 dv[:, 1] *= math.cos(math.radians(la / 1e5))
