@@ -545,7 +545,10 @@ def lake_grids(edges, names, name_idx, nid):
                         vy = (k[0] - la) * 1.1132
                         vx = (k[1] - lo) * 1.1132 * math.cos(math.radians(la / 1e5))
                         dist = math.hypot(vy, vx)
-                        if 60 < dist < 1500:
+                        # een sluis is een compact bouwwerk: de aansluitpunten
+                        # liggen er vlakbij. Verder weg zoeken levert een rechte
+                        # lijn dwars door de polder (Muiden/Krijgsman).
+                        if 40 < dist < 700:
                             buren.append((dist, k, math.atan2(vy, vx), comp0[k]))
             if len(buren) < 2:
                 continue
@@ -561,7 +564,7 @@ def lake_grids(edges, names, name_idx, nid):
                         continue             # zelfde component: geen doorgang nodig
                     hoek = abs(buren[i][2] - buren[j][2])
                     hoek = min(hoek, 2 * math.pi - hoek)
-                    if hoek > math.radians(100):
+                    if hoek > math.radians(120):
                         # geforceerde doorgangen: grootste hoek (echt óver de dam);
                         # anders: kortste verbinding tussen de twee componenten
                         score = -hoek if forceer else buren[i][0] + buren[j][0]
