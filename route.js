@@ -10,8 +10,10 @@ const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
   loading:"Loading waterway network…", calc:"Calculating route…",
   none:"No route found. Tap a bit further from the bank, in open water. Still nothing: reload the page (the network is refreshed weekly). The Wadden Sea and North Sea are not included.",
   neu:"new route", total:"total", bridges:"bridges", locks:"locks", fixed:"fixed",
+  viaBtn:"+ via point", hintVia:"Tap a point the route must pass through", via:"Via",
+  hoogte:"air draft", hoogteHint:"Height of your boat above the water — fixed bridges that are too low are flagged.",
   lowest:"lowest fixed bridge", narrowest:"narrowest passage",
-  mastwarn:(hf,m)=>`Warning: lowest fixed bridge ${hf} m is too low for mast ${m} m`,
+  mastwarn:(hf,m)=>`Warning: lowest fixed bridge is ${hf} m — too low for an air draft of ${m} m`,
   discTitle:"Bridge and lock planner — not a navigation route",
   disc:"This shows <b>which bridges and locks</b> lie along your way, so you can check operating times and clearances in advance. It is <b>not a sailing route</b>: the line is not a fairway, ignores depth, buoyage and channels, and on open water runs straight across. An object very close to the line may be listed without you actually passing it. Always navigate on the official chart.",
   start:"Start", end:"Destination"
@@ -20,8 +22,10 @@ const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
   loading:"Vaarwegennetwerk laden…", calc:"Route berekenen…",
   none:"Geen route gevonden. Tik iets verder uit de kant, midden op het water. Werkt het dan nog niet: herlaad de pagina (het netwerk wordt wekelijks bijgewerkt). Waddenzee en Noordzee zitten er niet in.",
   neu:"nieuwe route", total:"totaal", bridges:"bruggen", locks:"sluizen", fixed:"vast",
+  viaBtn:"+ via-punt", hintVia:"Tik een punt aan waar de route langs moet", via:"Via",
+  hoogte:"doorvaarthoogte", hoogteHint:"Hoogte van je boot boven water — te lage vaste bruggen worden gemeld.",
   lowest:"laagste vaste brug", narrowest:"smalste doorvaart",
-  mastwarn:(hf,m)=>`Let op: laagste vaste brug ${hf} m is te laag voor mast ${m} m`,
+  mastwarn:(hf,m)=>`Let op: laagste vaste brug is ${hf} m — te laag voor doorvaarthoogte ${m} m`,
   discTitle:"Bruggen- en sluizenplanner — geen vaarroute",
   disc:"Dit laat zien <b>welke bruggen en sluizen</b> op je weg liggen, zodat je bedieningstijden en doorvaarthoogtes vooraf kunt nakijken. Het is <b>geen vaarroute</b>: de lijn is geen vaargeul, houdt geen rekening met diepte, betonning of geulen, en gaat op open water rechtdoor. Een object vlak langs de lijn kan meegeteld worden zonder dat je het echt passeert. Vaar altijd op de officiële kaart.",
   start:"Start", end:"Bestemming"
@@ -48,7 +52,7 @@ function decodeSpans(raw){
 function decodeNet(raw){
   decodeSpans(raw);
   const edges = [], adj = new Map();
-  for (const [ni, flat] of raw.e){
+  for (const [ni, flat, kf, dm] of raw.e){
     const n = flat.length/2;
     const pts = new Int32Array(flat.length);
     pts[0]=flat[0]; pts[1]=flat[1];
@@ -59,7 +63,9 @@ function decodeNet(raw){
       len += Math.hypot((pts[i+1]-pts[i-1])*kx,(pts[i]-pts[i-2])*mPerLat());
     }
     const ei = edges.length;
-    edges.push({pts, len, name: raw.names[ni]||""});
+    /* kost = lengte × voorkeursfactor: hoofdvaarwegen tellen hun echte lengte,
+       kleine wateren tellen zwaarder, zodat de route de doorgaande route kiest */
+    edges.push({pts, len, kost: len*((kf||100)/100), hoogte: dm ? dm/10 : null, name: raw.names[ni]||""});
     const a = key(pts[0],pts[1]), b = key(pts[2*n-2],pts[2*n-1]);
     if(!adj.has(a)) adj.set(a,[]); adj.get(a).push({ei,end:0});
     if(!adj.has(b)) adj.set(b,[]); adj.get(b).push({ei,end:1});
@@ -125,8 +131,16 @@ function edgeGeo(ei, fromEnd){
   return geo;
 }
 
+/* echte afstand langs een reeks punten (de A* rekent met voorkeurskosten) */
+function geoMeters(geo){
+  let m=0;
+  for (let i=1;i<geo.length;i++)
+    m += Math.hypot((geo[i][1]-geo[i-1][1])*mPerLon(geo[i][0]), (geo[i][0]-geo[i-1][0])*mPerLat());
+  return m;
+}
+
 /* A* van snap-punt naar snap-punt; retour {geo:[[la1e5,lo1e5],…], meters} of null */
-function findRoute(sa, sb){
+function findRoute(sa, sb, nodig){
   if (sa.ei===sb.ei){                // zelfde kant: stukje ertussen
     const a = sa, b = sb;
     const first = (a.seg<b.seg || (a.seg===b.seg && a.t<=b.t)) ? a : b;
@@ -169,8 +183,9 @@ function findRoute(sa, sb){
     const nbrs = NET.adj.get(k0)||[];
     for (const {ei,end} of nbrs){
       const e=NET.edges[ei], np=e.pts.length/2;
+      if (nodig!=null && e.hoogte!=null && e.hoogte < nodig) continue;   // te lage vaste brug
       const ok = end===0 ? key(e.pts[2*np-2],e.pts[2*np-1]) : key(e.pts[0],e.pts[1]);
-      const ng = g+e.len;
+      const ng = g+e.kost;
       if (ng < (gscore.get(ok)??1e18)){
         gscore.set(ok,ng); parent.set(ok,{prev:k0,ei});
         heap.push([ng+h(ok),ok]); up(heap.length-1);
@@ -199,7 +214,7 @@ function findRoute(sa, sb){
   }
   /* viaEnd 0: binnengekomen op kant-begin → geo van begin naar snap; viaEnd 1: van eind naar snap */
   geo.push(...(best.viaEnd===0 ? edgePartial(sb.ei,sb,true).geo.slice(1) : edgePartial(sb.ei,sb,false).geo.slice().reverse().slice(1)));
-  return {geo, meters:best.tot};
+  return {geo, meters:geoMeters(geo)};
 }
 
 /* ---------- bruggen/sluizen op de route ---------- */
@@ -220,7 +235,8 @@ function objsOnRoute(geo, maxM){
   for (const o of DATA.objs){
     if (o.t!=="B" && o.t!=="S") continue;
     const ola=Math.round(o.lat*1e5), olo=Math.round(o.lon*1e5);
-    const margLat=maxM/1.1132, margLon=maxM/mPerLon(ola);
+    const zoek=(o.t==="S")?Math.max(maxM,250):maxM;
+    const margLat=zoek/1.1132, margLon=zoek/mPerLon(ola);
     let best=null;
     for (const [c,e,mnLa,mxLa,mnLo,mxLo] of chunks){
       if (ola<mnLa-margLat||ola>mxLa+margLat||olo<mnLo-margLon||olo>mxLo+margLon) continue;
@@ -234,7 +250,10 @@ function objsOnRoute(geo, maxM){
         if(!best||d<best.d) best={d, along:cum[i]+t*(cum[i+1]-cum[i])};
       }
     }
-    if (best && best.d<=maxM) out.push({o, along:best.along});
+    /* sluizen zijn grote complexen (een naviduct is honderden meters breed) en
+       het RWS-punt ligt zelden precies op de vaarlijn — ruimere marge dan bruggen */
+    const marge = (o.t==="S") ? Math.max(maxM, 250) : maxM;
+    if (best && best.d<=marge) out.push({o, along:best.along});
   }
 
   /* lange bruggen over open water (Zeelandbrug, Ketelbrug, …) staan in de
@@ -266,9 +285,16 @@ function objsOnRoute(geo, maxM){
   return out;
 }
 
+/* benodigde doorvaarthoogte: ingevulde bootshoogte + 20 cm marge */
+function nodigeHoogte(){
+  const v = panel ? parseFloat(panel.querySelector("#rp-hoogte").value) : NaN;
+  return isNaN(v) ? null : v + 0.2;
+}
+
 /* ---------- UI ---------- */
-let mode=0;                    // 0 uit, 1 wacht start, 2 wacht eind, 3 route
-let mStart=null, mEnd=null, lineBack=null, lineFront=null, panel=null, clickBound=false;
+let mode=0;                    // 0 uit, 1 wacht start, 2 wacht eind, 3 route, 4 wacht via-punt
+let punten=[];                 // [{latlng, marker}] — start, via-punten, bestemming
+let lineBack=null, lineFront=null, panel=null, clickBound=false;
 
 function css(){
   const s=document.createElement("style");
@@ -290,9 +316,14 @@ function css(){
 #routepanel .rp-km{position:absolute;top:-7px;left:10px;z-index:5;background:var(--brand);color:#fff;border-radius:8px;
   font-size:10.5px;font-weight:700;padding:1px 7px;box-shadow:0 1px 4px rgba(0,0,0,.25)}
 #routepanel .rp-list .card{margin:0;cursor:pointer}
-#routepanel .rp-actions{padding:7px 12px;border-bottom:1px solid var(--grid)}
+#routepanel .rp-actions{padding:7px 12px;border-bottom:1px solid var(--grid);display:flex;
+  flex-wrap:wrap;gap:7px;align-items:center}
 #routepanel .rp-actions button{background:var(--surface);border:1px solid var(--grid);border-radius:8px;
   padding:5px 11px;font-size:12.5px;color:var(--ink2);cursor:pointer}
+#routepanel .rp-actions button.arm{background:var(--brand);border-color:var(--brand);color:#fff}
+#routepanel .rp-h{display:inline-flex;align-items:center;gap:5px;margin-left:auto;font-size:12px;color:var(--ink2)}
+#routepanel .rp-h input{width:52px;padding:4px 6px;font-size:12.5px;text-align:right;
+  border:1px solid var(--grid);border-radius:7px;background:var(--surface);color:var(--ink)}
 #routepanel .rp-disc{padding:8px 12px 10px;color:var(--ink2);font-size:11.5px;line-height:1.45;
   border-top:1px solid var(--grid);background:var(--chip-ser-bg)}
 #routepanel .rp-disc-t{display:block;color:var(--serious);font-size:12px;margin-bottom:3px}
@@ -313,7 +344,11 @@ function initPanel(){
   panel = el(`<div id="routepanel" hidden>
     <div class="rp-head"><span>${TXT.title}</span><button type="button" class="rp-x" aria-label="sluiten" title="sluiten">✕</button></div>
     <div class="rp-hint" id="rp-hint"></div>
-    <div class="rp-actions" hidden><button id="rp-new">${TXT.neu}</button></div>
+    <div class="rp-actions" hidden>
+      <button id="rp-new">${TXT.neu}</button>
+      <button id="rp-via">${TXT.viaBtn}</button>
+      <label class="rp-h">${TXT.hoogte} <input type="number" id="rp-hoogte" step="0.1" min="0" placeholder="–"> m</label>
+    </div>
     <div class="rp-sum" id="rp-sum" hidden></div>
     <div class="rp-list" id="rp-list"></div>
     <div class="rp-disc"><b class="rp-disc-t">⚠ ${TXT.discTitle}</b>${TXT.disc}
@@ -322,6 +357,17 @@ function initPanel(){
   document.getElementById("v-kaart").appendChild(panel);
   panel.querySelector(".rp-x").addEventListener("click", e=>{ e.preventDefault(); e.stopPropagation(); off(); });
   panel.querySelector("#rp-new").onclick = restart;
+  panel.querySelector("#rp-via").onclick = ()=>{
+    if (mode===4){ mode=3; setCursor(false); panel.querySelector("#rp-via").classList.remove("arm"); hint(""); return; }
+    mode=4; setCursor(true); panel.querySelector("#rp-via").classList.add("arm"); hint(TXT.hintVia);
+  };
+  /* doorvaarthoogte: gekoppeld aan het bestaande mastveld, zodat de site één waarde kent */
+  const h = panel.querySelector("#rp-hoogte"), mast = document.getElementById("mast");
+  if (mast && mast.value) h.value = mast.value;
+  h.addEventListener("input", ()=>{
+    if (mast){ mast.value = h.value; mast.dispatchEvent(new Event("input",{bubbles:true})); }
+    if (punten.length>1 && lineFront) compute();
+  });
   /* Escape sluit de planner — maar als het detailpaneel open is, sluit die eerst
      (capture-fase: wij kijken vóórdat index.html het detail al gesloten heeft) */
   document.addEventListener("keydown", e=>{
@@ -345,14 +391,27 @@ function stampNet(){
 }
 
 function clearRoute(){
-  for (const ly of [mStart,mEnd,lineBack,lineFront]) if (ly) map.removeLayer(ly);
-  mStart=mEnd=lineBack=lineFront=null;
+  for (const p of punten) if (p.marker) map.removeLayer(p.marker);
+  punten=[];
+  for (const ly of [lineBack,lineFront]) if (ly) map.removeLayer(ly);
+  lineBack=lineFront=null;
   panel.querySelector("#rp-sum").hidden=true;
   panel.querySelector(".rp-actions").hidden=true;
   panel.querySelector("#rp-list").innerHTML="";
 }
 
 function restart(){ clearRoute(); mode=1; hint(TXT.hintStart); setCursor(true); }
+
+/* via-punt invoegen op de plek waar het de minste omweg kost */
+function voegVia(latlng){
+  const d=(a,b)=>Math.hypot((b.lng-a.lng)*Math.cos(a.lat*Math.PI/180)*111320,(b.lat-a.lat)*111320);
+  let best=1, bestKost=Infinity;
+  for (let i=0;i<punten.length-1;i++){
+    const k = d(punten[i].latlng,latlng)+d(latlng,punten[i+1].latlng)-d(punten[i].latlng,punten[i+1].latlng);
+    if (k<bestKost){ bestKost=k; best=i+1; }
+  }
+  punten.splice(best,0,{latlng, marker:dot(latlng,"#7c3aed",TXT.via)});
+}
 
 function off(){
   clearRoute(); mode=0; panel.hidden=true; setCursor(false);
@@ -385,24 +444,40 @@ function dot(latlng, color, label){
 
 function onMapClick(e){
   if (mode===1){
-    if (mStart) map.removeLayer(mStart);
-    mStart = dot(e.latlng, "#0ca30c", TXT.start);
+    punten=[{latlng:e.latlng, marker:dot(e.latlng, "#0ca30c", TXT.start)}];
     mode=2; hint(TXT.hintEnd);
   } else if (mode===2){
-    if (mEnd) map.removeLayer(mEnd);
-    mEnd = dot(e.latlng, "#d03b3b", TXT.end);
+    punten.push({latlng:e.latlng, marker:dot(e.latlng, "#d03b3b", TXT.end)});
     mode=3; setCursor(false);
-    compute(mStart.getLatLng(), mEnd.getLatLng());
+    compute();
+  } else if (mode===4){
+    voegVia(e.latlng);
+    mode=3; setCursor(false);
+    panel.querySelector("#rp-via").classList.remove("arm");
+    compute();
   }
 }
 
-async function compute(a, b){
+async function compute(){
   hint(NET ? TXT.calc : TXT.loading);
   try { await loadNet(); } catch(err){ hint("net.json.gz: "+err.message); return; }
-  const sa = snap(Math.round(a.lat*1e5), Math.round(a.lng*1e5));
-  const sb = snap(Math.round(b.lat*1e5), Math.round(b.lng*1e5));
-  const r = (sa && sb) ? findRoute(sa, sb) : null;
-  if (!r){ hint(TXT.none); panel.querySelector(".rp-actions").hidden=false; return; }
+  /* per traject tussen opeenvolgende punten zoeken en aan elkaar plakken */
+  const geo=[];
+  for (let i=0;i<punten.length-1;i++){
+    const a=punten[i].latlng, b=punten[i+1].latlng;
+    const sa = snap(Math.round(a.lat*1e5), Math.round(a.lng*1e5));
+    const sb = snap(Math.round(b.lat*1e5), Math.round(b.lng*1e5));
+    /* nodigeHoogte() nog niet meegeven: het netwerk kent de doorvaarthoogtes al
+       (data/net.json.gz), maar de bruggenlijst werkt op nabijheid en meldt dan
+       bruggen die je niet echt passeert. Eerst objecten per vaarwegvak koppelen,
+       daarna kan de planner ook echt om te lage bruggen heen zoeken. */
+    const deel = (sa && sb) ? findRoute(sa, sb, null) : null;
+    if (!deel){ hint(TXT.none); panel.querySelector(".rp-actions").hidden=false; return; }
+    geo.push(...(i===0 ? deel.geo : deel.geo.slice(1)));
+  }
+  const r = {geo, meters: geoMeters(geo)};
+  if (lineBack) map.removeLayer(lineBack);
+  if (lineFront) map.removeLayer(lineFront);
   hint("");
   const latlngs = r.geo.map(p=>[p[0]/1e5, p[1]/1e5]);
   lineBack  = L.polyline(latlngs,{color:"#fff",weight:8,opacity:.85,renderer:renderer()}).addTo(map);

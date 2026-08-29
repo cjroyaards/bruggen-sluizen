@@ -50,6 +50,31 @@ def fetch():
     raise SystemExit("FOUT: Overpass niet bereikbaar")
 
 
+KF_OPEN = 112      # open water: prima om over te steken, maar iets minder "vanzelf"
+CEMT_KOST = {"VII": 100, "VIb": 100, "VIa": 100, "VI": 100, "Vb": 100, "Va": 100,
+             "IV": 106, "III": 118, "II": 132, "I": 145, "0": 160}
+
+
+def kostfactor(tags):
+    """Voorkeursfactor per vaarweg (×100). Hoofdvaarwegen tellen hun echte lengte,
+    kleine wateren tellen zwaarder — anders knipt de kortste-pad-zoeker dwars door
+    sloten en poldervaarten in plaats van via het Prinses Margrietkanaal te gaan."""
+    c = (tags.get("CEMT") or "").strip()
+    if c in CEMT_KOST:
+        return CEMT_KOST[c]
+    br = tags.get("width") or tags.get("maxwidth")
+    try:
+        if br and float(str(br).split()[0]) >= 20:
+            return 120
+    except ValueError:
+        pass
+    if tags.get("waterway") == "river" and tags.get("name"):
+        return 125
+    if tags.get("name"):
+        return 150
+    return 185                       # naamloos slootje: alleen als het echt moet
+
+
 def keep(way):
     t = way.get("tags", {})
     if t.get("tunnel") in ("culvert", "flooded", "yes") and t.get("bridge") != "aqueduct":
@@ -116,26 +141,59 @@ LAKES = [
 LAKE_CACHE = "/tmp/osm_lakes.json"
 
 
-def fetch_lakes():
-    if os.path.exists(LAKE_CACHE):
-        return json.load(open(LAKE_CACHE))
-    rx = "|".join(r.strip("^$") for r, _ in LAKES)
-    q = (f'[out:json][timeout:600];wr["natural"="water"]["name"~"^({rx})$"]{BBOX};'
-         f'out body geom;')
+MIN_OPP_KM2 = 0.5          # kleiner dan dit heeft geen eigen vaargrid nodig
+OEVER_M = 70               # vaste afstand tot de oever voor gridpunten
+GRID_VANAF_KM2 = 2.0       # alleen echt open water krijgt een vaargrid
+
+
+def _overpass(q, wat):
     for m in MIRRORS:
         for _ in range(2):
             try:
-                print("Overpass (meren):", m)
+                print(f"Overpass ({wat}):", m)
                 req = urllib.request.Request(m, data=urllib.parse.urlencode({"data": q}).encode(),
                                              headers={"User-Agent": "openpilot-net (bruggen-sluizen)"})
                 with urllib.request.urlopen(req, timeout=900) as r:
-                    d = json.load(r)
-                json.dump(d, open(LAKE_CACHE, "w"))
-                return d
+                    return json.load(r)
             except Exception as e:  # noqa: BLE001
                 print(f"  mislukt ({e})", file=sys.stderr)
                 time.sleep(10)
-    raise SystemExit("FOUT: Overpass (meren) niet bereikbaar")
+    raise SystemExit(f"FOUT: Overpass ({wat}) niet bereikbaar")
+
+
+def fetch_lakes():
+    """Alle benoemde wateroppervlakken boven MIN_OPP_KM2 — niet een handmatige
+    namenlijst, want vaarwegen lopen door tientallen meren (het Prinses
+    Margrietkanaal alleen al door de Grutte Brekken, De Kûfurd, Snitser Mar,
+    Pikmeer, Wide Ie en de Burgumer Mar). Twee stappen: eerst alleen de omvang
+    opvragen, dan de geometrie van wat groot genoeg is."""
+    if os.path.exists(LAKE_CACHE):
+        return json.load(open(LAKE_CACHE))
+    kop = _overpass(f'[out:json][timeout:600];wr["natural"="water"]["name"]{BBOX};out tags bb;', "meren-index")
+    ids_w, ids_r, opp = [], [], {}
+    for e in kop["elements"]:
+        b = e.get("bounds")
+        if not b:
+            continue
+        dla = (b["maxlat"] - b["minlat"]) * 111.32
+        dlo = (b["maxlon"] - b["minlon"]) * 111.32 * math.cos(math.radians(b["minlat"]))
+        o = dla * dlo
+        if o < MIN_OPP_KM2:
+            continue
+        opp[(e["type"], e["id"])] = o
+        (ids_w if e["type"] == "way" else ids_r).append(e["id"])
+    print(f"meren ≥ {MIN_OPP_KM2} km²: {len(ids_w)} ways + {len(ids_r)} relations")
+    els = []
+    for i in range(0, max(len(ids_w), len(ids_r)), 300):
+        w = ",".join(map(str, ids_w[i:i + 300]))
+        r = ",".join(map(str, ids_r[i:i + 300]))
+        delen = (f"way(id:{w});" if w else "") + (f"rel(id:{r});" if r else "")
+        if not delen:
+            continue
+        els += _overpass(f"[out:json][timeout:600];({delen});out body geom;", "meren-geometrie")["elements"]
+    d = {"elements": els, "opp": {f"{k[0]}/{k[1]}": v for k, v in opp.items()}}
+    json.dump(d, open(LAKE_CACHE, "w"))
+    return d
 
 
 SPAN_CACHE = "/tmp/osm_spans.json"
@@ -216,20 +274,43 @@ def lake_grids(edges, names, name_idx, nid):
     lakes = []
     for el in (e for e in d["elements"] if "tags" in e):
         naam = el["tags"].get("name", "")
-        for rx, sp in LAKES:
-            if _re.match(rx, naam):
-                rings = [(rol, dp_simplify(r, 30.0)) for rol, r in assemble_rings(el)]
-                rings = [(rol, r) for rol, r in rings if len(r) > 3]
-                if rings:
-                    lakes.append({"naam": naam, "sp": sp, "rings": rings})
-                break
-    # zelfde naam meermaals (bv. Volkerak als way én relation): grootste houden
-    best = {}
+        rings = [(rol, dp_simplify(r, 30.0)) for rol, r in assemble_rings(el)]
+        rings = [(rol, r) for rol, r in rings if len(r) > 3]
+        if not rings:
+            continue
+        # échte oppervlakte (niet de bbox: het Veerse Meer is smal maar 20 km lang)
+        opp_km2 = 0.0
+        for rol, r in rings:
+            a = 0.0
+            for (y1, x1), (y2, x2) in zip(r, r[1:]):
+                a += (x2 - x1) * (y2 + y1) / 2
+            km2 = abs(a) * 111.32 * 111.32 * math.cos(math.radians(r[0][0]))
+            opp_km2 += km2 if rol == "o" else -km2
+        if opp_km2 < GRID_VANAF_KM2:
+            continue          # klein water: het lijnennetwerk volstaat, en een grid
+                              # zou hier langs sluizen heen kunnen snijden
+        sp = 500 if opp_km2 >= 60 else (350 if opp_km2 >= 12 else 250)
+        lakes.append({"naam": naam, "sp": sp, "rings": rings, "opp": opp_km2})
+    # zelfde water tweemaal (bv. Volkerak als way én relation): grootste houden —
+    # maar alleen als de bboxen elkaar overlappen, want dezelfde naam komt ook
+    # voor bij heel andere wateren elders in het land
+    def bbox(lk):
+        pts = [p for _, r in lk["rings"] for p in r]
+        return (min(p[0] for p in pts), max(p[0] for p in pts),
+                min(p[1] for p in pts), max(p[1] for p in pts))
+
+    per_naam = {}
     for lk in lakes:
-        n = sum(len(r) for _, r in lk["rings"])
-        if lk["naam"] not in best or n > best[lk["naam"]][0]:
-            best[lk["naam"]] = (n, lk)
-    lakes = [v[1] for v in best.values()]
+        per_naam.setdefault(lk["naam"], []).append((bbox(lk), lk))
+    lakes = []
+    for naam, groep in per_naam.items():
+        houden = []
+        for bb, lk in sorted(groep, key=lambda g: -g[1]["opp"]):
+            if any(not (bb[1] < b2[0] or bb[0] > b2[1] or bb[3] < b2[2] or bb[2] > b2[3])
+                   for b2, _ in houden):
+                continue                       # overlapt met een groter exemplaar
+            houden.append((bb, lk))
+        lakes += [lk for _, lk in houden]
     print(f"{len(lakes)} meerpolygonen")
 
     def inside(pts, rings):
@@ -255,7 +336,8 @@ def lake_grids(edges, names, name_idx, nid):
 
     # bestaande knooppunten (voor aanhechting) in een celindex
     endpoints = set()
-    for _, flat in edges:
+    for e_ in edges:
+        flat = e_[1]
         n = len(flat)
         la, lo = flat[0], flat[1]
         endpoints.add((la, lo))
@@ -283,11 +365,15 @@ def lake_grids(edges, names, name_idx, nid):
             print(f"  {lk['naam']}: te veel cellen, overslaan"); continue
         YY, XX = np.meshgrid(gy, gx, indexing="ij")
         cand = np.column_stack([YY.ravel(), XX.ravel()])
-        # erosie: punt + 8 halfstap-buren moeten binnen liggen (oevermarge ~ sp/2)
+        # erosie: punt + 8 buren op een váste oevermarge moeten binnen liggen.
+        # (Niet schalen met de gridafstand: dan vallen smalle delen zoals het
+        # oostelijk Veerse Meer helemaal leeg.)
+        mla = OEVER_M / 111320.0
+        mlo = OEVER_M / (111320.0 * math.cos(math.radians(latm)))
         ok = np.ones(len(cand), bool)
-        for oy in (-.5, 0, .5):
-            for ox in (-.5, 0, .5):
-                ok &= inside(cand + [oy * dla, ox * dlo], rings)
+        for oy in (-1, 0, 1):
+            for ox in (-1, 0, 1):
+                ok &= inside(cand + [oy * mla, ox * mlo], rings)
         pts = cand[ok]
         idx = {}
         for la, lo in pts:
@@ -307,7 +393,7 @@ def lake_grids(edges, names, name_idx, nid):
             okm = inside(mids, rings)
             for (ka, kb), o in zip(pend, okm):
                 if o:
-                    edges.append([nm, [ka[0], ka[1], kb[0] - ka[0], kb[1] - ka[1]]])
+                    edges.append([nm, [ka[0], ka[1], kb[0] - ka[0], kb[1] - ka[1]], KF_OPEN])
                     n_edges += 1
         # aanhechting: bestaande knooppunten binnen het meer-bbox aan dichtstbijzijnd gridpunt
         if len(ep) and idx:
@@ -326,7 +412,7 @@ def lake_grids(edges, names, name_idx, nid):
                 samp = np.array([[la / 1e5 + t * (kb[0] / 1e5 - la / 1e5),
                                   lo / 1e5 + t * (kb[1] / 1e5 - lo / 1e5)] for t in (0.5, 0.75)])
                 if inside(samp, rings).all():
-                    edges.append([nm, [int(la), int(lo), int(kb[0] - la), int(kb[1] - lo)]])
+                    edges.append([nm, [int(la), int(lo), int(kb[0] - la), int(kb[1] - lo)], KF_OPEN])
                     n_conn += 1
 
     # aangrenzende meren aan elkaar hechten (bv. Markermeer-IJmeer, Randmerenketen)
@@ -358,8 +444,12 @@ def lake_grids(edges, names, name_idx, nid):
                                            (ka[1] + t * (kb[1] - ka[1])) / 1e5] for t in ts])
                         ok_a = inside(samp, ring_by_lake[la_])
                         ok_b = inside(samp, ring_by_lake[lb_])
-                        if (ok_a | ok_b).all():
-                            edges.append([nid("open water"), [ka[0], ka[1], kb[0] - ka[0], kb[1] - ka[1]]])
+                        # élk tussenpunt in water én ergens een punt dat in béíde
+                        # watervlakken ligt: dan sluiten ze op elkaar aan. Zonder
+                        # zo'n overlap zit er iets tussen (Houtribdijk!) en mag je
+                        # alleen via een sluis of kanaal oversteken.
+                        if (ok_a | ok_b).all() and (ok_a & ok_b).any():
+                            edges.append([nid("open water"), [ka[0], ka[1], kb[0] - ka[0], kb[1] - ka[1]], KF_OPEN])
                             n_stitch += 1
     # sluizen die niet aan het lijnennetwerk liggen (bv. Krammersluizen in de
     # Philipsdam) als doorgang rijgen: dichtstbijzijnde waterpunten aan
@@ -375,7 +465,8 @@ def lake_grids(edges, names, name_idx, nid):
         # componenten van het huidige netwerk (lijnen + grid + hechtingen)
         from collections import defaultdict as _dd0
         adj0 = _dd0(list)
-        for _, flat in edges:
+        for e_ in edges:
+            flat = e_[1]
             la, lo = flat[0], flat[1]
             a = (la, lo)
             for i in range(2, len(flat), 2):
@@ -436,7 +527,7 @@ def lake_grids(edges, names, name_idx, nid):
             if best:
                 _, ka, kb = best
                 nm2 = nid(o.get("n", ""))
-                edges.append([nm2, [ka[0], ka[1], la - ka[0], lo - ka[1], kb[0] - la, kb[1] - lo]])
+                edges.append([nm2, [ka[0], ka[1], la - ka[0], lo - ka[1], kb[0] - la, kb[1] - lo], KF_OPEN])
                 n_lock += 1
     # vangnet: losse netwerkcomponenten die via open water bereikbaar zijn alsnog
     # aan elkaar knopen (bv. een gridje dat nét niet aan de sluisaanloop hecht)
@@ -457,9 +548,22 @@ def lake_grids(edges, names, name_idx, nid):
                 break
         return res
 
+    def inside_one(pts):
+        """helemaal binnen één en hetzelfde watervlak — zo kan een verbinding
+        nooit ongemerkt van het ene naar het andere water springen"""
+        mn_la, mn_lo = pts[:, 0].min(), pts[:, 1].min()
+        mx_la, mx_lo = pts[:, 0].max(), pts[:, 1].max()
+        for lk, (b0, b1, b2, b3) in zip(lakes, lake_bbox):
+            if mx_la < b0 or mn_la > b1 or mx_lo < b2 or mn_lo > b3:
+                continue
+            if inside(pts, lk["rings"]).all():
+                return True
+        return False
+
     from collections import defaultdict as _dd
     adj = _dd(list)
-    for _, flat in edges:
+    for e_ in edges:
+        flat = e_[1]
         la, lo = flat[0], flat[1]
         a = (la, lo)
         for i in range(2, len(flat), 2):
@@ -506,8 +610,8 @@ def lake_grids(edges, names, name_idx, nid):
                         samp = np.array([[(ka[0] + (i + 1) / (ns + 1) * (kb[0] - ka[0])) / 1e5,
                                           (ka[1] + (i + 1) / (ns + 1) * (kb[1] - ka[1])) / 1e5]
                                          for i in range(ns)])
-                        if inside_any(samp).all():
-                            edges.append([nid("open water"), [ka[0], ka[1], kb[0] - ka[0], kb[1] - ka[1]]])
+                        if inside_one(samp):
+                            edges.append([nid("open water"), [ka[0], ka[1], kb[0] - ka[0], kb[1] - ka[1]], KF_OPEN])
                             gedaan.add(paar)
                             n_bridge += 1
     print(f"vaargrid: {n_nodes} gridpunten, {n_edges} gridkanten, {n_conn} aanhechtingen, "
@@ -559,6 +663,125 @@ def lake_grids(edges, names, name_idx, nid):
     return spans
 
 
+def knoop_gelijknamig(edges, names):
+    """Vaarwegen die door een meer lopen (Prinses Margrietkanaal door de Groote
+    Brekken, het Koevordermeer, …) staan in OSM als losse stukken: in het meer
+    houdt de lijn op. Losse uiteinden van een vaarweg met dezelfde naam, die
+    dicht bij elkaar liggen en nu niet verbonden zijn, horen bij elkaar."""
+    from collections import defaultdict as _dd
+    graad = _dd(int)
+    info = []                                  # (naamIdx, punt_a, punt_b)
+    for e in edges:
+        flat = e[1]
+        la, lo = flat[0], flat[1]
+        a = (la, lo)
+        for i in range(2, len(flat), 2):
+            la += flat[i]; lo += flat[i + 1]
+        b = (la, lo)
+        graad[a] += 1; graad[b] += 1
+        info.append((e[0], a, b))
+
+    adj = _dd(list)
+    for _, a, b in info:
+        adj[a].append(b); adj[b].append(a)
+    comp = {}
+    c = 0
+    for s in adj:
+        if s in comp:
+            continue
+        stack = [s]; comp[s] = c
+        while stack:
+            n = stack.pop()
+            for nb in adj[n]:
+                if nb not in comp:
+                    comp[nb] = c; stack.append(nb)
+        c += 1
+
+    los = _dd(list)                            # naamIdx -> losse uiteinden
+    for ni, a, b in info:
+        if not names[ni]:
+            continue                           # naamloos: te riskant
+        for p in (a, b):
+            if graad[p] == 1:
+                los[ni].append(p)
+
+    n_knoop = 0
+    for ni, pts in los.items():
+        paren = []
+        for i in range(len(pts)):
+            for j in range(i + 1, len(pts)):
+                a, b = pts[i], pts[j]
+                dy = (b[0] - a[0]) * 1.1132
+                dx = (b[1] - a[1]) * 1.1132 * math.cos(math.radians(a[0] / 1e5))
+                dd = math.hypot(dy, dx)
+                if dd <= 2500:
+                    paren.append((dd, a, b))
+        paren.sort()
+        for dd, a, b in paren:
+            if comp.get(a) == comp.get(b):
+                continue                       # al verbonden: geen sluiproute maken
+            edges.append([ni, [a[0], a[1], b[0] - a[0], b[1] - a[1]], 100])
+            oud, nieuw = comp[b], comp[a]
+            for k, v in comp.items():
+                if v == oud:
+                    comp[k] = nieuw
+            n_knoop += 1
+    print(f"gelijknamige vaarwegen aaneengeknoopt: {n_knoop} verbindingen")
+
+
+def zet_hoogtes(edges):
+    """Vaste bruggen bepalen de doorvaarthoogte van het stukje vaarweg eronder.
+    Per vaste brug zoeken we de dichtstbijzijnde kant en zetten daar de hoogte
+    op (in decimeters), zodat de planner met een opgegeven doorvaarthoogte om
+    te lage bruggen heen kan zoeken."""
+    try:
+        stat = json.load(gzip.open(os.path.join(os.path.dirname(OUT), "static.json.gz")))
+    except Exception as e:  # noqa: BLE001
+        print(f"  static.json.gz niet leesbaar ({e}); hoogtes overgeslagen", file=sys.stderr)
+        return
+    vast = [o for o in stat["objs"]
+            if o.get("t") == "B" and not o.get("open") and o.get("hf") is not None]
+
+    cel = {}                                   # celindex van segmenten
+    for ei, e in enumerate(edges):
+        flat = e[1]
+        la, lo = flat[0], flat[1]
+        pts = [(la, lo)]
+        for i in range(2, len(flat), 2):
+            la += flat[i]; lo += flat[i + 1]
+            pts.append((la, lo))
+        for (a, b) in zip(pts, pts[1:]):
+            for k in {(a[0] // 500, a[1] // 800), (b[0] // 500, b[1] // 800)}:
+                cel.setdefault(k, []).append((ei, a, b))
+
+    n = 0
+    for o in vast:
+        pla, plo = round(o["lat"] * 1e5), round(o["lon"] * 1e5)
+        kx = math.cos(math.radians(o["lat"]))
+        best = (1e18, None)
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                for ei, a, b in cel.get((pla // 500 + dy, plo // 800 + dx), []):
+                    ay, ax = a[0] * 1.1132, a[1] * 1.1132 * kx
+                    by, bx = b[0] * 1.1132, b[1] * 1.1132 * kx
+                    py, px = pla * 1.1132, plo * 1.1132 * kx
+                    ddy, ddx = by - ay, bx - ax
+                    L2 = ddy * ddy + ddx * ddx or 1e-9
+                    t = max(0.0, min(1.0, ((py - ay) * ddy + (px - ax) * ddx) / L2))
+                    dd = math.hypot(py - (ay + t * ddy), px - (ax + t * ddx))
+                    if dd < best[0]:
+                        best = (dd, ei)
+        if best[1] is None or best[0] > 45:
+            continue
+        e = edges[best[1]]
+        while len(e) < 4:
+            e.append(0)
+        dm = int(round(o["hf"] * 10))
+        e[3] = dm if not e[3] else min(e[3], dm)
+        n += 1
+    print(f"doorvaarthoogtes: {n} vaste bruggen aan een vaarwegvak gekoppeld")
+
+
 def main():
     d = fetch()
     nodes = {e["id"]: (e["lat"], e["lon"]) for e in d["elements"] if e["type"] == "node"}
@@ -590,6 +813,7 @@ def main():
     edges = []
     for w in ways:
         nm = nid(w.get("tags", {}).get("name", ""))
+        kf = kostfactor(w.get("tags", {}))
         nds = w["nodes"]
         if len(nds) < 2:
             continue
@@ -608,9 +832,11 @@ def main():
             flat = [ip[0][0], ip[0][1]]
             for (la, lo), (pla, plo) in zip(ip[1:], ip[:-1]):
                 flat += [la - pla, lo - plo]
-            edges.append([nm, flat])
+            edges.append([nm, flat, kf])
 
+    knoop_gelijknamig(edges, names)
     spans = lake_grids(edges, names, name_idx, nid)
+    zet_hoogtes(edges)
 
     out = {"v": 1, "built": int(time.time() * 1000), "names": names, "e": edges, "spans": spans}
     raw = json.dumps(out, separators=(",", ":")).encode()
