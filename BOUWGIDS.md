@@ -118,6 +118,44 @@ BOYSAW, BCNLAT/BCNCAR, LIGHTS. RWS-cellen zijn wekelijks vers en CC-0.
 - **iOS cachet hardnekkig**: daarom de buildstamp. Privé-tabblad of
   opnieuw-toevoegen-aan-beginscherm helpt bij twijfel.
 
+## Routeplanner (`route.js` + `scripts/build_net.py`)
+
+Kaartknop **Route**: eerste klik = start, elke volgende klik = via-punt,
+rechtsklik = bestemming. A* draait client-side over `data/net.json.gz`
+(OSM-vaarwegen + een vaargrid over open water, wekelijks ververst via
+`.github/workflows/net.yml`). Kanten dragen een voorkeursfactor (CEMT-klasse:
+hoofdvaarweg telt zijn echte lengte, een naamloos slootje bijna dubbel) en de
+doorvaarthoogte van de laagste vaste brug erboven. Lange bruggen staan apart
+als overspanningslijn in `spans`, omdat de RWS-data één punt geeft voor een
+brug van kilometers (Zeelandbrug).
+
+Testen: `node scripts/test_route_graph.js` (18 controles op de echte data,
+inclusief dijk- en sluispassages) plus Playwright voor de UI.
+
+### Open punten routeplanner
+
+1. **Mastgat ontbreekt → omweg in Zeeland.** Hellevoetsluis → Roompot gaat
+   132 km om via het Schelde-Rijnkanaal in plaats van ~75 km via de
+   Krammersluizen. Oorzaak: `fetch_lakes()` haalt alleen watervlakken **met
+   naam** op, en het Mastgat tussen Krammer en Zijpe heeft er geen — daardoor
+   valt daar een gat van >1 km in het netwerk. Fix: de `["name"]`-eis uit de
+   Overpass-query halen (de oppervlaktedrempel houdt het aantal beperkt).
+   Nog niet doorgevoerd omdat Overpass tijdens het testen rate-limitte (429);
+   eerst opnieuw bouwen en de 18 tests draaien vóór dit live gaat.
+2. **Lus in de route bij Tholen/Krammer.** De lijn buigt daar terug op
+   zichzelf; vermoedelijk wordt een gridverbinding in twee richtingen gebruikt.
+   Los uitzoeken van punt 1.
+3. **Woordkeus in de brugkaartjes.** `mastIssue()` in `index.html` zegt nog
+   "te laag voor mast X m"; het routepaneel heeft het over doorvaarthoogte.
+   Gelijktrekken.
+4. **Hoogte laten meewegen in de route.** De doorvaarthoogtes zitten al in
+   `net.json.gz` en `findRoute()` heeft er een parameter voor, maar die staat
+   uit: de bruggenlijst werkt op nabijheid en meldt dan bruggen die je niet
+   echt passeert. Eerst objecten per vaarwegvak koppelen (in `build_net.py`,
+   net als de hoogtes), dan kan de planner echt om te lage bruggen heen.
+5. **Tijdsbewust plannen**: met vertrektijd en kruissnelheid per brug de
+   aankomsttijd tonen en waarschuwen bij bedieningstijden. Data zit er al in.
+
 ## Snel beginnen
 
 ```bash
