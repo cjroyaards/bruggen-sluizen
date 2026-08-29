@@ -122,7 +122,7 @@ BOYSAW, BCNLAT/BCNCAR, LIGHTS. RWS-cellen zijn wekelijks vers en CC-0.
 
 Kaartknop **Route**: eerste klik = start, elke volgende klik = via-punt,
 rechtsklik = bestemming. A* draait client-side over `data/net.json.gz`
-(OSM-vaarwegen + een vaargrid over open water, wekelijks ververst via
+(alleen echte OSM-vaarweglijnen, wekelijks ververst via
 `.github/workflows/net.yml`). Kanten dragen een voorkeursfactor (CEMT-klasse:
 hoofdvaarweg telt zijn echte lengte, een naamloos slootje bijna dubbel) en de
 doorvaarthoogte van de laagste vaste brug erboven. Lange bruggen staan apart
@@ -132,14 +132,19 @@ brug van kilometers (Zeelandbrug).
 Testen: `node scripts/test_route_graph.js` (18 controles op de echte data,
 inclusief dijk- en sluispassages) plus Playwright voor de UI.
 
-**`python3 scripts/audit_net.py`** kijkt alle zélf verzonnen verbindingen na
-(vaargrid, aanhechtingen, meerkoppelingen, sluisdoorgangen, gelijknamige
-vaarwegen — gemarkeerd met een 5e element = 1) en meldt welke over land lopen.
-Draai dit na élke wijziging in `build_net.py`: zo zie je in één keer of je een
-streep dwars door een dijk of polder hebt gemaakt, in plaats van het per
-schermafdruk te ontdekken. Stand nu: 299 meldingen, waarvan 34 sluisdoorgangen
-(die horen dwars door een sluiscomplex te gaan) en de rest onder de ~300 m —
-korte stukjes over landtongen en bij korte gaten in de kartering.
+**Open water staat UIT** (`OPEN_WATER = False` in `build_net.py`). Het vaargrid
+over meren en alle andere zélf verzonnen verbindingen zijn eruit: ze bleken
+telkens ergens dwars over een dijk of polder te lopen (Durgerdam, Muiden, Broek
+in Waterland). De planner volgt nu uitsluitend vaarweglijnen die echt in OSM
+staan; een route over het IJsselmeer of de Zeeuwse wateren geeft dus "geen
+route". Netwerkbestand ging daarmee van 0,9 naar 0,5 MB.
+
+Wil je het weer aanzetten: `OPEN_WATER = True`, dan `build_net.py`, dan
+**`python3 scripts/audit_net.py`** — dat script loopt alle verzonnen
+verbindingen na en meldt welke over land lopen. **Pas mergen als dat 0 is.**
+Bij de laatste poging stond het op 299 (waarvan 34 bedoelde sluisdoorgangen),
+na drie ronden fixes vanaf 533. Draai daarna `scripts/test_route_graph.js` en
+herstel de open-watercontroles daarin (zie git-geschiedenis).
 
 ### Open punten routeplanner
 

@@ -145,6 +145,16 @@ MIN_OPP_KM2 = 0.5          # kleiner dan dit heeft geen eigen vaargrid nodig
 OEVER_M = 70               # vaste afstand tot de oever voor gridpunten
 GRID_VANAF_KM2 = 2.0       # alleen echt open water krijgt een vaargrid
 
+# Open water staat UIT. Het vaargrid over meren, de aanhechting daarvan aan het
+# lijnennetwerk, de koppelingen tussen wateren, de sluisdoorgangen en het
+# aaneenknopen van gelijknamige vaarwegen zijn allemaal verzonnen verbindingen.
+# Ze bleken telkens ergens dwars over een dijk of polder te lopen (Durgerdam,
+# Muiden, Broek in Waterland). Zolang dat niet betrouwbaar is, routeert de
+# planner alleen over vaarweglijnen die echt in OpenStreetMap staan.
+# Weer aanzetten: OPEN_WATER = True, dan build_net.py draaien, daarna
+# scripts/audit_net.py (moet 0 meldingen geven) en scripts/test_route_graph.js.
+OPEN_WATER = False
+
 
 def _overpass(q, wat):
     for m in MIRRORS:
@@ -879,7 +889,9 @@ def main():
                 flat += [la - pla, lo - plo]
             edges.append([nm, flat, kf])
 
-    spans = lake_grids(edges, names, name_idx, nid)
+    spans = lake_grids(edges, names, name_idx, nid) if OPEN_WATER else []
+    if not OPEN_WATER:
+        print("open water staat uit: alleen echte OSM-vaarweglijnen")
     zet_hoogtes(edges)
 
     out = {"v": 1, "built": int(time.time() * 1000), "names": names, "e": edges, "spans": spans}

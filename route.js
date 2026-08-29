@@ -8,26 +8,26 @@ window.RoutePlanner = (function(){
 const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
   title:"Route planner", hintStart:"Click the starting point; right-click sets the destination", hintEnd:"Now tap the destination", hintVolgende:"Click again for a via point · right-click sets the destination",
   loading:"Loading waterway network…", calc:"Calculating route…",
-  none:"No route found. Tap a bit further from the bank, in open water. Still nothing: reload the page (the network is refreshed weekly). The Wadden Sea and North Sea are not included.",
+  none:"No route found. The planner follows canals and rivers only — large open waters (IJsselmeer, Markermeer, Zeeland waters, Wadden Sea) are not included, so it cannot route across them. Otherwise tap a bit further from the bank, or reload the page.",
   neu:"new route", total:"total", bridges:"bridges", locks:"locks", fixed:"fixed",
   viaBtn:"+ via point", hintVia:"Tap a point the route must pass through", via:"Via",
   hoogte:"air draft", hoogteHint:"Height of your boat above the water — fixed bridges that are too low are flagged.",
   lowest:"lowest fixed bridge", narrowest:"narrowest passage",
   mastwarn:(hf,m)=>`Warning: lowest fixed bridge is ${hf} m — too low for an air draft of ${m} m`,
   discTitle:"Bridge and lock planner — not a navigation route",
-  disc:"This shows <b>which bridges and locks</b> lie along your way, so you can check operating times and clearances in advance. It is <b>not a sailing route</b>: the line is not a fairway, ignores depth, buoyage and channels, and on open water runs straight across. An object very close to the line may be listed without you actually passing it. Always navigate on the official chart.",
+  disc:"This shows <b>which bridges and locks</b> lie along your way, so you can check operating times and clearances in advance. The planner follows <b>canals and rivers only</b>; large open waters such as the IJsselmeer and the Zeeland waters are not included. It is <b>not a sailing route</b>: the line is not a fairway and ignores depth and buoyage. An object very close to the line may be listed without you actually passing it. Always navigate on the official chart.",
   start:"Start", end:"Destination"
 } : {
   title:"Routeplanner", hintStart:"Klik het startpunt aan; rechtsklik zet de bestemming", hintEnd:"Tik nu de bestemming aan", hintVolgende:"Nog een klik = via-punt · rechtsklik zet de bestemming",
   loading:"Vaarwegennetwerk laden…", calc:"Route berekenen…",
-  none:"Geen route gevonden. Tik iets verder uit de kant, midden op het water. Werkt het dan nog niet: herlaad de pagina (het netwerk wordt wekelijks bijgewerkt). Waddenzee en Noordzee zitten er niet in.",
+  none:"Geen route gevonden. De planner volgt alleen kanalen en rivieren — grote open wateren (IJsselmeer, Markermeer, Zeeuwse wateren, Waddenzee) zitten er niet in, dus routes daaroverheen kan hij niet maken. Tik anders iets verder uit de kant, of herlaad de pagina.",
   neu:"nieuwe route", total:"totaal", bridges:"bruggen", locks:"sluizen", fixed:"vast",
   viaBtn:"+ via-punt", hintVia:"Tik een punt aan waar de route langs moet", via:"Via",
   hoogte:"doorvaarthoogte", hoogteHint:"Hoogte van je boot boven water — te lage vaste bruggen worden gemeld.",
   lowest:"laagste vaste brug", narrowest:"smalste doorvaart",
   mastwarn:(hf,m)=>`Let op: laagste vaste brug is ${hf} m — te laag voor doorvaarthoogte ${m} m`,
   discTitle:"Bruggen- en sluizenplanner — geen vaarroute",
-  disc:"Dit laat zien <b>welke bruggen en sluizen</b> op je weg liggen, zodat je bedieningstijden en doorvaarthoogtes vooraf kunt nakijken. Het is <b>geen vaarroute</b>: de lijn is geen vaargeul, houdt geen rekening met diepte, betonning of geulen, en gaat op open water rechtdoor. Een object vlak langs de lijn kan meegeteld worden zonder dat je het echt passeert. Vaar altijd op de officiële kaart.",
+  disc:"Dit laat zien <b>welke bruggen en sluizen</b> op je weg liggen, zodat je bedieningstijden en doorvaarthoogtes vooraf kunt nakijken. De planner volgt <b>alleen kanalen en rivieren</b>; grote open wateren zoals het IJsselmeer en de Zeeuwse wateren zitten er niet in. Het is <b>geen vaarroute</b>: de lijn is geen vaargeul en houdt geen rekening met diepte of betonning. Een object vlak langs de lijn kan meegeteld worden zonder dat je het echt passeert. Vaar altijd op de officiële kaart.",
   start:"Start", end:"Bestemming"
 };
 

@@ -66,45 +66,21 @@ function check(naam, cond, extra) {
   check("korte route zelfde vaarweg", !!r && r.meters < 2000, r ? Math.round(r.meters) + " m" : "geen");
 }
 
-/* 4. Open water: dwars over het IJsselmeer */
+/* 4-7. Open water staat uit (OPEN_WATER=False in build_net.py): routes die
+   alleen over een meer kunnen, horen nu géén route op te leveren in plaats van
+   een verzonnen lijn dwars over een dijk. Zet je open water weer aan, herstel
+   dan ook deze controles (zie git-geschiedenis). */
 {
   const sa = snap(Math.round(52.700e5), Math.round(5.300e5));   // Enkhuizen
   const sb = snap(Math.round(52.880e5), Math.round(5.360e5));   // Stavoren
   const r = sa && sb && RP.findRoute(sa, sb);
-  check("Enkhuizen->Stavoren over IJsselmeer", !!r && r.meters > 19e3 && r.meters < 26e3,
-        r ? (r.meters / 1000).toFixed(1) + " km" : "geen");
+  check("IJsselmeer-oversteek geeft geen route (open water uit)", !r);
 }
-
-/* 5. Dijkcheck: Houtribdijk mag alleen via een sluis/naviduct gepasseerd worden */
 {
-  const sa = snap(Math.round(52.700e5), Math.round(5.300e5));   // Enkhuizen (IJsselmeerzijde)
-  const sb = snap(Math.round(52.517e5), Math.round(5.435e5));   // Lelystad (Markermeerzijde)
-  const r = sa && sb && RP.findRoute(sa, sb);
-  const sluizen = r ? RP.objsOnRoute(r.geo).filter(i => i.o.t === "S").map(i => i.o.n) : [];
-  check("Houtribdijk alleen via sluis/naviduct", !!r && sluizen.some(n => /Naviduct|Houtrib|sluis/i.test(n)),
-        sluizen.join(", ") || "geen sluizen");
-}
-
-/* 6. Zeeland-keten: Willemstad -> Middelburg via de Deltawateren */
-{
-  const sa = snap(Math.round(51.690e5), Math.round(4.436e5));
-  const sb = snap(Math.round(51.500e5), Math.round(3.610e5));
-  const r = sa && sb && RP.findRoute(sa, sb);
-  const sluizen = r ? RP.objsOnRoute(r.geo).filter(i => i.o.t === "S").map(i => i.o.n) : [];
-  check("Willemstad->Middelburg gevonden", !!r && r.meters > 60e3 && r.meters < 110e3,
-        r ? (r.meters / 1000).toFixed(0) + " km" : "geen");
-  check("route passeert Volkeraksluizen", sluizen.includes("Volkeraksluizen"), sluizen.join(", "));
-}
-
-/* 7. Lange overspanning: Veerse Meer -> Zierikzee moet de Zeelandbrug melden */
-{
-  const sa = snap(Math.round(51.546e5), Math.round(3.772e5));
-  const sb = snap(Math.round(51.635e5), Math.round(3.917e5));
-  const r = sa && sb && RP.findRoute(sa, sb);
-  const namen = r ? RP.objsOnRoute(r.geo).map(i => i.o.n) : [];
-  check("Zeelandbrug op route Veerse Meer->Zierikzee", namen.some(n => /Zeelandbrug/.test(n)),
-        namen.join(", ") || "geen");
-  check("Zandkreeksluis op die route", namen.includes("Zandkreeksluis"));
+  const raw = JSON.parse(require("zlib").gunzipSync(
+    require("fs").readFileSync(require("path").join(root, "data/net.json.gz"))));
+  const verzonnen = raw.e.filter(e => e.length > 4 && e[4]).length;
+  check("netwerk bevat geen zelfgemaakte verbindingen", verzonnen === 0, verzonnen + " gevonden");
 }
 
 /* 8. Onbereikbaar: punt ver op zee snapt niet */
