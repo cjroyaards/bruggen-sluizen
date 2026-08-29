@@ -436,7 +436,10 @@ def lake_grids(edges, names, name_idx, nid):
                     n_edges += 1
         # aanhechting: bestaande knooppunten binnen het meer-bbox aan dichtstbijzijnd gridpunt
         if len(ep) and idx:
-            marge = int(4.0 * sp / 1.1132)          # in 1e-5-graadeenheden (breedte gecorrigeerd hieronder)
+            # niet te ver reiken: een lange aanhechting kan zo over een dijk
+            # springen (Markermeer -> Broekervaart bij Broek in Waterland, waar
+            # je in werkelijkheid door een sluis moet)
+            marge = int(min(1.5 * sp, 800) / 1.1132)   # in 1e-5-graadeenheden
             sel = ep[(ep[:, 0] > (la0 - .01) * 1e5) & (ep[:, 0] < (la1 + .01) * 1e5)
                      & (ep[:, 1] > (lo0 - .01) * 1e5) & (ep[:, 1] < (lo1 + .01) * 1e5)]
             gridpts = np.array(list(idx.values()), dtype=np.int64)
@@ -448,8 +451,13 @@ def lake_grids(edges, names, name_idx, nid):
                 if dist[j] > marge:
                     continue
                 kb = tuple(gridpts[j])
-                samp = np.array([[la / 1e5 + t * (kb[0] / 1e5 - la / 1e5),
-                                  lo / 1e5 + t * (kb[1] / 1e5 - lo / 1e5)] for t in (0.5, 0.75)])
+                # de hele verbinding om de ~30 m aftasten: ligt er ook maar één
+                # punt droog, dan zit er een dijk tussen en hoort hier geen
+                # verbinding maar een sluis
+                ns = max(8, int(dist[j] * 1.1132 / 30))
+                samp = np.array([[la / 1e5 + (i + 1) / (ns + 1) * (kb[0] / 1e5 - la / 1e5),
+                                  lo / 1e5 + (i + 1) / (ns + 1) * (kb[1] / 1e5 - lo / 1e5)]
+                                 for i in range(ns)])
                 if inside(samp, rings).all():
                     edges.append([nm, [int(la), int(lo), int(kb[0] - la), int(kb[1] - lo)], KF_OPEN])
                     n_conn += 1
