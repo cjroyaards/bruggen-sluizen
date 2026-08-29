@@ -153,7 +153,16 @@ inclusief dijk- en sluispassages) plus Playwright voor de UI.
    uit: de bruggenlijst werkt op nabijheid en meldt dan bruggen die je niet
    echt passeert. Eerst objecten per vaarwegvak koppelen (in `build_net.py`,
    net als de hoogtes), dan kan de planner echt om te lage bruggen heen.
-5. **Tijdsbewust plannen**: met vertrektijd en kruissnelheid per brug de
+5. **Dijksprong bij Broek in Waterland.** Enkhuizen → IJmuiden verliet het
+   Markermeer via de Broekervaart dwars over de dijk (langs een water dat
+   "Dijksgat" heet) en sloeg zo de Oranjesluizen over. Oorzaak: de aanhechting
+   van het vaargrid aan het lijnennetwerk mocht tot 4× de gridafstand (2 km)
+   reiken en toetste maar twee tussenpunten. Fix staat klaar op de branch
+   `fix/aanhechting-dijk` (max 1,5× gridafstand tot 800 m, hele verbinding om
+   de 30 m aftasten) — **eerst netwerk herbouwen en de 18 tests draaien**, want
+   Overpass lag eruit tijdens het testen. Let bij het testen op of legitieme
+   havenaanlopen niet wegvallen door de kortere reikwijdte.
+6. **Tijdsbewust plannen**: met vertrektijd en kruissnelheid per brug de
    aankomsttijd tonen en waarschuwen bij bedieningstijden. Data zit er al in.
 
 ## Snel beginnen
