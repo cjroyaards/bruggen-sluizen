@@ -235,7 +235,7 @@ function objsOnRoute(geo, maxM){
   for (const o of DATA.objs){
     if (o.t!=="B" && o.t!=="S") continue;
     const ola=Math.round(o.lat*1e5), olo=Math.round(o.lon*1e5);
-    const zoek=(o.t==="S")?Math.max(maxM,250):maxM;
+    const zoek=(o.t==="S")?Math.max(maxM,400):maxM;
     const margLat=zoek/1.1132, margLon=zoek/mPerLon(ola);
     let best=null;
     for (const [c,e,mnLa,mxLa,mnLo,mxLo] of chunks){
@@ -252,7 +252,7 @@ function objsOnRoute(geo, maxM){
     }
     /* sluizen zijn grote complexen (een naviduct is honderden meters breed) en
        het RWS-punt ligt zelden precies op de vaarlijn — ruimere marge dan bruggen */
-    const marge = (o.t==="S") ? Math.max(maxM, 250) : maxM;
+    const marge = (o.t==="S") ? Math.max(maxM, 400) : maxM;
     if (best && best.d<=marge) out.push({o, along:best.along});
   }
 
