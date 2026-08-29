@@ -385,6 +385,20 @@ def lake_grids(edges, names, name_idx, nid):
             samen |= m
         return bool(samen.all())
 
+    # gelijknamige vaarwegen aaneenknopen kan pas nu: de watertoets heeft de
+    # meerpolygonen nodig (een kanaal dat door een meer loopt mag verbonden
+    # worden, een streep door de polder niet)
+    def _over_water(a, b):
+        dy = (b[0] - a[0]) * 1.1132
+        dx = (b[1] - a[1]) * 1.1132 * math.cos(math.radians(a[0] / 1e5))
+        lengte = math.hypot(dy, dx)
+        ns = max(8, int(lengte / 35))
+        samp = np.array([[(a[0] + (i + 1) / (ns + 1) * (b[0] - a[0])) / 1e5,
+                          (a[1] + (i + 1) / (ns + 1) * (b[1] - a[1])) / 1e5] for i in range(ns)])
+        return bool(inside_any(samp).all())
+
+    knoop_gelijknamig(edges, names, _over_water)
+
     all_grid = {}                     # (la1e5,lo1e5) -> lake-index (voor onderlinge hechting)
     DIRS = [(1, 0), (0, 1), (1, 1), (1, -1), (2, 1), (1, 2), (2, -1), (1, -2)]
     n_nodes = n_edges = n_conn = 0
@@ -428,11 +442,17 @@ def lake_grids(edges, names, name_idx, nid):
                 if kb:
                     pend.append((ka, kb))
         if pend:
-            mids = np.array([[(a[0] + b[0]) / 2e5, (a[1] + b[1]) / 2e5] for a, b in pend])
-            okm = inside(mids, rings)
+            # niet alleen het middelpunt toetsen: een gridlijn van ruim een
+            # kilometer kan anders dwars over een eilandje lopen (De Kreupel in
+            # het IJsselmeer). Vijf punten langs de lijn, allemaal water.
+            okm = np.ones(len(pend), bool)
+            for t in (0.2, 0.35, 0.5, 0.65, 0.8):
+                tp = np.array([[(a[0] + t * (b[0] - a[0])) / 1e5,
+                                (a[1] + t * (b[1] - a[1])) / 1e5] for a, b in pend])
+                okm &= inside(tp, rings)
             for (ka, kb), o in zip(pend, okm):
                 if o:
-                    edges.append([nm, [ka[0], ka[1], kb[0] - ka[0], kb[1] - ka[1]], KF_OPEN])
+                    edges.append([nm, [ka[0], ka[1], kb[0] - ka[0], kb[1] - ka[1]], KF_OPEN, 0, 1])
                     n_edges += 1
         # aanhechting: bestaande knooppunten binnen het meer-bbox aan dichtstbijzijnd gridpunt
         if len(ep) and idx:
@@ -463,7 +483,7 @@ def lake_grids(edges, names, name_idx, nid):
                 samp = np.array([[la / 1e5 + t * (kb[0] / 1e5 - la / 1e5),
                                   lo / 1e5 + t * (kb[1] / 1e5 - lo / 1e5)] for t in (0.5, 0.75)])
                 if inside(samp, rings).all():
-                    edges.append([nm, [int(la), int(lo), int(kb[0] - la), int(kb[1] - lo)], KF_OPEN])
+                    edges.append([nm, [int(la), int(lo), int(kb[0] - la), int(kb[1] - lo)], KF_OPEN, 0, 1])
                     n_conn += 1
 
     # aangrenzende meren aan elkaar hechten (bv. Markermeer-IJmeer, Randmerenketen)
@@ -494,7 +514,7 @@ def lake_grids(edges, names, name_idx, nid):
                         samp = np2.array([[(ka[0] + t * (kb[0] - ka[0])) / 1e5,
                                            (ka[1] + t * (kb[1] - ka[1])) / 1e5] for t in ts])
                         if aaneengesloten_water(samp):
-                            edges.append([nid("open water"), [ka[0], ka[1], kb[0] - ka[0], kb[1] - ka[1]], KF_OPEN])
+                            edges.append([nid("open water"), [ka[0], ka[1], kb[0] - ka[0], kb[1] - ka[1]], KF_OPEN, 0, 1])
                             n_stitch += 1
     # sluizen die niet aan het lijnennetwerk liggen (bv. Krammersluizen in de
     # Philipsdam) als doorgang rijgen: dichtstbijzijnde waterpunten aan
@@ -575,7 +595,7 @@ def lake_grids(edges, names, name_idx, nid):
             if best:
                 _, ka, kb = best
                 nm2 = nid(o.get("n", ""))
-                edges.append([nm2, [ka[0], ka[1], la - ka[0], lo - ka[1], kb[0] - la, kb[1] - lo], KF_OPEN])
+                edges.append([nm2, [ka[0], ka[1], la - ka[0], lo - ka[1], kb[0] - la, kb[1] - lo], KF_OPEN, 0, 1])
                 n_lock += 1
     # vangnet: losse netwerkcomponenten die via open water bereikbaar zijn alsnog
     # aan elkaar knopen (bv. een gridje dat nét niet aan de sluisaanloop hecht)
@@ -631,7 +651,7 @@ def lake_grids(edges, names, name_idx, nid):
                                           (ka[1] + (i + 1) / (ns + 1) * (kb[1] - ka[1])) / 1e5]
                                          for i in range(ns)])
                         if aaneengesloten_water(samp):
-                            edges.append([nid("open water"), [ka[0], ka[1], kb[0] - ka[0], kb[1] - ka[1]], KF_OPEN])
+                            edges.append([nid("open water"), [ka[0], ka[1], kb[0] - ka[0], kb[1] - ka[1]], KF_OPEN, 0, 1])
                             gedaan.add(paar)
                             n_bridge += 1
     print(f"vaargrid: {n_nodes} gridpunten, {n_edges} gridkanten, {n_conn} aanhechtingen, "
@@ -683,7 +703,7 @@ def lake_grids(edges, names, name_idx, nid):
     return spans
 
 
-def knoop_gelijknamig(edges, names):
+def knoop_gelijknamig(edges, names, over_water=None):
     """Vaarwegen die door een meer lopen (Prinses Margrietkanaal door de Groote
     Brekken, het Koevordermeer, …) staan in OSM als losse stukken: in het meer
     houdt de lijn op. Losse uiteinden van een vaarweg met dezelfde naam, die
@@ -740,7 +760,12 @@ def knoop_gelijknamig(edges, names):
         for dd, a, b in paren:
             if comp.get(a) == comp.get(b):
                 continue                       # al verbonden: geen sluiproute maken
-            edges.append([ni, [a[0], a[1], b[0] - a[0], b[1] - a[1]], 100])
+            # Een gat groter dan een paar honderd meter mag alleen overbrugd
+            # worden als de lijn écht over water loopt (de vaarweg gaat dan door
+            # een meer). Anders trekken we een streep dwars door de polder.
+            if dd > 400 and not (over_water and over_water(a, b)):
+                continue
+            edges.append([ni, [a[0], a[1], b[0] - a[0], b[1] - a[1]], 100, 0, 1])
             oud, nieuw = comp[b], comp[a]
             for k, v in comp.items():
                 if v == oud:
@@ -854,7 +879,6 @@ def main():
                 flat += [la - pla, lo - plo]
             edges.append([nm, flat, kf])
 
-    knoop_gelijknamig(edges, names)
     spans = lake_grids(edges, names, name_idx, nid)
     zet_hoogtes(edges)
 

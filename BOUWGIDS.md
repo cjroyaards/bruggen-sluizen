@@ -132,6 +132,15 @@ brug van kilometers (Zeelandbrug).
 Testen: `node scripts/test_route_graph.js` (18 controles op de echte data,
 inclusief dijk- en sluispassages) plus Playwright voor de UI.
 
+**`python3 scripts/audit_net.py`** kijkt alle zélf verzonnen verbindingen na
+(vaargrid, aanhechtingen, meerkoppelingen, sluisdoorgangen, gelijknamige
+vaarwegen — gemarkeerd met een 5e element = 1) en meldt welke over land lopen.
+Draai dit na élke wijziging in `build_net.py`: zo zie je in één keer of je een
+streep dwars door een dijk of polder hebt gemaakt, in plaats van het per
+schermafdruk te ontdekken. Stand nu: 299 meldingen, waarvan 34 sluisdoorgangen
+(die horen dwars door een sluiscomplex te gaan) en de rest onder de ~300 m —
+korte stukjes over landtongen en bij korte gaten in de kartering.
+
 ### Open punten routeplanner
 
 1. **Mastgat ontbreekt → omweg in Zeeland.** Hellevoetsluis → Roompot gaat
