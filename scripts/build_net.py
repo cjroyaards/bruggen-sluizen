@@ -40,6 +40,7 @@ UA = {"User-Agent": "openpilot-net (bruggen-sluizen, persoonlijk gebruik)"}
 BBOX = (50.60, 3.20, 53.75, 7.35)        # (zuid, west, noord, oost)
 SIMPLIFY_M = 12.0                         # Douglas-Peucker-tolerantie
 HOOGTE_M = 45.0                           # brug hoort binnen deze afstand bij een sectie
+OBJ_M = 60.0                              # object hoort bij de sectie binnen deze afstand
 
 
 def get(url):
@@ -170,9 +171,9 @@ def main():
         flat = [ip[0][0], ip[0][1]]
         for (la, lo), (pla, plo) in zip(ip[1:], ip[:-1]):
             flat += [la - pla, lo - plo]
-        edges.append([nm, flat, kf, 0])
+        edges.append([nm, flat, kf, 0, []])
 
-    zet_hoogtes(edges)
+    koppel_objecten(edges)
     spans = overspanningen(edges)
 
     out = {"v": 2, "built": int(time.time() * 1000), "names": names, "e": edges,
@@ -299,6 +300,66 @@ def overspanningen(edges):
         spans.append([flat, ids])
     print(f"  {len(spans)} overspanningslijnen vastgelegd")
     return spans
+
+
+def koppel_objecten(edges):
+    """Koppelt elke brug en sluis aan de sectie waar hij op ligt.
+
+    Zo weet de app precies welke objecten je passeert: die van de secties die de
+    route gebruikt. Nabijheid alleen is niet genoeg — in Amsterdam loopt de
+    Kostverlorenvaart op 50 m van je route, en dan zou een brug van 2,36 m in je
+    lijst komen die je nooit ziet. Vult tegelijk de doorvaarthoogte per sectie.
+    """
+    try:
+        stat = json.load(gzip.open(STAT))
+    except Exception as e:  # noqa: BLE001
+        print(f"  static.json.gz niet leesbaar ({e}); objecten niet gekoppeld", file=sys.stderr)
+        return
+    objs = [o for o in stat["objs"] if o.get("t") in ("B", "S")
+            and BBOX[0] < o["lat"] < BBOX[2] and BBOX[1] < o["lon"] < BBOX[3]]
+
+    # celindex met sectienummer erbij
+    cel = defaultdict(list)
+    for ei, e in enumerate(edges):
+        flat = e[1]
+        la, lo = flat[0], flat[1]
+        pts = [(la, lo)]
+        for i in range(2, len(flat), 2):
+            la += flat[i]; lo += flat[i + 1]
+            pts.append((la, lo))
+        for a, b in zip(pts, pts[1:]):
+            for k in {(a[0] // 900, a[1] // 1400), (b[0] // 900, b[1] // 1400)}:
+                cel[k].append((ei, a, b))
+
+    n = h = 0
+    for o in objs:
+        pla, plo = round(o["lat"] * 1e5), round(o["lon"] * 1e5)
+        kx = math.cos(math.radians(o["lat"]))
+        best = (1e18, None)
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                for ei, a, b in cel.get((pla // 900 + dy, plo // 1400 + dx), []):
+                    ay, ax = a[0] * 1.1132, a[1] * 1.1132 * kx
+                    by, bx = b[0] * 1.1132, b[1] * 1.1132 * kx
+                    py, px = pla * 1.1132, plo * 1.1132 * kx
+                    ddy, ddx = by - ay, bx - ax
+                    L2 = ddy * ddy + ddx * ddx or 1e-9
+                    t = max(0.0, min(1.0, ((py - ay) * ddy + (px - ax) * ddx) / L2))
+                    d = math.hypot(py - (ay + t * ddy), px - (ax + t * ddx))
+                    if d < best[0]:
+                        best = (d, ei)
+        if best[1] is None or best[0] > OBJ_M:
+            continue
+        e = edges[best[1]]
+        e[4].append(o["id"] if o["t"] == "B" else -o["id"])    # sluizen negatief
+        n += 1
+        if o["t"] == "B" and not o.get("open") and o.get("hf") is not None:
+            dm = int(round(o["hf"] * 10))
+            e[3] = dm if not e[3] else min(e[3], dm)
+            h += 1
+    zonder = sum(1 for e in edges if not e[4])
+    print(f"  {n} bruggen/sluizen aan een sectie gekoppeld ({h} met doorvaarthoogte); "
+          f"{zonder} secties zonder object")
 
 
 def zet_hoogtes(edges):

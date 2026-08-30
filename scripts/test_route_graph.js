@@ -36,7 +36,7 @@ function check(naam, cond, extra) {
   if (r) {
     const km = r.meters / 1000;
     check("lengte ~13,7 km", km > 12.5 && km < 15, km.toFixed(1) + " km");
-    const items = RP.objsOnRoute(r.geo);
+    const items = RP.objsOnRoute(r.geo, r.eis);
     const namen = items.map(i => i.o.n);
     check("Snellesluis op route", namen.includes("Snellesluis"));
     check("Zevenhuizer Verlaat op route", namen.some(n => n.includes("Zevenhuizer Verlaat")));
@@ -80,7 +80,7 @@ function check(naam, cond, extra) {
   const sa = snap(Math.round(52.700e5), Math.round(5.300e5));
   const sb = snap(Math.round(52.517e5), Math.round(5.435e5));   // Lelystad
   const r = sa && sb && RP.findRoute(sa, sb);
-  const sluizen = r ? RP.objsOnRoute(r.geo).filter(i => i.o.t === "S").map(i => i.o.n) : [];
+  const sluizen = r ? RP.objsOnRoute(r.geo, r.eis).filter(i => i.o.t === "S").map(i => i.o.n) : [];
   check("Houtribdijk via de Houtribsluizen", sluizen.some(n => /Houtrib|Krabbersgat/i.test(n)),
         sluizen.join(", ") || "geen sluizen");
 }
@@ -90,7 +90,7 @@ function check(naam, cond, extra) {
   const sa = snap(Math.round(51.690e5), Math.round(4.436e5));
   const sb = snap(Math.round(51.500e5), Math.round(3.610e5));
   const r = sa && sb && RP.findRoute(sa, sb);
-  const sluizen = r ? RP.objsOnRoute(r.geo).filter(i => i.o.t === "S").map(i => i.o.n) : [];
+  const sluizen = r ? RP.objsOnRoute(r.geo, r.eis).filter(i => i.o.t === "S").map(i => i.o.n) : [];
   check("Willemstad->Middelburg gevonden", !!r && r.meters > 60e3 && r.meters < 110e3,
         r ? (r.meters / 1000).toFixed(0) + " km" : "geen");
   check("route passeert de Volkeraksluizen", sluizen.includes("Volkeraksluizen"), sluizen.slice(0,4).join(", "));
@@ -110,8 +110,8 @@ function check(naam, cond, extra) {
   const netraw = JSON.parse(require("zlib").gunzipSync(
     require("fs").readFileSync(require("path").join(root, "data/net.json.gz"))));
   check("netwerkversie 2 (RWS-secties)", netraw.v === 2, "v=" + netraw.v);
-  const verzonnen = netraw.e.filter(e => e.length > 4 && e[4]).length;
-  check("geen zelfgemaakte verbindingen", verzonnen === 0, verzonnen + " gevonden");
+  const metObj = netraw.e.filter(e => (e[4] || []).length).length;
+  check("objecten aan secties gekoppeld", metObj > 1000, metObj + " secties met objecten");
 }
 
 /* 7c. Lange overspanning: de Zeelandbrug wordt gemeld op routes die hem kruisen */
@@ -119,7 +119,7 @@ function check(naam, cond, extra) {
   const sa = snap(Math.round(51.515e5), Math.round(3.995e5));   // Wemeldinge
   const sb = snap(Math.round(51.635e5), Math.round(3.917e5));   // Zierikzee
   const r = sa && sb && RP.findRoute(sa, sb);
-  const namen = r ? RP.objsOnRoute(r.geo).map(i => i.o.n) : [];
+  const namen = r ? RP.objsOnRoute(r.geo, r.eis).map(i => i.o.n) : [];
   check("Zeelandbrug gemeld via overspanning", namen.some(n => /Zeelandbrug/.test(n)),
         namen.join(", ") || "geen");
 }
@@ -130,12 +130,23 @@ function check(naam, cond, extra) {
   const sb = snap(Math.round(53.196e5), Math.round(5.795e5));   // Leeuwarden
   const laag = RP.findRoute(sa, sb);                            // zonder beperking
   const hoog = RP.findRoute(sa, sb, 6.7);                       // met 6,5 m + marge
-  const lg = laag ? RP.objsOnRoute(laag.geo).filter(i => i.o.t === "B" && !i.o.open && i.o.hf != null) : [];
-  const hg = hoog ? RP.objsOnRoute(hoog.geo).filter(i => i.o.t === "B" && !i.o.open && i.o.hf != null) : [];
+  const lg = laag ? RP.objsOnRoute(laag.geo, laag.eis).filter(i => i.o.t === "B" && !i.o.open && i.o.hf != null) : [];
+  const hg = hoog ? RP.objsOnRoute(hoog.geo, hoog.eis).filter(i => i.o.t === "B" && !i.o.open && i.o.hf != null) : [];
   const min = a => a.length ? Math.min(...a.map(i => i.o.hf)) : 99;
   check("zonder hoogte gaat hij onder een lage brug door", min(lg) < 3, "laagste " + min(lg) + " m");
   check("met 6,5 m mijdt hij die bruggen", !!hoog && min(hg) >= 6.7 - 0.2,
         hoog ? "laagste " + min(hg) + " m" : "geen route");
+}
+
+/* 7e. Bruggen over parallelle grachten horen niet in de lijst */
+{
+  const sa = snap(Math.round(52.375e5), Math.round(4.905e5));   // Amsterdam
+  const sb = snap(Math.round(51.810e5), Math.round(4.200e5));   // Haringvliet
+  const r = sa && sb && RP.findRoute(sa, sb, 16.2);
+  const vast = r ? RP.objsOnRoute(r.geo, r.eis)
+                     .filter(i => i.o.t === "B" && !i.o.open && i.o.hf != null) : [];
+  check("met 16 m mast geen vaste bruggen in de lijst", !!r && vast.length === 0,
+        vast.map(i => i.o.hf + " m " + i.o.n).slice(0, 3).join("; ") || "0");
 }
 
 /* 8. Onbereikbaar: punt ver op zee snapt niet */

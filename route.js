@@ -56,7 +56,7 @@ function decodeSpans(raw){
 function decodeNet(raw){
   decodeSpans(raw);
   const edges = [], adj = new Map();
-  for (const [ni, flat, kf, dm] of raw.e){
+  for (const [ni, flat, kf, dm, ids] of raw.e){
     const n = flat.length/2;
     const pts = new Int32Array(flat.length);
     pts[0]=flat[0]; pts[1]=flat[1];
@@ -69,7 +69,8 @@ function decodeNet(raw){
     const ei = edges.length;
     /* kost = lengte × voorkeursfactor: hoofdvaarwegen tellen hun echte lengte,
        kleine wateren tellen zwaarder, zodat de route de doorgaande route kiest */
-    edges.push({pts, len, kost: len*((kf||100)/100), hoogte: dm ? dm/10 : null, name: raw.names[ni]||""});
+    edges.push({pts, len, kost: len*((kf||100)/100), hoogte: dm ? dm/10 : null,
+                objIds: ids||[], name: raw.names[ni]||""});
     const a = key(pts[0],pts[1]), b = key(pts[2*n-2],pts[2*n-1]);
     if(!adj.has(a)) adj.set(a,[]); adj.get(a).push({ei,end:0});
     if(!adj.has(b)) adj.set(b,[]); adj.get(b).push({ei,end:1});
@@ -157,7 +158,7 @@ function findRoute(sa, sb, nodig){
     geo.push([last.la,last.lo]);
     let m=0;
     for(let i=1;i<geo.length;i++) m+=Math.hypot((geo[i][1]-geo[i-1][1])*mPerLon(geo[i][0]),(geo[i][0]-geo[i-1][0])*1.1132);
-    return {geo: first===a?geo:geo.reverse(), meters:m};
+    return {geo: first===a?geo:geo.reverse(), meters:m, eis:[a.ei]};
   }
   const h = k0=>{
     const [la,lo]=k0.split(",").map(Number);
@@ -220,12 +221,19 @@ function findRoute(sa, sb, nodig){
   }
   /* viaEnd 0: binnengekomen op kant-begin → geo van begin naar snap; viaEnd 1: van eind naar snap */
   geo.push(...(best.viaEnd===0 ? edgePartial(sb.ei,sb,true).geo.slice(1) : edgePartial(sb.ei,sb,false).geo.slice().reverse().slice(1)));
-  return {geo, meters:geoMeters(geo)};
+  return {geo, meters:geoMeters(geo), eis:[sa.ei, sb.ei, ...chain.filter(c=>c.ei!=null).map(c=>c.ei)]};
 }
 
 /* ---------- bruggen/sluizen op de route ---------- */
-function objsOnRoute(geo, maxM){
+function objsOnRoute(geo, eis, maxM){
   maxM = maxM||60;
+  /* welke objecten liggen op de secties die we echt varen? Zo komt een brug
+     over een parallelle gracht niet meer in de lijst. */
+  let opRoute = null;
+  if (Array.isArray(eis) && eis.length && NET){
+    opRoute = new Set();
+    for (const ei of eis) for (const id of (NET.edges[ei]?.objIds||[])) opRoute.add(id);
+  }
   const pts=geo, n=pts.length;
   const cum=new Float64Array(n);
   for(let i=1;i<n;i++) cum[i]=cum[i-1]+Math.hypot((pts[i][1]-pts[i-1][1])*mPerLon(pts[i][0]),(pts[i][0]-pts[i-1][0])*1.1132);
@@ -240,6 +248,11 @@ function objsOnRoute(geo, maxM){
   const out=[];
   for (const o of DATA.objs){
     if (o.t!=="B" && o.t!=="S") continue;
+    /* Bruggen filteren we op de secties die we varen — dat haalt de bruggen
+       over parallelle grachten eruit. Sluizen niet: een sluiscomplex bestaat
+       uit meerdere kolken en het RWS-punt hangt lang niet altijd aan de sectie
+       die je vaart, terwijl je er wel doorheen moet. */
+    if (opRoute && o.t==="B" && !opRoute.has(o.id)) continue;
     const ola=Math.round(o.lat*1e5), olo=Math.round(o.lon*1e5);
     /* grote bouwwerken staan met één punt in de data terwijl ze honderden
        meters overspannen (Zeelandbrug, naviducten). De breedte van de doorvaart
@@ -494,7 +507,7 @@ async function compute(){
   hint(NET ? TXT.calc : TXT.loading);
   try { await loadNet(); } catch(err){ hint("net.json.gz: "+err.message); return; }
   /* per traject tussen opeenvolgende punten zoeken en aan elkaar plakken */
-  const geo=[]; let snapMax=0;
+  const geo=[]; let snapMax=0; const eis=[];
   for (let i=0;i<punten.length-1;i++){
     const a=punten[i].latlng, b=punten[i+1].latlng;
     const sa = snap(Math.round(a.lat*1e5), Math.round(a.lng*1e5));
@@ -507,8 +520,9 @@ async function compute(){
     const deel = (sa && sb) ? findRoute(sa, sb, nodigeHoogte()) : null;
     if (!deel){ hint(nodigeHoogte()!=null ? TXT.noneHoogte : TXT.none); panel.querySelector(".rp-actions").hidden=false; return; }
     geo.push(...(i===0 ? deel.geo : deel.geo.slice(1)));
+    eis.push(...(deel.eis||[]));
   }
-  const r = {geo, meters: geoMeters(geo), snapMax};
+  const r = {geo, meters: geoMeters(geo), snapMax, eis};
   if (lineBack) map.removeLayer(lineBack);
   if (lineFront) map.removeLayer(lineFront);
   hint("");
@@ -522,7 +536,7 @@ async function compute(){
 }
 
 function render(r){
-  const items = objsOnRoute(r.geo);
+  const items = objsOnRoute(r.geo, r.eis);
   const km = x=> (x/1000).toFixed(1).replace(".", LANG==="en"?".":",");
   const bruggen = items.filter(i=>i.o.t==="B"), sluizen = items.filter(i=>i.o.t==="S");
   const vast = bruggen.filter(i=>!i.o.open);
