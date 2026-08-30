@@ -283,8 +283,10 @@ html.napp header input{touch-action:manipulation}
 #curbar[hidden]{display:none}
 #maplegend{position:absolute;z-index:999;left:12px;bottom:14px;background:var(--surface);border:1px solid var(--grid);border-radius:9px;box-shadow:0 2px 10px rgba(5,10,16,.18);padding:7px 9px;font-size:11px;line-height:1.35;color:var(--ink);max-width:172px}
 #maplegend[hidden]{display:none}
-/* verbleekte ondergrond in zeekaartmodus (zie baseLight) */
-.basis-bleek{filter:saturate(.3) brightness(1.12) contrast(.9)}
+/* Zeekaartmodus: de ondergrond wordt bleek gemaakt met tegel-opacity boven een witte
+   achtergrond. Bewust géén CSS-filter: dat moet bij elke zoomstap opnieuw gerasterd
+   worden en liet de kaart op een telefoon tijdens het zoomen wit wegvallen. */
+#map.zeewit{background:#fff}
 #maplegend .lg-t{font-weight:700;margin:2px 0 3px;font-size:11px}
 #maplegend .lg-t:not(:first-child){margin-top:7px}
 #maplegend .lg-row{display:flex;align-items:flex-start;gap:6px}
@@ -577,7 +579,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260830-12</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260830-13</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -2608,7 +2610,8 @@ function setZeeChart(on){
        OSM-tegels als de landkaart, met een CSS-filter eroverheen zodat het land verbleekt
        en de dieptevlakken erboven leesbaar blijven — geen sleutel, geen extra leverancier. */
     if (!baseLight) baseLight = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-      { maxZoom:19, className:"basis-bleek", attribution:'© OpenStreetMap' });
+      { maxZoom:19, opacity:0.42, attribution:'© OpenStreetMap' });
+    document.getElementById("map").classList.add("zeewit");   // witte achtergrond onder de halfdoorzichtige tegels
     if (map.hasLayer(baseOSM)) map.removeLayer(baseOSM);
     baseLight.addTo(map);
     // Eigen gladde dieptevlakken (zelf-gehost, vector, offline) — licht gekleurde dieptezones
@@ -2646,6 +2649,7 @@ function setZeeChart(on){
     if (emodnetDepth && map.hasLayer(emodnetDepth)) map.removeLayer(emodnetDepth);
     if (seaChartLayer) map.removeLayer(seaChartLayer);
     if (baseLight && map.hasLayer(baseLight)) map.removeLayer(baseLight);
+    document.getElementById("map").classList.remove("zeewit");
     if (baseOSM && !map.hasLayer(baseOSM)) baseOSM.addTo(map);
   }
   // clusters alleen op de landkaart
