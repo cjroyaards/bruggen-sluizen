@@ -560,8 +560,32 @@ function voegVia(latlng){
   punten.splice(best,0,{latlng, marker:dot(latlng,"#7c3aed",TXT.via,true)});
 }
 
+/* Het paneel dekt een stuk van de kaart af. Keek je naar Muiden en klap je de
+   planner uit, dan zit Muiden ineens achter het paneel. Daarom schuiven we de
+   kaart bij het openen precies zoveel op dat het punt waar je naar keek in het
+   midden van het zichtbare stuk blijft — en bij het sluiten weer terug. */
+let kaartVerschoven = null;        // [x, y] in pixels, zolang het paneel open is
+
+function schuifKaart(open){
+  if (!map) return;
+  try{
+    if (open){
+      if (kaartVerschoven) return;
+      const r = panel.getBoundingClientRect();
+      const dx = innerWidth > 640 ? Math.round(r.width/2) : 0;   // laptop: paneel rechts
+      const dy = innerWidth > 640 ? 0 : Math.round(r.height/2);  // telefoon: lade onderin
+      if (!dx && !dy) return;
+      kaartVerschoven = [dx, dy];
+      map.panBy(kaartVerschoven, {animate:true, duration:0.35});
+    } else if (kaartVerschoven){
+      map.panBy([-kaartVerschoven[0], -kaartVerschoven[1]], {animate:true, duration:0.35});
+      kaartVerschoven = null;
+    }
+  }catch(_){ kaartVerschoven = null; }
+}
+
 function off(){
-  clearRoute(); mode=0; panel.hidden=true; setCursor(false);
+  clearRoute(); mode=0; schuifKaart(false); panel.hidden=true; setCursor(false);
   const b=document.getElementById("mb-route"); if(b) b.classList.remove("on");
 }
 
@@ -778,7 +802,8 @@ function toggle(){
   if (mode!==0){ off(); return; }
   panel.hidden=false;
   kiesstand(true);
-  loadNet();                       // vast beginnen met laden
+  schuifKaart(true);               // kaart uit onder het paneel vandaan
+  loadNet();                     // vast beginnen met laden
   restart();
   const b=document.getElementById("mb-route"); if(b) b.classList.add("on");
 }

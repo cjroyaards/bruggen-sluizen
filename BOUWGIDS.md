@@ -141,6 +141,13 @@ verdwijnen op mobiel de drie knoppen — een tik op de kaart voegt nog steeds ee
 via-punt toe, lang indrukken verzet de bestemming. A* draait client-side over
 `data/net.json.gz`.
 
+**Kaart opschuiven bij openen.** Het paneel dekt rechts 600 px (of onderin de
+lade) af; keek je net naar Muiden, dan zat Muiden er meteen achter. `schuifKaart()`
+doet bij het openen `map.panBy([paneelbreedte/2, 0])` (telefoon:
+`[0, paneelhoogte/2]`) en bij het sluiten precies het omgekeerde, zodat je
+terugkomt waar je was. De `fitBounds` ná het plannen houdt al rekening met het
+paneel via `paddingBottomRight`.
+
 **Meelopen met je positie.** Staat *Volg mij* aan, dan projecteert `volgStap()`
 elke 2 s de positie van `meMarker` op de route (`langsRoute()` geeft afstand
 tot de lijn en de afgelegde meters), zoekt het eerste object dat nog moet komen
