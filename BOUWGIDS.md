@@ -115,6 +115,12 @@ BOYSAW, BCNLAT/BCNCAR, LIGHTS. RWS-cellen zijn wekelijks vers en CC-0.
 - **Telefoonmodus** (mediaquery max-width 640px of landscape+coarse pointer):
   eigen compacte layout — bottom-sheet-plotter met vaste 2×2, menuknoppen,
   ingeklapte legenda. Test wijzigingen dus óók op een smal scherm.
+- **`100vh` op iOS is groter dan wat je ziet** zolang de adresbalk in beeld
+  staat. Met `min-height:100vh` op de body was de pagina daardoor net een
+  stukje scrollbaar, en kon je met een veeg de kaartknoppen onder de sticky
+  header schuiven. Opgelost met `100dvh` (met `100vh` als terugval) plus
+  `touch-action:none` op `.mapbar`; de uitklapmenu's houden `pan-y`.
+  Gebruik voor nieuwe volledig-schermelementen dus altijd `dvh`.
 - **iOS cachet hardnekkig**: daarom de buildstamp. Privé-tabblad of
   opnieuw-toevoegen-aan-beginscherm helpt bij twijfel.
 
