@@ -12,6 +12,7 @@ const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
   neu:"new route", total:"total", bridges:"bridges", locks:"locks", fixed:"fixed",
   viaBtn:"+ via point", hintVia:"Tap a point the route must pass through", via:"Via",
   eindBtn:"destination", hintEindKnop:"Tap the destination on the map",
+  volgende:"next up",
   hintStartTik:"Tap the starting point; set the destination with the \u201Cdestination\u201D button (or long-press)",
   hintVolgendeTik:"Another tap = via point · set the destination with the \u201Cdestination\u201D button",
   viaWeg:"via point removed",
@@ -30,6 +31,7 @@ const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
   neu:"nieuwe route", total:"totaal", bridges:"bruggen", locks:"sluizen", fixed:"vast",
   viaBtn:"+ via-punt", hintVia:"Tik een punt aan waar de route langs moet", via:"Via",
   eindBtn:"bestemming", hintEindKnop:"Tik de bestemming aan op de kaart",
+  volgende:"eerstvolgende",
   hintStartTik:"Tik het startpunt aan; de bestemming zet je met de knop \u201Cbestemming\u201D (of lang indrukken)",
   hintVolgendeTik:"Nog een tik = via-punt · de bestemming zet je met de knop \u201Cbestemming\u201D",
   viaWeg:"via-punt verwijderd",
@@ -322,6 +324,67 @@ function nodigeHoogte(){
   return isNaN(v) ? null : v + 0.2;
 }
 
+/* ---------- meelopen met je positie ----------
+   Vaar je met "Volg mij" aan, dan schuift de lijst mee: het eerstvolgende
+   object dat je nog moet passeren staat in beeld en is omrand. Zo hoef je op
+   het water niet te scrollen om te zien wat er aankomt. */
+let laatsteRoute = null;        // {geo, cum, items}
+let volgTimer = null, huidigeIdx = -1;
+
+function langsRoute(geo, cum, la, lo){
+  const p0=[la*1e5, lo*1e5];
+  let best={d:Infinity, along:0};
+  for (let i=0;i<geo.length-1;i++){
+    const ax=geo[i][1]*mPerLon(geo[i][0]), ay=geo[i][0]*mPerLat();
+    const bx=geo[i+1][1]*mPerLon(geo[i][0]), by=geo[i+1][0]*mPerLat();
+    const px=p0[1]*mPerLon(geo[i][0]), py=p0[0]*mPerLat();
+    const dx=bx-ax, dy=by-ay, L2=dx*dx+dy*dy||1e-9;
+    let t=((px-ax)*dx+(py-ay)*dy)/L2; t=Math.max(0,Math.min(1,t));
+    const d=Math.hypot(px-(ax+t*dx), py-(ay+t*dy));
+    if (d<best.d) best={d, along: cum[i] + t*(cum[i+1]-cum[i])};
+  }
+  return best;
+}
+
+function mijnPositie(){
+  /* meMarker staat in index.html als top-level `let`, dus niet op window maar in
+     de gedeelde scriptscope; gewoon bij naam opvragen dus */
+  try{
+    if (typeof meMarker !== "undefined" && meMarker && meMarker.getLatLng)
+      return meMarker.getLatLng();
+  }catch(_){}
+  return null;
+}
+
+function volgStap(){
+  if (!laatsteRoute || !panel || panel.hidden) return;
+  const ll = mijnPositie();
+  if (!ll) return;
+  const {geo, cum, items} = laatsteRoute;
+  const pos = langsRoute(geo, cum, ll.lat, ll.lng);
+  if (pos.d > 3000) return;                    // te ver van de route: niets doen
+  let idx = items.findIndex(i => i.along >= pos.along - 30);
+  if (idx < 0) idx = items.length - 1;
+  if (idx === huidigeIdx) return;
+  huidigeIdx = idx;
+  const lijst = panel.querySelector("#rp-list");
+  lijst.querySelectorAll(".rp-item.rp-nu").forEach(el=>el.classList.remove("rp-nu"));
+  const el = lijst.children[idx];
+  if (el){
+    el.classList.add("rp-nu");
+    el.scrollIntoView({block:"start", behavior:"smooth"});
+  }
+}
+
+function startVolgen(){
+  if (volgTimer) clearInterval(volgTimer);
+  huidigeIdx = -1;
+  volgTimer = setInterval(volgStap, 2000);
+  setTimeout(volgStap, 400);
+}
+
+function stopVolgen(){ if (volgTimer){ clearInterval(volgTimer); volgTimer=null; } laatsteRoute=null; huidigeIdx=-1; }
+
 /* ---------- UI ---------- */
 let mode=0;                    // 0 uit, 1 wacht start, 2 wacht eind, 3 route, 4 wacht via-punt
 let punten=[];                 // [{latlng, marker}] — start, via-punten, bestemming
@@ -354,6 +417,8 @@ function css(){
 #routepanel .rp-km{position:absolute;top:-7px;left:10px;z-index:5;background:var(--brand);color:#fff;
   border-radius:8px;font-size:10.5px;font-weight:700;padding:1px 7px;box-shadow:0 1px 4px rgba(0,0,0,.25)}
 #routepanel .rp-list .card{margin:0;cursor:pointer}
+#routepanel .rp-item.rp-nu .card{outline:2px solid var(--brand);outline-offset:1px}
+#routepanel .rp-item.rp-nu .rp-km{background:var(--serious)}
 #routepanel .rp-actions{padding:10px 20px;border-bottom:1px solid var(--grid);display:flex;
   flex-wrap:wrap;gap:8px;align-items:center}
 #routepanel .rp-actions button{background:var(--surface);border:1px solid var(--grid);border-radius:8px;
@@ -376,8 +441,14 @@ function css(){
 #routepanel .rp-grip{display:none}
 @media (max-width:640px){
   /* greep om de lade zelf hoger of lager te slepen */
-  #routepanel .rp-grip{display:block;padding:7px 0 3px;cursor:row-resize;touch-action:none;flex:none}
-  #routepanel .rp-grip span{display:block;width:44px;height:4px;margin:0 auto;border-radius:2px;background:var(--grid)}
+  /* ruim raakvlak: een greep van een paar pixels is op een varende boot niet te
+     raken, dus de hele strook boven de kop is sleepbaar */
+  #routepanel .rp-grip{display:flex;align-items:center;justify-content:center;height:34px;
+    cursor:row-resize;touch-action:none;flex:none}
+  #routepanel .rp-grip span{display:block;width:60px;height:5px;border-radius:3px;background:var(--muted);opacity:.55}
+  #routepanel .rp-grip:active span{opacity:.9}
+  /* ook de kopregel mag slepen, dat is een veel groter doel */
+  #routepanel .rp-head{touch-action:none}
   /* route klaar: de knoppen weg, dat scheelt een hele regel. Een tik op de kaart
      voegt nog steeds een via-punt toe, lang indrukken verzet de bestemming. */
   #routepanel.rp-klaar .rp-actions button{display:none}
@@ -546,27 +617,31 @@ function kiesstand(aan){
 
 /* de lade op een telefoon met de greep hoger of lager slepen */
 function maakSleepbaar(){
-  const grip = panel.querySelector(".rp-grip");
+  const grepen = [panel.querySelector(".rp-grip"), panel.querySelector(".rp-head")];
   let bezig = false;
   const zet = y=>{
     const h = Math.min(innerHeight*0.80, Math.max(innerHeight*0.22, innerHeight - y));
     panel.style.height = Math.round(h)+"px";
     panel.style.maxHeight = "none";
   };
-  grip.addEventListener("pointerdown", e=>{
-    if (innerWidth>640) return;
-    bezig=true; handmatigeHoogte=true;
-    panel.classList.remove("rp-kiezen");
-    grip.setPointerCapture(e.pointerId);
-    e.preventDefault();
-  });
-  grip.addEventListener("pointermove", e=>{ if (bezig) zet(e.clientY); });
-  const stop = e=>{ if(!bezig) return; bezig=false;
-    try{ grip.releasePointerCapture(e.pointerId); }catch(_){}
-    if (map) map.invalidateSize();
-  };
-  grip.addEventListener("pointerup", stop);
-  grip.addEventListener("pointercancel", stop);
+  for (const g of grepen){
+    if (!g) continue;
+    g.addEventListener("pointerdown", e=>{
+      if (innerWidth>640) return;
+      if (e.target.closest("button,input,a,summary")) return;   // knoppen blijven knoppen
+      bezig=true; handmatigeHoogte=true;
+      panel.classList.remove("rp-kiezen");
+      try{ g.setPointerCapture(e.pointerId); }catch(_){}
+      e.preventDefault();
+    });
+    g.addEventListener("pointermove", e=>{ if (bezig) zet(e.clientY); });
+    const stop = e=>{ if(!bezig) return; bezig=false;
+      try{ g.releasePointerCapture(e.pointerId); }catch(_){}
+      if (map) map.invalidateSize();
+    };
+    g.addEventListener("pointerup", stop);
+    g.addEventListener("pointercancel", stop);
+  }
 }
 
 function clearLijn(){
@@ -574,6 +649,7 @@ function clearLijn(){
   lineBack=lineFront=null;
   panel.querySelector("#rp-sum").hidden=true;
   panel.querySelector("#rp-list").innerHTML="";
+  stopVolgen();
   kiesstand(true);
 }
 
@@ -687,6 +763,13 @@ function render(r){
   panel.querySelector(".rp-actions").hidden=false;
   panel.querySelector("#rp-list").innerHTML = items.map(i=>
     `<div class="rp-item"><div class="rp-km">km ${km(i.along)}</div>${cardHTML(i.o)}</div>`).join("");
+  /* afstanden langs de route onthouden, zodat we straks weten waar je vaart */
+  const cum=[0];
+  for (let i=1;i<r.geo.length;i++)
+    cum.push(cum[i-1] + Math.hypot((r.geo[i][1]-r.geo[i-1][1])*mPerLon(r.geo[i][0]),
+                                   (r.geo[i][0]-r.geo[i-1][0])*mPerLat()));
+  laatsteRoute = {geo:r.geo, cum, items};
+  startVolgen();
 }
 
 function toggle(){

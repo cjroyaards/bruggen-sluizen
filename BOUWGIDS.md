@@ -131,10 +131,24 @@ rechtsklik (of de knop *bestemming*) = eindpunt, rechtsklik óp een via-punt
 haalt hem weg. Het paneel heeft dezelfde afmeting als het detailpaneel van een
 brug of sluis (`min(600px,100%)`, volle hoogte); op een telefoon is het een
 bodemlade die laag blijft zolang je punten aanwijst en uitklapt als de route er
-is; met de greep erbovenop sleept de gebruiker hem zelf tussen 22% en 80% van
-het scherm (hoger mag niet, anders verdwijnen de kaartknoppen eronder). Zodra
-de route klaar is verdwijnen op mobiel de drie knoppen — een tik op de kaart
-voegt nog steeds een via-punt toe, lang indrukken verzet de bestemming. A* draait client-side over `data/net.json.gz`.
+is; met de greep erbovenop *of de kopbalk* sleept de gebruiker hem zelf tussen
+22% en 80% van het scherm (hoger mag niet, anders verdwijnen de kaartknoppen
+eronder). Het sleepvlak is bewust ruim — 34 px greep plus de hele kopbalk, ruim
+80 px samen — want met een dun streepje van 4 px lukte het slepen op een
+telefoon nauwelijks; knoppen in de kop blijven knoppen (`e.target.closest(
+"button,input,a,summary")` slaat de sleep over). Zodra de route klaar is
+verdwijnen op mobiel de drie knoppen — een tik op de kaart voegt nog steeds een
+via-punt toe, lang indrukken verzet de bestemming. A* draait client-side over
+`data/net.json.gz`.
+
+**Meelopen met je positie.** Staat *Volg mij* aan, dan projecteert `volgStap()`
+elke 2 s de positie van `meMarker` op de route (`langsRoute()` geeft afstand
+tot de lijn en de afgelegde meters), zoekt het eerste object dat nog moet komen
+en scrollt dat in beeld met een rand eromheen (`.rp-nu`). Ligt de positie meer
+dan 3 km van de route, dan gebeurt er niets. Let op: `meMarker` staat in
+`index.html` als top-level `let`, dus die zit *niet* op `window` maar in de
+gedeelde scriptscope — uitlezen via `typeof meMarker !== "undefined"`, niet via
+`window.meMarker`.
 
 **Bron: het officiële vaarwegennetwerk van Rijkswaterstaat** (FIS
 `section` + `fairway`), dezelfde dataservice als de bruggen en sluizen. Dat is
@@ -144,7 +158,7 @@ eindknooppunt), en open water zit erin als de officiële betonde routes. 4630
 secties, 0,15 MB gzip. Secties krijgen een voorkeursfactor uit de CEMT-klasse
 en de doorvaarthoogte van de laagste vaste brug erboven.
 
-Testen: `node scripts/test_route_graph.js` (22 controles op de echte data:
+Testen: `node scripts/test_route_graph.js` (23 controles op de echte data:
 dijkpassages, Zeeland binnendoor, Friesland via het Prinses Margrietkanaal) en
 `python3 scripts/audit_net.py` (meldt verbindingen die over land lopen; hoort 0
 te zijn — het netwerk bevat geen zelfgemaakte lijnen meer).
