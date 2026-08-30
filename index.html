@@ -6,8 +6,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>OpenPilot — open vaarkaart: bedieningstijden bruggen &amp; sluizen, getij, stroming, wind en zeekaart</title>
-<meta name="description" content="Gratis open vaarkaart voor Nederland: bedieningstijden van alle bruggen en sluizen, actuele stremmingen, getijverwachtingen (RWS &amp; Admiralty), stroming en wind, zeekaartmodus met dieptes en een eenvoudige plotter. Voor de recreatievaart, NL/EN.">
-<meta name="keywords" content="vaarkaart, bedieningstijden bruggen, bedieningstijden sluizen, stremmingen, getij, getijverwachting, stroming, wind, zeekaart, dieptekaart, waterkaart, plotter, marifoonkanalen, doorvaarthoogte, recreatievaart, watersport, zeilen, motorboot">
+<meta name="description" content="Gratis open vaarkaart voor Nederland: bedieningstijden van alle bruggen en sluizen, actuele stremmingen, getijverwachtingen (RWS &amp; Admiralty), stroming en wind en zeekaartmodus met dieptes. Voor de recreatievaart, NL/EN.">
+<meta name="keywords" content="vaarkaart, bedieningstijden bruggen, bedieningstijden sluizen, stremmingen, getij, getijverwachting, stroming, wind, zeekaart, dieptekaart, waterkaart, marifoonkanalen, doorvaarthoogte, recreatievaart, watersport, zeilen, motorboot">
 <link rel="canonical" href="https://cjroyaards.github.io/bruggen-sluizen/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="OpenPilot">
@@ -265,74 +265,24 @@ header{position:sticky}
 }
 .dropmenu .dm-note{font-size:11.5px;color:var(--muted);margin-top:5px;min-height:0}
 #curbar{position:absolute;z-index:1050;bottom:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--grid);border-radius:11px;box-shadow:0 2px 12px rgba(5,10,16,.2);padding:6px 11px;max-width:calc(100% - 24px)}
-#plotter{position:absolute;z-index:1001;top:12px;right:12px;background:var(--surface);border:1px solid var(--grid);border-radius:12px;box-shadow:0 2px 14px rgba(5,10,16,.25);padding:10px 12px;min-width:190px}
-#plotter input{width:100%;box-sizing:border-box;border:1px solid var(--grid);background:var(--surface);color:var(--ink);border-radius:7px;padding:5px 7px;font-size:12px}
-#pl-head{display:none;align-items:center;justify-content:space-between;gap:10px}
-#pl-mini{font-weight:750;font-variant-numeric:tabular-nums;font-size:16px;white-space:nowrap;overflow:hidden}
-#pl-toggle{border:1px solid var(--grid);background:var(--surface);color:var(--ink);border-radius:9px;padding:3px 16px;font-size:17px;cursor:pointer;flex:none}
 @media (max-width:640px), (max-height:500px) and (orientation:landscape) and (pointer:coarse){
-  /* telefoonmodus: plotter als bottom-sheet, in/uitklapbaar via de kopregel */
-  #plotter{top:auto;bottom:0;left:0;right:0;min-width:0;width:auto;border-radius:16px 16px 0 0;border-bottom:none;box-shadow:0 -4px 18px rgba(5,10,16,.3);padding:9px 14px calc(9px + env(safe-area-inset-bottom))}
-  #pl-head{display:flex}
-  #plotter.sheet-collapsed #pl-body{display:none}
-  #pl-body{margin-top:7px}
-  #plotter .pl-l{font-size:11px}
-  #plotter .pl-row button{font-size:14px;padding:7px 12px}
-  #plotter input{font-size:15px;padding:8px}
-  #windbox{left:8px;right:8px;width:auto !important}
-  #pl-close{display:none}   /* telefoon: ▾-pijltje volstaat om te sluiten */
-  /* telefoon: vaste 2x2 (SOG/COG/DTW/TTW), geen layoutkeuze, geen NMEA/wind tot de koppeling kan */
-  #pl-nmea,#pl-windbtn,#pl-layout,#pl-src{display:none !important}
-  /* in de native app werkt NMEA (TCP/UDP) wél → knoppen en bron-label daar tonen */
-  html.napp #pl-nmea,html.napp #pl-windbtn,html.napp #pl-src{display:inline-block !important}
-  #plotter .pl-grid{gap:4px 14px}
-  #plotter .pl-grid>div:nth-child(2),#plotter .pl-grid>div:nth-child(5){display:none !important}   /* DPT, BTW */
-  #plotter .pl-grid>div:nth-child(1),#plotter .pl-grid>div:nth-child(3),
-  #plotter .pl-grid>div:nth-child(4),#plotter .pl-grid>div:nth-child(6){display:flex !important}   /* SOG/COG/DTW/TTW */
-  #plotter .pl-v{font-size:26px !important}
-  #pl-body{margin-top:5px}
-  /* mapbar: alles achter één menuknop; Volg mij en Plotter als los icoon */
+  /* mapbar: alles achter één menuknop; Volg mij als los icoon */
   .mapbar{left:10px}   /* geen +/− zoomknoppen meer → knoppen netjes links uitlijnen */
   #mb-menu{display:flex}
   .mapbar .dropwrap{display:none}
   .mapbar.open .dropwrap{display:block}
   .mapbar.open{flex-direction:column;align-items:stretch}
   .mapbar.open .dropwrap .mapbtn{width:100%;justify-content:flex-start}
-  #mb-locate span,#mb-plotter span{display:none}
-  #mb-locate,#mb-plotter{padding:8px 11px}
+  #mb-locate span{display:none}
+  #mb-locate{padding:8px 11px}
   #hd-more{display:flex}
   .h-top{padding:11px 14px 11px}   /* iets meer donker onder de knoppen: ⋮ en 🔍 vallen netjes ín de balk */
 }
-#plotter,#windbox{touch-action:none}
 html.napp header{touch-action:none}
 html.napp header input{touch-action:manipulation}
-#plotter input,#plotter button,#windbox button{touch-action:manipulation}
-#plotter[hidden]{display:none}
-#plotter .pl-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 14px}
-#plotter .pl-grid>div{display:flex;flex-direction:column}
-#plotter .pl-v{font-size:22px;font-weight:750;font-variant-numeric:tabular-nums;line-height:1.15}
-#plotter .pl-l{font-size:10px;color:var(--muted);letter-spacing:.4px}
-#plotter .pl-row{display:flex;gap:6px;margin-top:9px}
-#plotter .pl-row button{border:1px solid var(--grid);background:var(--surface);color:var(--ink);border-radius:8px;padding:4px 9px;cursor:pointer;font-size:12px}
-#plotter .pl-row button.arm{background:var(--accent);color:#fff;border-color:transparent}
-#plotter.layout-1 .pl-grid>div:nth-child(n+3){display:none}
-#plotter.layout-2 .pl-grid>div:nth-child(n+5){display:none}
-#plotter.layout-1 .pl-v{font-size:34px}
-#plotter.layout-2 .pl-v{font-size:27px}
-#windbox{position:absolute;z-index:1001;top:200px;right:12px;box-sizing:border-box;background:var(--surface);border:1px solid var(--grid);border-radius:12px;box-shadow:0 2px 14px rgba(5,10,16,.25);padding:10px 12px;text-align:center}
-#windbox[hidden]{display:none}
-#windbox .wb-nums{display:flex;gap:14px;justify-content:center;margin-top:6px;font-size:12px}
-#windbox .wb-nums b{font-size:16px}
 #curbar[hidden]{display:none}
 #maplegend{position:absolute;z-index:999;left:12px;bottom:14px;background:var(--surface);border:1px solid var(--grid);border-radius:9px;box-shadow:0 2px 10px rgba(5,10,16,.18);padding:7px 9px;font-size:11px;line-height:1.35;color:var(--ink);max-width:172px}
 #maplegend[hidden]{display:none}
-.ntbl{width:100%;border-collapse:collapse;margin:7px 0;font-size:12.5px}
-.ntbl td{border:1px solid var(--grid);padding:5px 8px;vertical-align:top;line-height:1.45}
-.ntbl td:first-child{white-space:nowrap;font-weight:650}
-.nsteps{margin:5px 0 3px;padding-left:19px}
-.nsteps li{margin:4px 0;line-height:1.5}
-.ok{color:#2e7d4f;font-weight:700}
-.via{color:#b07a1e;font-weight:700}
 #maplegend .lg-t{font-weight:700;margin:2px 0 3px;font-size:11px}
 #maplegend .lg-t:not(:first-child){margin-top:7px}
 #maplegend .lg-row{display:flex;align-items:flex-start;gap:6px}
@@ -500,7 +450,7 @@ html.napp header input{touch-action:manipulation}
         <button class="mapbtn" id="mb-tide"><svg class="ic" viewBox="0 0 24 24"><path d="M3 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M3 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/></svg><span data-i18n="mb_tide">Getij, stroming &amp; wind</span> ▾</button>
         <div id="tidemenu" class="dropmenu" hidden>
           <div class="dm-t" data-i18n="dm_title">Getijdestroom</div>
-          <label><input type="checkbox" id="tide-stations" checked> <span data-i18n="t_stations">Getijstations</span></label>
+          <label><input type="checkbox" id="tide-stations"> <span data-i18n="t_stations">Getijstations</span></label>
           <label><input type="checkbox" id="lay-flow"> <span data-i18n="dm_flow">Stroompijlen</span></label>
           <label><input type="checkbox" id="lay-particles"> <span data-i18n="dm_particles">Deeltjesanimatie</span></label>
           <div class="dm-note" id="lay-status"></div>
@@ -520,7 +470,7 @@ html.napp header input{touch-action:manipulation}
           <label style="font-weight:700"><input type="radio" name="kmode" value="land" id="k-land" checked> <span data-i18n="k_land">Landkaartmodus</span></label>
           <label style="font-weight:700"><input type="radio" name="kmode" value="zee" id="k-zeekaart"> <span data-i18n="k_zeekaart">Zeekaartmodus</span></label>
           <label><input type="checkbox" id="k-vts"> <span data-i18n="k_vts">VTS-sectoren</span></label>
-          <label><input type="checkbox" id="obj-harb" checked> <span data-i18n="o_harb">Havens</span></label>
+          <label><input type="checkbox" id="obj-harb"> <span data-i18n="o_harb">Havens</span></label>
           <div class="dm-t" data-i18n="dm_depth">Diepte</div>
           <label><input type="checkbox" id="d-per5"> <span class="dm-2"><b data-i18n="ds_deep">Diep</b><small data-i18n="ds_deep_x">per 5 m (5–30 m)</small></span></label>
           <label><input type="checkbox" id="d-per1"> <span class="dm-2"><b data-i18n="ds_shallow">Ondiep</b><small data-i18n="ds_shallow_x">per 1 m (1–10 m)</small></span></label>
@@ -529,54 +479,7 @@ html.napp header input{touch-action:manipulation}
       </div>
       <button class="mapbtn" id="mb-route"><svg class="ic" viewBox="0 0 24 24"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8 17.5C12 15 9 9.5 13 7.2"/><path d="M13 7.2h2.6"/></svg><span data-i18n="mb_route">Route</span></button>
       <button class="mapbtn" id="mb-locate"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="2.2"/></svg><span data-i18n="mb_locate">Volg mij</span></button>
-      <button class="mapbtn" id="mb-plotter" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l4 9-4-2.5L8 12z"/><circle cx="12" cy="12" r="9"/></svg><span data-i18n="mb_plotter">Plotter</span></button>
     </div>
-    <div id="plotter" hidden>
-      <div id="pl-head">
-        <span id="pl-mini">–</span>
-        <button id="pl-toggle" aria-label="plotter in/uitklappen">▾</button>
-      </div>
-      <div id="pl-body">
-      <div class="pl-grid">
-        <div><span class="pl-v" id="pl-sog">–</span><span class="pl-l">SOG kn</span></div>
-        <div><span class="pl-v" id="pl-dpt">–</span><span class="pl-l">DPT m</span></div>
-        <div><span class="pl-v" id="pl-cog">–</span><span class="pl-l">COG °</span></div>
-        <div><span class="pl-v" id="pl-dtw">–</span><span class="pl-l">DTW nm</span></div>
-        <div><span class="pl-v" id="pl-btw">–</span><span class="pl-l">BTW °</span></div>
-        <div><span class="pl-v" id="pl-ttw">–</span><span class="pl-l">TTW</span></div>
-      </div>
-      <button id="pl-close" style="position:absolute;top:6px;right:9px;background:none;border:none;font-size:15px;color:var(--muted);cursor:pointer;padding:2px 4px">✕</button>
-      <div class="pl-row">
-        <button id="pl-wp" data-i18n="pl_wp">WP: tik op de kaart</button>
-        <button id="pl-clearwp" data-i18n="pl_clearwp">wis WP</button>
-        <button id="pl-windbtn" title="windvenster">wind</button>
-        <button id="pl-set" title="instellingen" style="background:none;border:none;font-size:20px;line-height:1;color:var(--ink2);cursor:pointer;padding:0 4px">⚙</button>
-      </div>
-      <div id="pl-settings" hidden>
-      <div class="pl-row" style="margin-top:6px">
-        <button id="pl-nmea">NMEA</button>
-        <button id="pl-layout" title="wissel layout 3×2 / 2×2 / 1×2">⊞ 3×2</button>
-        <span id="pl-src" style="font-size:10px;color:var(--muted);align-self:center">bron: GPS</span>
-      </div>
-      <div id="pl-nmeacfg" hidden style="margin-top:7px">
-        <input id="pl-nmurl" placeholder="ws://ip:3000/signalk/v1/stream" autocomplete="off" style="max-width:220px">
-        <div class="pl-row" style="margin-top:6px"><button id="pl-nmconn">verbind</button></div>
-        <div id="pl-nmstat" style="font-size:10px;color:var(--muted);margin-top:4px;max-width:220px;word-break:break-word"></div>
-        <label style="display:flex;align-items:center;gap:7px;font-size:12px;margin-top:6px"><input type="checkbox" id="pl-ais" checked style="width:auto;margin:0;flex:none"> AIS-doelen tonen</label>
-        <label style="display:flex;align-items:center;gap:7px;font-size:12px;margin-top:4px"><input type="checkbox" id="pl-cpa" style="width:auto;margin:0;flex:none"> CPA intekenen + waarschuwing (rood bij &lt;0,5 nm/30 min)</label>
-        <label style="display:flex;align-items:center;gap:7px;font-size:12px;margin-top:4px"><input type="checkbox" id="pl-aisvec" style="width:auto;margin:0;flex:none"> Koersvector bij AIS-doelen (6 min)</label>
-      </div>
-      </div>
-      <div style="font-size:9.5px;color:var(--muted);margin-top:7px;line-height:1.3" data-i18n="pl_disc">Indicatief — kaart niet voor navigatiedoeleinden.</div>
-      </div>
-    </div>
-    <div id="windbox" hidden>
-      <div style="font-weight:700;font-size:12px;display:flex;justify-content:space-between"><span>NMEA-wind</span><span id="wb-close" style="cursor:pointer">✕</span></div>
-      <canvas id="wb-rose" width="150" height="150"></canvas>
-      <div class="wb-nums">
-        <span style="color:#d64550">A <b id="wb-aws">–</b> kn · <span id="wb-awa">–</span>°</span>
-        <span style="color:#2a78d6">T <b id="wb-tws">–</b> kn · <span id="wb-twa">–</span>°</span>
-      </div>
     </div>
     <div id="curbar" hidden>
       <button id="cur-play" title="Afspelen">▶</button>
@@ -602,7 +505,7 @@ html.napp header input{touch-action:manipulation}
   </section>
   <section id="v-info" hidden>
     <div class="p-sec"><h3>Over deze site</h3>
-      <p>Een gratis, tweetalige vaarkaart voor de recreatievaart — alles op één doorzoekbare kaart, gemaakt voor onderweg op het water. In het kort kun je hier: <b>bedieningstijden van bruggen en sluizen</b> opzoeken, <b>actuele stremmingen</b> zien, <b>getij</b> (NL &amp; UK), <b>getijstroom</b> en <b>wind</b> met een tijdlijn bekijken, per locatie het <b>weer</b> zien, een <b>regenradar</b> met onweer aanzetten, overschakelen naar een <b>zeekaartmodus met dieptelijnen</b>, geselecteerde <b>jachthavens</b> bekijken en een eenvoudige <b>plotter</b> gebruiken. Geen officiële bron — wel snel en overzichtelijk. Hieronder staat per onderdeel wat het precies doet.</p>
+      <p>Een gratis, tweetalige vaarkaart voor de recreatievaart — alles op één doorzoekbare kaart, gemaakt voor onderweg op het water. In het kort kun je hier: <b>bedieningstijden van bruggen en sluizen</b> opzoeken, <b>actuele stremmingen</b> zien, <b>getij</b> (NL &amp; UK), <b>getijstroom</b> en <b>wind</b> met een tijdlijn bekijken, per locatie het <b>weer</b> zien, een <b>regenradar</b> met onweer aanzetten, overschakelen naar een <b>zeekaartmodus met dieptelijnen</b> en geselecteerde <b>jachthavens</b> bekijken. Geen officiële bron — wel snel en overzichtelijk. Hieronder staat per onderdeel wat het precies doet.</p>
     </div>
 
     <div class="p-sec"><h3>Wat je hier ziet</h3>
@@ -619,7 +522,6 @@ html.napp header input{touch-action:manipulation}
         <span class="k">Regenradar &amp; onweer</span><span>Regenradar met een animatie over het afgelopen ~2 uur die je rustig kunt doorlopen; wind en stroom lopen desgewenst op dezelfde tijd mee. ⚡-icoontjes tonen waar het weermodel onweer aangeeft.</span>
         <span class="k">Zeekaartmodus &amp; diepte</span><span>Schakel naar zeekaartmodus (OpenSeaMap: tonnen, lichten, bakens) met eigen dieptelijnen en gearceerde banden — fijne lijnen voor "diep" en "ondiep". Dieptes t.o.v. kaartnul (LAT).</span>
         <span class="k">VTS-sectoren</span><span>De marifoon-/VHF-sectoren van de Scheldemond met kanalen, namen en meldplicht — indicatief, niet voor navigatie.</span>
-        <span class="k">Plotter</span><span>Je eigen positie op de kaart, met snelheid, koers en een waypoint met afstand/tijd. In de app te koppelen aan je NMEA-instrumenten (TCP/UDP).</span>
         <span class="k">Handig</span><span>Favorieten (☆), zoeken op naam/plaats/vaarweg, licht/donker, en een tijdzoneknop (NL / UTC-GMT / UK) die alle tijden meteen omzet.</span>
       </div>
     </div>
@@ -656,7 +558,6 @@ html.napp header input{touch-action:manipulation}
         <span class="k">Diepte — nauwkeurigheid</span><span>EMODnet bouwt het DTM uit duizenden ingemeten surveys (akoestisch, lidar, satelliet). Elke bron is via CDI/Sextant-metadata herleidbaar, en per rastercel wordt bijgehouden welke bron is gebruikt, hoeveel metingen zijn meegenomen en of de cel ge-interpoleerd is. Bronnen die niet aan de QA/QC-eisen voldoen vallen af. De nauwkeurigheid verschilt per gebied — dicht bemeten kustzones zijn betrouwbaarder dan dunbemeten open zee.</span>
         <span class="k">VTS-sectoren (Scheldemond)</span><span>De marifoon-/VHF-sectoren volgen de officiële GNB VHF-sectorenkaart (vts-scheldt.net): estuariumgrenzen op de echte tonnen, buitenaanloop op de brochure-punten. Kanalen, namen en telefoon uit de GNB-brochure. De Maas-aanloop (01/02/03) staat op de Reeds-afstanden; overige zeewaartse grenzen zijn bij benadering. <b>Indicatief — niet voor navigatie</b>; controleer de exacte grenzen op de zeekaart. Nood/oproep Kustwacht: VHF 16 · DSC 70. In elke sector-popup staat uitleg over meldplicht en bereikbaarheidsplicht.</span>
         <span class="k">Zeekaartmodus</span><span>Onze eigen zeekaartlaag: <b>gladgestreken dieptevlakken</b> in lichte zeekaartkleuren uit <b>EMODnet Bathymetry</b> (dekt NL, de Engelse oostkust, het Kanaal en België; droogvallend in groen), met daaroverheen de <b>kustlijn en dieptelijnen</b> uit de officiële <b>RWS Inland ENC</b> (CC-0) — de <b>2 m-lijn</b> iets zwaarder aangezet als veiligheidscontour. In de afgesloten delta-wateren (Grevelingen, Haringvliet, Volkerak, Hollands Diep) tonen we geen zeevlakken maar de fijnmazige ENC-dieptelijnen. Alles zelf verwerkt en zelf-gehost, dus het werkt <b>offline</b>. Zeekaart-symbolen van OpenSeaMap; ondergrond © CARTO/OpenStreetMap. <b>Indicatief — niet voor navigatie.</b></span>
-        <span class="k">Plotter &amp; NMEA</span><span><b>Zo werkt het.</b><ol class="nsteps"><li><b>Zonder iets extra's:</b> de plotter gebruikt de GPS van je telefoon — positie, SOG/COG, waypoints en DTW/BTW/TTW werken direct. (iPads zonder simkaart hebben géén GPS-chip; daar zie je wel je positie via wifi-plaatsbepaling, maar bewust geen snelheid of koers.)</li><li><b>Boordinstrumenten</b> (dieptemeter, windmeter, boord-GPS) koppel je via de knop <b>NMEA</b> in de plotter: vul alleen het IP-adres van je gateway in — de app probeert automatisch de bekende aansluitingen en meldt welke het geworden is. Diepte verschijnt in het paneel, wind in het windvenster (ware + schijnbare wind op de roos).</li><li><b>In de OpenPilot-app</b> (iPhone/iPad): daar kan óók rauw <b>TCP/UDP</b>. Vul het IP van je gateway in, eventueel met poort (bijv. <code>192.168.1.5:2000</code>) — bij een kaal IP probeert de app automatisch tcp 10110, tcp 2000, udp 10110 en daarna de WebSocket-aansluitingen. Sta bij de eerste keer "Lokaal netwerk" toe, en zorg dat je telefoon op de wifi van het boordnetwerk zit.</li></ol><table class="ntbl"><tr><td>Yacht Devices YDWG-02</td><td><b class="ok">direct</b> — recente firmware (met Web Gauges) heeft een WebSocket; zet Server #1 op NMEA 0183. IP invullen is genoeg.</td></tr><tr><td>Digital Yacht iKommunicate</td><td><b class="ok">direct</b> — SignalK-gateway met WebSocket aan boord. IP invullen is genoeg.</td></tr><tr><td>NavLink2 / WLN10 / andere TCP- of UDP-gateway</td><td><b class="ok">direct in de app</b> · <b class="via">via brug op de website</b> — kale TCP/UDP is voor een browser onbereikbaar. Gebruik de <b>OpenPilot NMEA-brug</b>, een klein los programma voor je computer dat de gateway doorgeeft als WebSocket (<code>ws://localhost:8100</code>). Een SignalK-server kan ook.</td></tr><tr><td>SignalK-server</td><td><b class="ok">direct</b> — <code>ws://&lt;ip&gt;:3000/signalk/v1/stream</code></td></tr></table><b>Belangrijke beperking (alleen website):</b> een <code>ws://</code>-koppeling mag van de browser alleen vanaf een http-pagina, en dit adres (github.io) is verplicht https. De directe koppeling gaat dus werken zodra de site op een eigen domein draait (met een http-"boordmodus"), of nu al via een <code>wss://</code>-bron met TLS. Valt de NMEA-verbinding weg, dan neemt de telefoon-GPS automatisch over.</span>
         <span class="k">Kaartondergrond</span><span>© OpenStreetMap-bijdragers.</span>
       </div>
       <p style="color:var(--muted);font-size:12.5px">Hoogtes uit verschillende bronnen hebben verschillende nulvlakken (NAP, kaartnul/LAT, gemiddeld zeeniveau) en zijn niet zomaar met elkaar of met kaartdieptes te verrekenen.</p>
@@ -674,7 +575,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260830-10</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260830-11</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1989,7 +1890,6 @@ function initCurrents(){
   });
   // klik op zee → stroom- en/of wind-info (met doorklik naar detailpaneel)
   map.on("click", async e=>{
-    if (window.plotterArmWp || (plOn && !plWp)) return;   // klik zet een waypoint, geen popup
     if (window.RoutePlanner && RoutePlanner.armed()) return;   // klik zet een routepunt, geen popup
     if (!Currents.anyOn() && !Wind.anyOn()) return;
     let parts = [];
@@ -2275,13 +2175,17 @@ function buildHarbourLayer(){
         .addTo(harbLayerG);
     }
   }
-  harbLayerG.addTo(map);
+  if (wantTide) harbLayerG.addTo(map);
+  if (wantHarb) harbLayerH.addTo(map);
   applyObjectZoom();                      // markers pas vanaf zoom-drempel tonen (tegen rommel op overzicht)
   map.on("zoomend", applyObjectZoom);
 }
 const HARB_MINZOOM = 9;
 const ZC_MINZOOM = 11;   // zeekaartmodus: VTS/sluizen/getijstations/havens pas vanaf dit niveau
-let wantTide = true, wantHarb = true;   // gebruikersintentie (los van de zoom-gate)
+/* Havens en getijstations staan bij een eerste bezoek uit — ze maken het overzicht
+   druk en de meeste mensen komen voor bruggen en sluizen. Zet je ze aan, dan
+   onthoudt de site dat voor de volgende keer. */
+let wantTide = readStore("bs_lay_tide", false), wantHarb = readStore("bs_lay_harb", false);
 let gateBand = { vts:null, tide:null, obj:null, harb:null };   // laatste zoom-band per item (boven/onder drempel)
 /* Zoom-gate mét handmatige override: onder de drempel worden items automatisch uitgevinkt/verborgen,
    maar je kunt ze altijd handmatig aanvinken om ze tóch te tonen. De auto-actie gebeurt alleen bij het
@@ -2364,395 +2268,13 @@ function toggleLocate(){
   }
   if (!navigator.geolocation){ alert("Geolocatie niet beschikbaar in deze browser."); return; }
   btn.classList.add("on");
-  const fx=plFixes[plFixes.length-1];
-  if (fx && nmea.last && Date.now()-nmea.last<6000){   // NMEA actief → direct springen
-    meMarker = L.circleMarker([fx.lat,fx.lon], {radius:9, color:"#fff", weight:3, fillColor:"#2a78d6", fillOpacity:1}).addTo(map);
-    map.setView([fx.lat,fx.lon], Math.max(map.getZoom(),13));
-  }
   watchId = navigator.geolocation.watchPosition(pos=>{
-    if (nmea.last && Date.now()-nmea.last<6000) return;   // NMEA levert de positie (zie nmeaFeed)
     const ll = [pos.coords.latitude, pos.coords.longitude];
     if (!meMarker){
       meMarker = L.circleMarker(ll, {radius:9, color:"#fff", weight:3, fillColor:"#2a78d6", fillOpacity:1}).addTo(map);
       map.setView(ll, 13);
     } else meMarker.setLatLng(ll);
   }, err=>{ btn.classList.remove("on"); watchId=null; alert("Kon locatie niet bepalen: "+err.message); }, {enableHighAccuracy:true, maximumAge:5000});
-}
-
-/* ---------- Plotter: SOG/COG/DTW/BTW/TTW met waypoint ---------- */
-let plWatch=null, plBoat=null, plWp=null, plWpMarker=null, plWpLine=null, plFixes=[], plOn=false;
-window.plotterArmWp=false;
-const NM=1852;
-function plHaversine(a,b){ const R=6371000,d=Math.PI/180;
-  const dLat=(b[0]-a[0])*d, dLon=(b[1]-a[1])*d, la1=a[0]*d, la2=b[0]*d;
-  const h=Math.sin(dLat/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2;
-  return 2*R*Math.asin(Math.sqrt(h)); }
-function plBearing(a,b){ const d=Math.PI/180;
-  const y=Math.sin((b[1]-a[1])*d)*Math.cos(b[0]*d);
-  const x=Math.cos(a[0]*d)*Math.sin(b[0]*d)-Math.sin(a[0]*d)*Math.cos(b[0]*d)*Math.cos((b[1]-a[1])*d);
-  return (Math.atan2(y,x)*180/Math.PI+360)%360; }
-function plUpdate(){
-  const fix = plFixes[plFixes.length-1];
-  const S=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
-  if (!fix){ ["pl-sog","pl-cog","pl-dtw","pl-btw","pl-ttw"].forEach(i=>S(i,"–")); return; }
-  // SOG/COG: uit de GPS als beschikbaar, anders uit de laatste fixes (>=8 s basislijn tegen ruis)
-  let sog=fix.speed, cog=fix.heading;
-  if ((sog==null || isNaN(sog) || cog==null || isNaN(cog)) && !fix.weak){
-    for (let i=plFixes.length-2;i>=0;i--){
-      const p=plFixes[i], dt=(fix.t-p.t)/1000;
-      if (p.weak) continue;                    // zwakke fixes niet gebruiken (wifi-sprongen → nepsnelheden)
-      if (dt>=8){ const dist=plHaversine([p.lat,p.lon],[fix.lat,fix.lon]);
-        sog=dist/dt; cog=dist>3?plBearing([p.lat,p.lon],[fix.lat,fix.lon]):null;
-        if (sog*3600/NM>45){ sog=null; cog=null; }   // >45 kn = positieprong, geen echte snelheid
-        break; }
-    }
-  }
-  const sogKn = sog!=null&&!isNaN(sog) ? sog*3600/NM : null;
-  S("pl-sog", sogKn!=null ? sogKn.toFixed(1) : "–");
-  S("pl-cog", cog!=null&&!isNaN(cog) ? String(Math.round(cog)).padStart(3,"0") : "–");
-  if (plWp){
-    const dtw=plHaversine([fix.lat,fix.lon],plWp), btw=plBearing([fix.lat,fix.lon],plWp);
-    S("pl-dtw",(dtw/NM).toFixed(dtw/NM<10?2:1));
-    S("pl-btw",String(Math.round(btw)).padStart(3,"0"));
-    if (sogKn!=null && sogKn>0.3){
-      const sec=dtw/(sogKn*NM/3600), h=Math.floor(sec/3600), m=Math.round((sec%3600)/60);
-      S("pl-ttw", h>99 ? ">99u" : `${h}:${String(m).padStart(2,"0")}`);
-    } else S("pl-ttw","–");
-    if (plWpLine) plWpLine.setLatLngs([[fix.lat,fix.lon],plWp]);
-  } else { S("pl-dtw","–"); S("pl-btw","–"); S("pl-ttw","–"); }
-  S("pl-dpt", (nmea.depth!=null && Date.now()-nmea.depthT<15000) ? nmea.depth.toFixed(1) : "–");
-  // compacte strip voor de telefoon-bottom-sheet
-  const g=id=>{ const el=document.getElementById(id); return el?el.textContent:"–"; };
-  const parts=[ g("pl-sog")+" kn", g("pl-cog")+"°" ];
-  if (g("pl-dtw")!=="–") parts.push(g("pl-dtw")+" nm");
-  if (g("pl-dpt")!=="–") parts.push(g("pl-dpt")+" m");
-  S("pl-mini", parts.join(" · "));
-}
-function plSetWp(latlng){
-  plWp=[latlng.lat,latlng.lng];
-  if (!plWpMarker){
-    plWpMarker=L.marker(plWp,{draggable:true,autoPan:true,icon:L.divIcon({className:"",html:'<div style="font-size:22px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))">🚩</div>',iconAnchor:[3,20]})}).addTo(map);
-    plWpLine=L.polyline([plWp,plWp],{color:"#d64550",weight:2,dashArray:"6 6",opacity:.85}).addTo(map);
-    // versleepbaar: tijdens het slepen schuiven waypoint, lijn en DTW/BTW/TTW live mee
-    plWpMarker.on("drag dragend", e=>{
-      const ll=e.target.getLatLng(); plWp=[ll.lat,ll.lng]; plUpdate();
-    });
-  } else plWpMarker.setLatLng(plWp);
-  window.plotterArmWp=false; const b=$("#pl-wp"); if(b) b.classList.remove("arm");
-  plUpdate();
-}
-function plClearWp(){
-  plWp=null;
-  if (plWpMarker){ map.removeLayer(plWpMarker); plWpMarker=null; }
-  if (plWpLine){ map.removeLayer(plWpLine); plWpLine=null; }
-  plUpdate();
-}
-/* ---------- AIS via NMEA (!AIVDM): doelen op de kaart met naam, MMSI en CPA ---------- */
-const AIS={ tg:new Map(), layer:null, parts:{}, on:true, cpa:false, timer:0 };
-function aisBits(payload){ let b=""; for(const ch of payload){ let v=ch.charCodeAt(0)-48; if(v>40)v-=8; b+=v.toString(2).padStart(6,"0"); } return b; }
-function aisInt(b,s,l,signed){ let v=parseInt(b.slice(s,s+l),2); if(signed && b[s]==="1") v-=Math.pow(2,l); return v; }
-function aisStr(b,s,l){ let o=""; for(let i=s;i+6<=s+l;i+=6){ let c=parseInt(b.slice(i,i+6),2); o+=String.fromCharCode(c<32?c+64:c); } return o.replace(/@.*$/,"").trim(); }
-function aisFeed(line){
-  const f=line.split(","); if(f.length<7) return;
-  const total=+f[1], num=+f[2], seq=f[3]||"0";
-  if(total>1){ const k=seq+f[4]; (AIS.parts[k]=AIS.parts[k]||[])[num-1]=f[5];
-    if(AIS.parts[k].filter(Boolean).length<total) return;
-    var payload=AIS.parts[k].join(""); delete AIS.parts[k];
-  } else var payload=f[5];
-  const b=aisBits(payload), type=aisInt(b,0,6), mmsi=aisInt(b,8,30);
-  if(!mmsi) return;
-  let t=AIS.tg.get(mmsi); if(!t){ t={mmsi}; AIS.tg.set(mmsi,t); }
-  t.t=Date.now();
-  if(type>=1&&type<=3){ t.sog=aisInt(b,50,10)/10; t.lon=aisInt(b,61,28,1)/600000; t.lat=aisInt(b,89,27,1)/600000; t.cog=aisInt(b,116,12)/10; }
-  else if(type===18||type===19){ t.sog=aisInt(b,46,10)/10; t.lon=aisInt(b,57,28,1)/600000; t.lat=aisInt(b,85,27,1)/600000; t.cog=aisInt(b,112,12)/10; }
-  else if(type===5){ t.name=aisStr(b,112,120); }
-  else if(type===24){ const pn=aisInt(b,38,2); if(pn===0) t.name=aisStr(b,40,120); }
-  else return;
-  aisDraw(t);
-}
-function aisCpa(t){
-  const own=plFixes[plFixes.length-1]; if(!own||t.sog==null||own.speed==null||own.heading==null) return null;
-  const R=1852, toXY=(la,lo)=>[lo*60*Math.cos(own.lat*Math.PI/180), la*60];
-  const [tx,ty]=toXY(t.lat,t.lon), [ox,oy]=toXY(own.lat,own.lon);
-  const ovx=(own.speed*3600/R)*Math.sin(own.heading*Math.PI/180), ovy=(own.speed*3600/R)*Math.cos(own.heading*Math.PI/180);
-  const tvx=t.sog*Math.sin((t.cog||0)*Math.PI/180), tvy=t.sog*Math.cos((t.cog||0)*Math.PI/180);
-  const dx=tx-ox, dy=ty-oy, dvx=tvx-ovx, dvy=tvy-ovy, dv2=dvx*dvx+dvy*dvy;
-  if(dv2<1e-6) return {cpa:Math.hypot(dx,dy), tcpa:0};
-  const tc=-(dx*dvx+dy*dvy)/dv2;
-  if(tc<0) return {cpa:Math.hypot(dx,dy), tcpa:tc*60};
-  return {cpa:Math.hypot(dx+dvx*tc, dy+dvy*tc), tcpa:tc*60};   // nm, minuten
-}
-function aisIcon(t,danger){
-  const rot=(t.cog||0).toFixed(0), col=danger?"#c22f2f":"#0e7a5f";
-  const nm=t.name?`<div style="font-size:9px;font-weight:700;color:#123;white-space:nowrap;text-shadow:0 0 3px #fff,0 0 3px #fff">${esc(t.name)}</div>`:"";
-  return L.divIcon({className:"",iconSize:[60,30],iconAnchor:[30,10],
-    html:`<div style="text-align:center"><svg width="20" height="20" viewBox="0 0 20 20" style="transform:rotate(${rot}deg)"><path d="M10 1 L16 19 L10 14 L4 19 Z" fill="${col}" stroke="#fff" stroke-width="1.2"/></svg>${nm}</div>`});
-}
-function aisDraw(t){
-  if(!AIS.on||!plOn||!map||t.lat==null) return;
-  if(!AIS.layer){ AIS.layer=L.layerGroup().addTo(map); }
-  const c=AIS.cpa?aisCpa(t):null;
-  const danger=!!(c&&c.cpa<0.5&&c.tcpa>0&&c.tcpa<30);
-  const pop=`<b>${esc(t.name||"AIS-doel")}</b><br>MMSI ${t.mmsi}<br>${t.sog!=null?t.sog.toFixed(1)+" kn · "+Math.round(t.cog||0)+"°":""}`
-    +(c?`<br>CPA ${c.cpa.toFixed(2)} nm · TCPA ${c.tcpa>0?Math.round(c.tcpa)+" min":"—"}`:"");
-  if(!t.m){ t.m=L.marker([t.lat,t.lon],{icon:aisIcon(t,danger)}).addTo(AIS.layer); t.m.bindPopup(pop); }
-  else { t.m.setLatLng([t.lat,t.lon]); t.m.setIcon(aisIcon(t,danger)); t.m.setPopupContent(pop); }
-  const cosl=Math.cos(t.lat*Math.PI/180);
-  if(t.vl){ AIS.layer.removeLayer(t.vl); t.vl=null; }
-  if(AIS.vec && t.sog>0.2){ const d=t.sog*6/60, e=[t.lat+d/60*Math.cos((t.cog||0)*Math.PI/180), t.lon+d/60*Math.sin((t.cog||0)*Math.PI/180)/cosl];
-    t.vl=L.polyline([[t.lat,t.lon],e],{color:danger?"#c22f2f":"#0e7a5f",weight:1.6,opacity:.85}).addTo(AIS.layer); }
-  if(t.cl){ AIS.layer.removeLayer(t.cl); t.cl=null; }
-  if(AIS.cpa && c && c.tcpa>0 && c.tcpa<60 && t.sog!=null){ const d2=t.sog*c.tcpa/60;
-    const cp=[t.lat+d2/60*Math.cos((t.cog||0)*Math.PI/180), t.lon+d2/60*Math.sin((t.cog||0)*Math.PI/180)/cosl];
-    t.cl=L.polyline([[t.lat,t.lon],cp],{color:danger?"#c22f2f":"#888",weight:1.2,dashArray:"4 5",opacity:.8}).addTo(AIS.layer); }
-}
-function aisPrune(){
-  const now=Date.now();
-  for(const [m,t] of AIS.tg){ if(now-t.t>300000){ if(t.m&&AIS.layer) AIS.layer.removeLayer(t.m); AIS.tg.delete(m); } }
-  if(AIS.cpa) for(const t of AIS.tg.values()) aisDraw(t);   // CPA-kleur actueel houden
-}
-function aisSetOn(on){ AIS.on=on; localStorage.setItem("ais_on",on?"1":"0");
-  if(!on&&AIS.layer){ map.removeLayer(AIS.layer); AIS.layer=null; for(const t of AIS.tg.values()) t.m=null; }
-}
-function aisClear(){ if(AIS.layer&&map) map.removeLayer(AIS.layer); AIS.layer=null; AIS.tg.clear(); clearInterval(AIS.timer); AIS.timer=0; }
-/* ---- NMEA 0183 via WebSocket (bijv. wifi-gateway/multiplexer aan boord) ---- */
-const nmea = { ws:null, last:0, depth:null, depthT:0 };
-function nmeaLat(v,h){ if(!v) return null; const d=Math.floor(+v/100), m=+v-d*100; let x=d+m/60; return (h==="S"||h==="W") ? -x : x; }
-function nmeaSentence(line){
-  line=line.trim(); if(!line || (line[0]!=="$" && line[0]!=="!")) return;
-  if (line.startsWith("!AIVDM")||line.startsWith("!AIVDO")){ const st=line.indexOf("*"); try{ aisFeed(st>0?line.slice(1,st):line.slice(1)); }catch(e){} if(!AIS.timer) AIS.timer=setInterval(aisPrune,30000); return; }
-  const star=line.indexOf("*"); if(star>0) line=line.slice(0,star);
-  const f=line.split(","), id=f[0].slice(-3);
-  if (id==="RMC" && f[2]==="A"){
-    const lat=nmeaLat(f[3],f[4]), lon=nmeaLat(f[5],f[6]);
-    if (lat==null||lon==null) return;
-    nmeaFeed({lat,lon, sogKn:f[7]?+f[7]:null, cog:f[8]?+f[8]:null});
-  } else if (id==="VTG"){
-    const last=plFixes[plFixes.length-1];
-    if (last && Date.now()-nmea.last<6000){ if(f[5]) last.speed=(+f[5])*NM/3600; if(f[1]) last.heading=+f[1]; plUpdate(); }
-  } else if (id==="GGA"){
-    const lat=nmeaLat(f[2],f[3]), lon=nmeaLat(f[4],f[5]);
-    if (lat!=null&&lon!=null && Date.now()-nmea.last>2500) nmeaFeed({lat,lon,sogKn:null,cog:null});
-  } else if (id==="DPT"){ if(f[1]){ nmea.depth=+f[1]; nmea.depthT=Date.now(); plUpdate(); } }
-  else if (id==="DBT"){ if(f[3]){ nmea.depth=+f[3]; nmea.depthT=Date.now(); plUpdate(); } }
-  else if (id==="MWV" && f[5] && f[5][0]==="A"){
-    const ang=+f[1], spd=+f[3], u=f[4];
-    const kn = u==="N"?spd : u==="M"?spd*1.94384 : u==="K"?spd/1.852 : spd;
-    if (f[2]==="R"){ nmea.awa=ang; nmea.aws=kn; } else { nmea.twa=ang; nmea.tws=kn; }
-    nmea.windT=Date.now(); drawWindRose();
-  } else if (id==="VWR"){
-    const ang=+f[1]; if(!isNaN(ang)){ nmea.awa = f[2]==="L" ? 360-ang : ang; if(f[3]) nmea.aws=+f[3]; nmea.windT=Date.now(); drawWindRose(); }
-  }
-}
-function nmeaFeed(o){
-  nmea.last=Date.now();
-  const el=$("#pl-src"); if(el) el.textContent="bron: NMEA";
-  plFixes.push({lat:o.lat,lon:o.lon,speed:o.sogKn!=null?o.sogKn*NM/3600:null,heading:o.cog,t:Date.now()});
-  if (plFixes.length>40) plFixes.shift();
-  if (map){
-    if (!plBoat){ plBoat=L.circleMarker([o.lat,o.lon],{radius:8,color:"#fff",weight:2.5,fillColor:"#0e7a5f",fillOpacity:1}).addTo(map); map.setView([o.lat,o.lon],14); }
-    else plBoat.setLatLng([o.lat,o.lon]);
-    if (watchId!=null){   // "volg mij" actief → NMEA-positie volgen
-      if (!meMarker) meMarker = L.circleMarker([o.lat,o.lon], {radius:9, color:"#fff", weight:3, fillColor:"#2a78d6", fillOpacity:1}).addTo(map);
-      meMarker.setLatLng([o.lat,o.lon]);
-      map.panTo([o.lat,o.lon],{animate:false});
-    }
-  }
-  plUpdate();
-}
-/* SignalK-delta's (JSON via WebSocket) → zelfde datastroom als NMEA-zinnen */
-const skState = { lat:null, lon:null, sog:null, cog:null };
-function signalkDelta(d){
-  const ups = d.updates || [];
-  let posDirty=false;
-  for (const u of ups) for (const v of (u.values||[])){
-    const p=v.path, val=v.value;
-    if (p==="navigation.position" && val && val.latitude!=null){ skState.lat=val.latitude; skState.lon=val.longitude; posDirty=true; }
-    else if (p==="navigation.speedOverGround" && val!=null){ skState.sog=val*1.94384; }         // m/s → kn
-    else if (p==="navigation.courseOverGroundTrue" && val!=null){ skState.cog=val*180/Math.PI; } // rad → °
-    else if ((p==="environment.depth.belowTransducer"||p==="environment.depth.belowSurface") && val!=null){ nmea.depth=val; nmea.depthT=Date.now(); plUpdate(); }
-    else if (p==="environment.wind.speedApparent" && val!=null){ nmea.aws=val*1.94384; nmea.windT=Date.now(); }
-    else if (p==="environment.wind.angleApparent" && val!=null){ nmea.awa=((val*180/Math.PI)+360)%360; nmea.windT=Date.now(); }
-    else if ((p==="environment.wind.speedTrue"||p==="environment.wind.speedOverGround") && val!=null){ nmea.tws=val*1.94384; nmea.windT=Date.now(); }
-    else if ((p==="environment.wind.angleTrueWater"||p==="environment.wind.angleTrueGround") && val!=null){ nmea.twa=((val*180/Math.PI)+360)%360; nmea.windT=Date.now(); }
-  }
-  if (posDirty && skState.lat!=null) nmeaFeed({lat:skState.lat, lon:skState.lon, sogKn:skState.sog, cog:skState.cog});
-  if (Date.now()-(nmea.windT||0)<2000) drawWindRose();
-}
-/* windroos: ware (blauw) en schijnbare (rood) wind t.o.v. de boeg (boeg = boven) */
-function drawWindRose(){
-  const cv=document.getElementById("wb-rose"); if(!cv || document.getElementById("windbox").hidden) return;
-  const g=cv.getContext("2d"), cx=75, cy=75, R=62;
-  g.clearRect(0,0,150,150);
-  const ink=getComputedStyle(document.body).getPropertyValue("--ink")||"#223";
-  g.strokeStyle="#8aa0b5"; g.lineWidth=1.2; g.beginPath(); g.arc(cx,cy,R,0,Math.PI*2); g.stroke();
-  g.font="9px system-ui"; g.fillStyle="#8aa0b5"; g.textAlign="center"; g.textBaseline="middle";
-  for(let a=0;a<360;a+=30){
-    const r1=a%90===0?R-7:R-4, rad=(a-90)*Math.PI/180;
-    g.beginPath(); g.moveTo(cx+Math.cos(rad)*r1, cy+Math.sin(rad)*r1); g.lineTo(cx+Math.cos(rad)*R, cy+Math.sin(rad)*R); g.stroke();
-    if(a%90===0) g.fillText(a===0?"0":a===90?"90":a===180?"180":"270", cx+Math.cos(rad)*(R-15), cy+Math.sin(rad)*(R-15));
-  }
-  // bootje (boeg omhoog)
-  g.fillStyle=ink.trim()||"#223"; g.beginPath(); g.moveTo(cx,cy-13); g.lineTo(cx+6,cy+11); g.lineTo(cx-6,cy+11); g.closePath(); g.fill();
-  const fresh = Date.now()-(nmea.windT||0) < 12000;
-  function arrow(ang,col){
-    if(ang==null||!fresh) return;
-    const rad=(ang-90)*Math.PI/180;
-    const x1=cx+Math.cos(rad)*R, y1=cy+Math.sin(rad)*R;       // van de rand (waar de wind vandaan komt)
-    const x2=cx+Math.cos(rad)*20, y2=cy+Math.sin(rad)*20;     // naar het midden
-    g.strokeStyle=col; g.lineWidth=3; g.lineCap="round";
-    g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke();
-    const ah=8, aa=Math.atan2(y2-y1,x2-x1);
-    g.beginPath(); g.moveTo(x2,y2);
-    g.lineTo(x2-ah*Math.cos(aa-0.4), y2-ah*Math.sin(aa-0.4));
-    g.moveTo(x2,y2); g.lineTo(x2-ah*Math.cos(aa+0.4), y2-ah*Math.sin(aa+0.4)); g.stroke();
-  }
-  arrow(nmea.twa,"#2a78d6"); arrow(nmea.awa,"#d64550");
-  const S=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
-  S("wb-aws", fresh&&nmea.aws!=null?nmea.aws.toFixed(1):"–");
-  S("wb-awa", fresh&&nmea.awa!=null?Math.round(nmea.awa):"–");
-  S("wb-tws", fresh&&nmea.tws!=null?nmea.tws.toFixed(1):"–");
-  S("wb-twa", fresh&&nmea.twa!=null?Math.round(nmea.twa):"–");
-}
-function nmeaCandidates(input){
-  // accepteer ook een kaal IP: dan de bekende endpoints proberen (YDWG Web Gauges: /ws · SignalK: :3000/...)
-  let u=input.trim();
-  if (!/^wss?:\/\//.test(u)) u="ws://"+u;
-  const m=u.match(/^(wss?:\/\/[^\/]+)(\/.*)?$/);
-  if (!m) return [u];
-  const host=m[1], path=m[2];
-  if (path) return [u];
-  const bare=host.replace(/:\d+$/,"");
-  // volgorde: YDWG Web Gauges (/ws) · iKommunicate/SignalK op poort 80 · kale host · SignalK-server (:3000)
-  return [host+"/ws", host+"/signalk/v1/stream", host, bare+":3000/signalk/v1/stream"];
-}
-/* ---- native app (Capacitor): rauw TCP/UDP via de ingebouwde Nmea-plugin ---- */
-function nmeaNativePlugin(){ try{ return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Nmea) || null; }catch(e){ return null; } }
-function nmeaNativeStop(){
-  const N=nmeaNativePlugin(); if(!N) return;
-  try{ N.disconnect(); }catch(e){}
-  if (nmea.natL){ try{ nmea.natL.remove(); }catch(e){} nmea.natL=null; }
-  if (nmea.natS){ try{ nmea.natS.remove(); }catch(e){} nmea.natS=null; }
-  nmea.natOn=false;
-}
-function nmeaNativeList(input){
-  // tcp://ip[:poort] | udp://poort | kaal IP -> tcp 10110, tcp 2000, udp 10110
-  let m=input.match(/^tcp:\/\/([^:\/]+):?(\d+)?$/i);
-  if (m) return [{mode:"tcp",host:m[1],port:+(m[2]||10110),label:"tcp://"+m[1]+":"+(m[2]||10110)}];
-  m=input.match(/^udp:\/\/:?(\d+)$/i);
-  if (m) return [{mode:"udp",port:+m[1],label:"udp-poort "+m[1]}];
-  if (/^wss?:/i.test(input) || input.indexOf("/")>=0) return [];
-  m=input.match(/^([0-9a-z.\-]+?)(?::(\d+))?$/i);
-  if (!m) return [];
-  if (m[2]) return [{mode:"tcp",host:m[1],port:+m[2],label:"tcp://"+m[1]+":"+m[2]}];
-  return [
-    {mode:"tcp",host:m[1],port:10110,label:"tcp://"+m[1]+":10110"},
-    {mode:"tcp",host:m[1],port:2000,label:"tcp://"+m[1]+":2000"},
-    {mode:"udp",port:10110,label:"udp-poort 10110"}
-  ];
-}
-function nmeaNativeNext(st){
-  nmeaNativeStop();
-  const spec = nmea.natList && nmea.natList.shift();
-  if (!spec){ nmeaTryNext(st); return; }   // native lijst op -> WebSocket-kandidaten proberen
-  const N=nmeaNativePlugin();
-  st.textContent="proberen: "+spec.label+" \u2026";
-  nmea.natOn=true; $("#pl-nmconn").textContent="verbreek";
-  let opened=false;
-  const giveUp=setTimeout(()=>{ if(!opened) nmeaNativeNext(st); }, 4000);
-  Promise.all([
-    N.addListener("line", d=>{ if(!opened){ opened=true; clearTimeout(giveUp); st.textContent="verbonden \u2713 "+spec.label; localStorage.setItem("nmea_url", $("#pl-nmurl").value.trim()); } if(d&&d.l) nmeaSentence(d.l); }),
-    N.addListener("state", d=>{
-      if (!d) return;
-      if (d.state!=="open" && !opened){ clearTimeout(giveUp); nmeaNativeNext(st); }
-      else if (d.state!=="open" && opened){ st.textContent="verbroken"; nmeaNativeStop(); $("#pl-nmconn").textContent="verbind"; const el=$("#pl-src"); if(el) el.textContent="bron: GPS"; }
-    })
-  ]).then(ls=>{ nmea.natL=ls[0]; nmea.natS=ls[1]; });
-  Promise.resolve(N.connect({mode:spec.mode, host:spec.host||"", port:spec.port})).catch(()=>{ clearTimeout(giveUp); nmeaNativeNext(st); });
-}
-function nmeaConnect(){
-  const input=($("#pl-nmurl").value||"").trim(), st=$("#pl-nmstat");
-  if (nmea.ws || nmea.natOn){ try{if(nmea.ws)nmea.ws.close();}catch(e){} nmea.ws=null; nmea.tryList=null; nmea.natList=null; nmeaNativeStop(); $("#pl-nmconn").textContent="verbind"; st.textContent="verbroken"; const el=$("#pl-src"); if(el) el.textContent="bron: GPS"; return; }
-  if (!input){ st.textContent="vul een adres of IP in"; return; }
-  if (document.documentElement.classList.contains("napp") && !nmeaNativePlugin()){
-    st.textContent="De app-versie mist de NMEA-module: controleer in Xcode dat NmeaPlugin.swift en NmeaPlugin.m onder Build Phases \u2192 Compile Sources staan, en bouw opnieuw.";
-    return;
-  }
-  if (location.protocol==="https:" && !/^wss:\/\//.test(input) && !/^(ws:\/\/)?(localhost|127\.0\.0\.1)([:\/]|$)/i.test(input) && !nmeaNativePlugin()){
-    if (/github\.io$/.test(location.hostname)){
-      st.textContent="https blokkeert ws://, en github.io kent geen http-versie. Dit gaat werken zodra de site op een eigen domein draait (met http toegestaan) — of gebruik een wss://-bron.";
-    } else {
-      const httpUrl="http://"+location.host+location.pathname;
-      st.innerHTML=`https blokkeert ws:// — open de <a href="${httpUrl}" style="color:var(--accent);font-weight:600">http-versie van deze site</a> en verbind daar.`;
-    }
-    return;
-  }
-  localStorage.setItem("nmea_url", input);
-  nmea.tryList = nmeaCandidates(input);
-  if (nmeaNativePlugin()){
-    nmea.natList = nmeaNativeList(input);
-    if (nmea.natList.length){ nmeaNativeNext(st); return; }
-  }
-  nmeaTryNext(st);
-}
-function nmeaTryNext(st){
-  const url = nmea.tryList && nmea.tryList.shift();
-  if (!url){ st.textContent="geen WebSocket gevonden op dit adres. Een kale TCP/UDP-poort werkt niet in een browser — YDWG-02: firmware met Web Gauges heeft ws://<ip>/ws (zelfde data als Server #1); anders SignalK (ws://ip:3000/signalk/v1/stream) als brug."; nmea.ws=null; $("#pl-nmconn").textContent="verbind"; return; }
-  st.textContent="proberen: "+url+" …";
-  let ws;
-  try{ ws=new WebSocket(url); }catch(e){ nmeaTryNext(st); return; }
-  nmea.ws=ws; $("#pl-nmconn").textContent="verbreek";
-  let opened=false, buf="";
-  const giveUp=setTimeout(()=>{ if(!opened){ try{ws.close();}catch(e){} } }, 4000);
-  ws.onopen=()=>{ opened=true; clearTimeout(giveUp); st.textContent="verbonden ✓ "+url;
-    try{ ws.send(JSON.stringify({context:"vessels.self",subscribe:[{path:"*"}]})); }catch(e){} };
-  ws.onmessage=ev=>{
-    if (typeof ev.data!=="string") return;
-    if (ev.data[0]==="{"){ try{ signalkDelta(JSON.parse(ev.data)); }catch(e){} return; }
-    buf+=ev.data; const lines=buf.split(/\r?\n/); buf=lines.pop(); for(const l of lines) nmeaSentence(l);
-  };
-  ws.onerror=()=>{};
-  ws.onclose=()=>{
-    clearTimeout(giveUp);
-    if (nmea.ws!==ws) return;
-    nmea.ws=null;
-    if (!opened && nmea.tryList && nmea.tryList.length){ nmeaTryNext(st); return; }
-    $("#pl-nmconn").textContent="verbind";
-    if (opened){ st.textContent="verbroken"; const el=$("#pl-src"); if(el) el.textContent="bron: GPS"; }
-    else nmeaTryNext(st);   // lijst leeg → nette eindmelding
-  };
-}
-function togglePlotter(){
-  const btn=$("#mb-plotter"), box=$("#plotter");
-  if (plOn){
-    plOn=false; box.hidden=true; btn.classList.remove("on");
-    const wb=$("#windbox"); if (wb) wb.hidden=true;
-    if (plWatch!=null){ navigator.geolocation.clearWatch(plWatch); plWatch=null; }
-    if (nmea.ws){ try{nmea.ws.close();}catch(e){} nmea.ws=null; }
-    nmeaNativeStop();
-    aisClear();
-    if (plBoat){ map.removeLayer(plBoat); plBoat=null; }
-    plClearWp(); plFixes=[]; window.plotterArmWp=false;
-    return;
-  }
-  if (!navigator.geolocation){ alert(LANG==="en"?"Geolocation not available.":"Geolocatie niet beschikbaar in deze browser."); return; }
-  plOn=true; box.hidden=false; btn.classList.add("on");
-  plApplySheet(false);   // altijd uitgeklapt openen
-  plWatch=navigator.geolocation.watchPosition(pos=>{
-    if (Date.now()-nmea.last<5000) return;   // NMEA is leidend zolang die data levert
-    const c=pos.coords, acc=c.accuracy||9999;
-    const el=$("#pl-src");
-    // zwakke fix (wifi-plaatsbepaling, bijv. iPad zonder GPS): positie wel tonen, maar geen SOG/COG uit afleiden
-    const weak = acc>120;
-    if (el) el.textContent = weak ? `GPS zwak (±${Math.round(acc)} m)` : "bron: GPS";
-    plFixes.push({lat:c.latitude,lon:c.longitude,speed:weak?null:c.speed,heading:weak?null:c.heading,t:pos.timestamp||Date.now(),weak});
-    if (plFixes.length>40) plFixes.shift();
-    const ll=[c.latitude,c.longitude];
-    if (!plBoat){ plBoat=L.circleMarker(ll,{radius:8,color:"#fff",weight:2.5,fillColor:"#0e7a5f",fillOpacity:1}).addTo(map); map.setView(ll,14); }
-    else plBoat.setLatLng(ll);
-    plUpdate();
-  }, err=>{ const el=$("#pl-src"); if(el) el.textContent=(LANG==="en"?"no GPS — use NMEA":"geen GPS — gebruik NMEA"); },
-  {enableHighAccuracy:true, maximumAge:2000});
 }
 
 /* ---------- events & init ---------- */
@@ -2812,50 +2334,11 @@ $("#q").addEventListener("focus", updateDrop);
 window.addEventListener("resize", setHeaderH);
 $("#mb-locate").onclick = toggleLocate;
 $("#mb-route").onclick = ()=> loadScriptOnce("route.js", ()=> RoutePlanner.toggle());
-$("#mb-plotter").onclick = ()=>{
-  if (!plOn && map && !map.__plWpClick){ map.__plWpClick=true; map.on("click", e=>{ if (plOn && (window.plotterArmWp || !plWp)) plSetWp(e.latlng); }); }
-  togglePlotter();
-};
-$("#pl-wp").onclick = ()=>{ window.plotterArmWp=!window.plotterArmWp; $("#pl-wp").classList.toggle("arm", window.plotterArmWp); };
-$("#pl-clearwp").onclick = plClearWp;
-$("#pl-close").onclick = togglePlotter;
-$("#pl-set").onclick = ()=>{ const s=$("#pl-settings"); s.hidden=!s.hidden; setTimeout(positionWindbox,30); };
-$("#pl-nmea").onclick = ()=>{ const c=$("#pl-nmeacfg"); c.hidden=!c.hidden; if(!c.hidden && !$("#pl-nmurl").value) $("#pl-nmurl").value = localStorage.getItem("nmea_url")||""; setTimeout(positionWindbox,30); };
-$("#pl-nmconn").onclick = nmeaConnect;
-AIS.on = localStorage.getItem("ais_on")!=="0"; AIS.cpa = localStorage.getItem("ais_cpa")==="1";
-$("#pl-ais").checked=AIS.on; $("#pl-cpa").checked=AIS.cpa;
-$("#pl-ais").onchange = e=> aisSetOn(e.target.checked);
-$("#pl-cpa").onchange = e=>{ AIS.cpa=e.target.checked; localStorage.setItem("ais_cpa",AIS.cpa?"1":"0"); for(const t of AIS.tg.values()) aisDraw(t); };
-AIS.vec = localStorage.getItem("ais_vec")==="1"; $("#pl-aisvec").checked=AIS.vec;
-$("#pl-aisvec").onchange = e=>{ AIS.vec=e.target.checked; localStorage.setItem("ais_vec",AIS.vec?"1":"0"); for(const t of AIS.tg.values()) aisDraw(t); };
-/* layout-wissel 3x2 -> 2x2 -> 1x2 (onthouden) */
-const PL_LAYOUTS=["3","2","1"];
-function plApplyLayout(n){
-  const p=$("#plotter"); p.classList.remove("layout-1","layout-2");
-  if(n!=="3") p.classList.add("layout-"+n);
-  $("#pl-layout").textContent = "⊞ "+(n==="3"?"3×2":n==="2"?"2×2":"1×2");
-  localStorage.setItem("pl_layout", n);
-  if (typeof positionWindbox==="function") setTimeout(positionWindbox, 30);
-}
-$("#pl-layout").onclick = ()=>{
-  const cur=localStorage.getItem("pl_layout")||"3";
-  plApplyLayout(PL_LAYOUTS[(PL_LAYOUTS.indexOf(cur)+1)%3]);
-};
-plApplyLayout(localStorage.getItem("pl_layout")||"3");
-/* bottom-sheet in/uitklappen (telefoon) */
-function plApplySheet(collapsed){
-  $("#plotter").classList.toggle("sheet-collapsed", collapsed);
-  $("#pl-toggle").textContent = collapsed ? "▴" : "▾";
-  localStorage.setItem("pl_sheet", collapsed ? "1" : "0");
-  setTimeout(positionWindbox, 30);
-}
 document.addEventListener("touchmove", e=>{
   const inApp = document.documentElement.classList.contains("napp");
-  const p = e.target.closest("#plotter,#windbox") || (inApp && e.target.closest("header") && !e.target.closest("#hd-menu,#searchdrop"));
+  const p = inApp && e.target.closest("header") && !e.target.closest("#hd-menu,#searchdrop");
   if (p && !e.target.closest("input")) e.preventDefault();
 }, {passive:false});
-$("#pl-toggle").onclick = ()=> plApplySheet(!$("#plotter").classList.contains("sheet-collapsed"));
-plApplySheet(localStorage.getItem("pl_sheet")==="1");
 /* app: voorkom dat het detailpaneel doorveert bij overscroll en zo de blauwe kop-/statusbalk mee omlaag trekt.
    Alleen in de native app en alleen aan de scrollranden, zodat normaal scrollen blijft werken. */
 (function(){
@@ -2873,21 +2356,6 @@ plApplySheet(localStorage.getItem("pl_sheet")==="1");
     if ((atTop && dy > 0) || (atBottom && dy < 0)) e.preventDefault();
   }, {passive:false});
 })();
-/* windvenster: zelfde breedte, direct onder het plotterpaneel */
-function positionWindbox(){
-  const w=$("#windbox"), p=$("#plotter");
-  if (!w || w.hidden || !p || p.hidden) return;
-  if (matchMedia("(max-width:640px), (max-height:500px) and (orientation:landscape) and (pointer:coarse)").matches){
-    // telefoon: bóven de bottom-sheet
-    w.style.top="auto"; w.style.bottom=(p.offsetHeight+10)+"px"; w.style.width="auto";
-  } else {
-    w.style.bottom="auto";
-    w.style.top = (p.offsetTop + p.offsetHeight + 8) + "px";
-    w.style.width = p.offsetWidth + "px";
-  }
-}
-$("#pl-windbtn").onclick = ()=>{ const w=$("#windbox"); w.hidden=!w.hidden; if(!w.hidden){ positionWindbox(); drawWindRose(); } };
-$("#wb-close").onclick = ()=>{ $("#windbox").hidden=true; };
 let seaLayer = null, seaView = false, seaNoteShown = false;
 function setSea(on){
   seaView = on;
@@ -3174,9 +2642,7 @@ function setZeeChart(on){
     if (baseLight && map.hasLayer(baseLight)) map.removeLayer(baseLight);
     if (baseOSM && !map.hasLayer(baseOSM)) baseOSM.addTo(map);
   }
-  // plotter alleen in zeekaartmodus; clusters alleen op de landkaart
-  const pb=$("#mb-plotter"); if (pb) pb.style.display = on ? "" : "none";
-  if (!on && typeof plOn!=="undefined" && plOn) togglePlotter();
+  // clusters alleen op de landkaart
   rebuildCluster();
   updateKaartBtn(); if (window.updateLegend) updateLegend();
 }
@@ -3212,9 +2678,11 @@ function updateObjs(){ showBedien=$("#obj-bedien").checked; showVast=$("#obj-vas
 $("#obj-bedien").addEventListener("change", updateObjs);
 $("#obj-vast").addEventListener("change", updateObjs);
 $("#obj-strem").addEventListener("change", ()=>{ showStrem=$("#obj-strem").checked; buildStremLayer(); });
-$("#obj-harb").addEventListener("change", ()=>{ wantHarb=$("#obj-harb").checked; if(harbLayerH){ wantHarb?harbLayerH.addTo(map):map.removeLayer(harbLayerH); } });
+/* vinkjes gelijkzetten met wat je vorige keer koos (standaard: allebei uit) */
+$("#obj-harb").checked = wantHarb; $("#tide-stations").checked = wantTide;
+$("#obj-harb").addEventListener("change", ()=>{ wantHarb=$("#obj-harb").checked; store("bs_lay_harb", wantHarb); if(harbLayerH){ wantHarb?harbLayerH.addTo(map):map.removeLayer(harbLayerH); } });
 /* 2) Getij: getijstations (stroming-checkboxes via initCurrents) */
-$("#tide-stations").addEventListener("change", ()=>{ wantTide=$("#tide-stations").checked; if(harbLayerG){ wantTide?harbLayerG.addTo(map):map.removeLayer(harbLayerG); } });
+$("#tide-stations").addEventListener("change", ()=>{ wantTide=$("#tide-stations").checked; store("bs_lay_tide", wantTide); if(harbLayerG){ wantTide?harbLayerG.addTo(map):map.removeLayer(harbLayerG); } });
 /* 3) Kaart: land-/zeekaartmodus (radio), VTS-checkbox (standaard aan in zeekaartmodus), fijne dieptelijnen als losse toggles */
 function applyKmode(){
   const zee = $("#k-zeekaart").checked;
@@ -3409,7 +2877,7 @@ window.updateLegend = updateLegend;
 
 const STATIC_EN = {
   tab_kaart:"Map", tab_fav:"Favourites", tab_strem:"Closures",
-  mb_locate:"Follow me", mb_plotter:"Plotter", pl_wp:"WP: tap the map", pl_clearwp:"clear WP", pl_disc:"Indicative — chart not for navigation purposes.",
+  mb_locate:"Follow me",
   mb_objs:"Bridges & locks", dm_objs:"On the map", o_bedien:"Operable", o_vast:"Non-operable", o_strem:"Closures", o_harb:"Harbours",
   mb_tide:"Tide, current & wind", dm_tide:"Tide", t_stations:"Tide stations",
   dm_wind:"Wind", w_arrows:"Wind arrows (Beaufort)", w_part:"Wind particles", w_color:"Wind colour (speed)",
@@ -3434,7 +2902,7 @@ function applyStaticLang(){
   const inf = $("#v-info");
   if (inf) inf.innerHTML = `
     <div class="p-sec"><h3 style="color:var(--ink)">About this site</h3>
-      <p>A free, bilingual chart for recreational boating — everything on one searchable map, made for use while you're on the water. In short, here you can: look up <b>bridge and lock operating times</b>, see <b>live closures</b>, check <b>tides</b> (NL &amp; UK), <b>tidal current</b> and <b>wind</b> on a timeline, view the <b>weather</b> per location, switch on a <b>rain radar</b> with thunder, change to a <b>nautical-chart mode with depth contours</b>, browse selected <b>marinas</b>, and use a simple <b>plotter</b>. Not an official source — but fast and clear. Below is what each part does.</p>
+      <p>A free, bilingual chart for recreational boating — everything on one searchable map, made for use while you're on the water. In short, here you can: look up <b>bridge and lock operating times</b>, see <b>live closures</b>, check <b>tides</b> (NL &amp; UK), <b>tidal current</b> and <b>wind</b> on a timeline, view the <b>weather</b> per location, switch on a <b>rain radar</b> with thunder, change to a <b>nautical-chart mode with depth contours</b>, and browse selected <b>marinas</b>. Not an official source — but fast and clear. Below is what each part does.</p>
     </div>
 
     <div class="p-sec"><h3 style="color:var(--ink)">What you see here</h3>
@@ -3451,7 +2919,6 @@ function applyStaticLang(){
         <span class="k">Rain radar &amp; thunder</span><span>Rain radar with an animation over the past ~2 hours you can step through calmly; wind and current can follow the same time. ⚡ icons show where the model indicates thunderstorms.</span>
         <span class="k">Nautical-chart mode &amp; depth</span><span>Switch to nautical-chart mode (OpenSeaMap: buoys, lights, beacons) with own depth contours and shaded bands — fine lines for "deep" and "shallow". Depths relative to chart datum (LAT).</span>
         <span class="k">VTS sectors</span><span>The VHF sectors of the Scheldemond estuary with channels, names and reporting duties — indicative, not for navigation.</span>
-        <span class="k">Plotter</span><span>Your own position on the map, with speed, course and a waypoint with distance/time. In the app it links to your NMEA instruments (TCP/UDP).</span>
         <span class="k">Handy</span><span>Favourites (☆), search by name/place/waterway, light/dark, and a time-zone button (NL / UTC-GMT / UK) that converts all times instantly.</span>
       </div>
     </div>
@@ -3488,7 +2955,6 @@ function applyStaticLang(){
         <span class="k">Depth — accuracy</span><span>EMODnet builds the DTM from thousands of surveys (acoustic, lidar, satellite). Every source is traceable through CDI/Sextant metadata, and each grid cell records which source was used, how many soundings went in, and whether the cell was interpolated. Sources failing the QA/QC criteria are dropped. Accuracy varies by area — densely surveyed coastal zones are more reliable than sparsely surveyed open sea.</span>
         <span class="k">VTS sectors (Scheldemond)</span><span>The VHF sectors follow the official GNB VHF-sector chart (vts-scheldt.net): estuary limits on the real buoys, outer approaches on the brochure points. Channels, names and phone from the GNB brochure. The Maas approach (01/02/03) uses the Reeds distances; other seaward limits are approximate. <b>Indicative — not for navigation</b>; check exact limits on the chart. Distress/calling Coastguard: VHF 16 · DSC 70. Each sector popup explains the reporting and reachability duties.</span>
         <span class="k">Nautical chart mode</span><span>Our own nautical layer: <b>smoothed depth shading</b> in light chart colours from <b>EMODnet Bathymetry</b> (covers NL, the English east coast, the Channel and Belgium; drying areas in green), overlaid with the <b>coastline and depth contours</b> from the official <b>RWS Inland ENC</b> (CC-0) — the <b>2 m line</b> slightly emphasised as a safety contour. In the enclosed delta waters (Grevelingen, Haringvliet, Volkerak, Hollands Diep) we show the fine ENC depth contours instead of sea shading. All processed and self-hosted, so it works <b>offline</b>. Chart symbols from OpenSeaMap; base © CARTO/OpenStreetMap. <b>Indicative — not for navigation.</b></span>
-        <span class="k">Plotter &amp; NMEA</span><span><b>How it works.</b><ol class="nsteps"><li><b>Out of the box:</b> the plotter uses your phone's GPS — position, SOG/COG, waypoints and DTW/BTW/TTW work immediately. (WiFi-only iPads have no GPS chip; there you'll see your position via WiFi positioning, but deliberately no speed or course.)</li><li><b>Boat instruments</b> (depth sounder, wind instrument, boat GPS) connect via the <b>NMEA</b> button in the plotter: just enter your gateway's IP address — the app automatically tries the known endpoints and reports which one worked. Depth appears in the panel, wind in the wind window (true + apparent on the rose).</li><li><b>In the OpenPilot app</b> (iPhone/iPad): raw <b>TCP/UDP</b> works there too. Enter your gateway's IP, optionally with a port (e.g. <code>192.168.1.5:2000</code>) — with a bare IP the app automatically tries tcp 10110, tcp 2000, udp 10110 and then the WebSocket endpoints. Allow "Local Network" the first time, and make sure your phone is on the boat network's WiFi.</li></ol><table class="ntbl"><tr><td>Yacht Devices YDWG-02</td><td><b class="ok">direct</b> — recent firmware (with Web Gauges) has a WebSocket; set Server #1 to NMEA 0183. Entering the IP is enough.</td></tr><tr><td>Digital Yacht iKommunicate</td><td><b class="ok">direct</b> — SignalK gateway with a WebSocket on board. Entering the IP is enough.</td></tr><tr><td>NavLink2 / WLN10 / any TCP or UDP gateway</td><td><b class="ok">direct in the app</b> · <b class="via">via bridge on the website</b> — raw TCP/UDP is unreachable for a browser. Use the <b>OpenPilot NMEA bridge</b>, a small standalone program for your computer that relays the gateway as a WebSocket (<code>ws://localhost:8100</code>). A SignalK server works too.</td></tr><tr><td>SignalK server</td><td><b class="ok">direct</b> — <code>ws://&lt;ip&gt;:3000/signalk/v1/stream</code></td></tr></table><b>Important limitation (website only):</b> browsers only allow a <code>ws://</code> connection from an http page, and this address (github.io) is https-only. The direct link will work once the site runs on its own domain (with an http "on-board mode"), or today via a <code>wss://</code> source with TLS. If the NMEA link drops, the phone GPS takes over automatically.</span>
         <span class="k">Base map</span><span>© OpenStreetMap contributors.</span>
       </div>
       <p style="color:var(--muted);font-size:12.5px">Heights from different sources use different datums (NAP, chart datum/LAT, mean sea level) and cannot simply be combined with each other or with charted depths.</p>

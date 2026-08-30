@@ -9,8 +9,7 @@ waar de data vandaan komt en welke afspraken we hanteren.
 Een statische site (GitHub Pages, geen backend) voor de recreatievaart:
 bedieningstijden van alle NL-bruggen en -sluizen, actuele stremmingen,
 getijden (NL + UK), stroming & wind met voorspelling, een zeekaartmodus met
-eigen dieptedata, VTS-sectoren, havens en een eenvoudige plotter met
-NMEA-koppeling. Tweetalig NL/EN. Live op de GitHub Pages-URL van deze repo.
+eigen dieptedata, VTS-sectoren en havens. Tweetalig NL/EN. Live op de GitHub Pages-URL van deze repo.
 
 ## Architectuur
 
@@ -102,19 +101,20 @@ BOYSAW, BCNLAT/BCNCAR, LIGHTS. RWS-cellen zijn wekelijks vers en CC-0.
 
 ## Bekende beperkingen / valkuilen
 
-- **NMEA over het netwerk**: browsers kunnen géén rauwe TCP/UDP aan; alleen
-  WebSocket. En `ws://` mag alleen vanaf een http-pagina — github.io is
-  verplicht https, dus directe koppelingen werken pas op een eigen domein met
-  http-"boordmodus", of via `wss://`, of via de losse OpenPilot NMEA-brug op
-  de computer (WebSocket op `ws://localhost:8100`). YDWG-02 (recente firmware,
-  `/ws`), iKommunicate en SignalK-servers kunnen direct.
 - **Copernicus-stromingstegels** gaan native maar tot zoom 9; daarboven neemt
   de eigen pijlenlaag het over.
 - **Overpass** (OSM) is vaak rate-limited: altijd cachen, ruime time-outs,
   mirrors afwisselen.
 - **Telefoonmodus** (mediaquery max-width 640px of landscape+coarse pointer):
-  eigen compacte layout — bottom-sheet-plotter met vaste 2×2, menuknoppen,
-  ingeklapte legenda. Test wijzigingen dus óók op een smal scherm.
+  eigen compacte layout — bottom-sheet-routepaneel, menuknoppen achter één
+  knop, ingeklapte legenda. Test wijzigingen dus óók op een smal scherm.
+- **Plotter en NMEA zijn eruit** (aug 2026). De koppeling met boordinstrumenten
+  liep vast op de browser: rauwe TCP/UDP kan niet en `ws://` mag niet vanaf een
+  https-pagina. Daarmee vervielen ook de AIS-doelen (die kwamen als `!AIVDM`
+  over dezelfde lijn), het windvenster en de dieptemeter-uitlezing. Wat blijft
+  is *Volg mij*: je positie uit de GPS van je telefoon of iPad. De native
+  NMEA-plugin in `app/` is daarmee ongebruikt geworden; de app is verder
+  gewoon een schil om de site. Niet opnieuw beginnen zonder eigen server.
 - **`100vh` op iOS is groter dan wat je ziet** zolang de adresbalk in beeld
   staat. Met `min-height:100vh` op de body was de pagina daardoor net een
   stukje scrollbaar, en kon je met een veeg de kaartknoppen onder de sticky
@@ -123,6 +123,13 @@ BOYSAW, BCNLAT/BCNCAR, LIGHTS. RWS-cellen zijn wekelijks vers en CC-0.
   Gebruik voor nieuwe volledig-schermelementen dus altijd `dvh`.
 - **iOS cachet hardnekkig**: daarom de buildstamp. Privé-tabblad of
   opnieuw-toevoegen-aan-beginscherm helpt bij twijfel.
+
+### Lagen die standaard uit staan
+
+Havens en getijstations staan bij een eerste bezoek **uit** (`bs_lay_harb` /
+`bs_lay_tide` in localStorage, standaard `false`); ze maakten het overzicht druk
+voor wie voor bruggen en sluizen komt. Zet de gebruiker ze aan, dan wordt dat
+onthouden — de vinkjes worden bij het opstarten uit die waarden gezet.
 
 ## Routeplanner (`route.js` + `scripts/build_net.py`)
 

@@ -3,12 +3,12 @@
 *Bijgewerkt: 25 juli 2026 · buildstamp op dat moment: **b20260725-69**. Voeg dit toe aan de Brug&Sluis-projectkennis zodat toekomstige sessies context hebben.*
 
 ## Wat is het
-Open vaarkaart-webapp voor de recreatievaart: brug-/sluis-bedieningstijden, stremmingen, getij (NL+UK), stroming & wind (7 dagen, Windfinder-kleuren), zeekaartmodus met eigen EMODnet/RWS-dieptedata, havens, VTS, plotter met NMEA. Tweetalig NL/EN, licht/donker. Gebouwd door Kees (niet-programmeur) samen met Claude.
+Open vaarkaart-webapp voor de recreatievaart: brug-/sluis-bedieningstijden, stremmingen, getij (NL+UK), stroming & wind (7 dagen, Windfinder-kleuren), zeekaartmodus met eigen EMODnet/RWS-dieptedata, havens, VTS, routeplanner. (Plotter/NMEA/AIS zijn er in aug 2026 uitgehaald — browsers kunnen geen rauwe TCP/UDP en `ws://` mag niet vanaf https; alleen *Volg mij* op telefoon-GPS bleef.) Tweetalig NL/EN, licht/donker. Gebouwd door Kees (niet-programmeur) samen met Claude.
 
 ## Waar alles staat
 - **Repo:** GitHub `cjroyaards/bruggen-sluizen` — enige bron. Live via **GitHub Pages**: cjroyaards.github.io/bruggen-sluizen (~5–10 min na push live).
 - Lokaal op Kees' Mac in de map **"Output Claude/bruggen-sluizen"** (iCloud Drive), gekoppeld als Cowork-map.
-- `BOUWGIDS.md` = ontwikkelaarsgids (eerst lezen bij bouwwerk). `app/` = Capacitor-app (iOS+Android): dun jasje om de live site + eigen TCP/UDP NMEA-plugin.
+- `BOUWGIDS.md` = ontwikkelaarsgids (eerst lezen bij bouwwerk). `app/` = Capacitor-app (iOS+Android): dun jasje om de live site (de meegeleverde TCP/UDP NMEA-plugin wordt sinds aug 2026 niet meer gebruikt).
 - **Bijna alle logica zit in `index.html`**; stroming in `currents.js`, wind in `wind.js`.
 
 ## Werkafspraken
