@@ -28,7 +28,7 @@ Open vaarkaart-webapp voor de recreatievaart: brug-/sluis-bedieningstijden, stre
 - **Wind-detailpaneel:** zelfde Open-Meteo-bron, ECMWF **én** GFS naast elkaar met keuzeknop (strip + 7-daagse uurtabel schakelen samen).
 - **Stroming:** Copernicus Marine **NWShelf** (product 004_013, 1,5 km, mét getij, aangedreven met ECMWF-weer). Twee kanalen: (1) numeriek veld via **Open-Meteo Marine-API** (`ocean_current_velocity/direction`) op een eigen raster → vloeiende pijlen/deeltjes/klikinfo, met bilineaire + tijd-interpolatie; (2) **Copernicus-WMTS-tegels** (native 1,5 km) voor scherpe pijlen op afstand + intern land/zee-masker.
 - **Regenradar:** RainViewer (gratis tegels, geanimeerd). Onweer-⚡ uit Open-Meteo weercode 95/96/99 (modelmatig, geen echte inslagen).
-- **Diepte:** EMODnet. **Zeekaart:** OpenSeaMap. **Basiskaart:** OSM / CARTO.
+- **Diepte:** EMODnet. **Zeekaart:** OpenSeaMap. **Basiskaart:** OSM (zeekaartmodus: dezelfde tegels, verbleekt met CSS — CARTO eiste vanaf aug 2026 een API-sleutel).
 
 ## Nauwkeurigheid stroming (belangrijke nuance)
 - Copernicus 1,5 km smoothet nauwe geulen/haveningangen/zeegaten; kentering-timing kan lokaal tientallen minuten schelen. Het is modelverwachting, geen meting.
