@@ -51,7 +51,7 @@ Open vaarkaart-webapp voor de recreatievaart: brug-/sluis-bedieningstijden, stre
 - **Hosting-keuze (open):** overweeg hele site naar **Cloudflare Pages** (statisch + functies same-origin → proxy wordt `/api/...`, geen CORS-gedoe; git-push-deploy blijft). Gotcha: URL verandert → Capacitor-app-URL bijwerken + evt. opnieuw indienen. Combineren met **openpilot.nl**-domein (Cloudflare = ook DNS).
 - **DCSM-FM (echt geul-fijn veld)** via MATROOS/Deltares = groter traject: MATROOS vereist account bij RWS-datacentrum, mogelijk licentie/kosten, plus proxy. Als Fase 3.
 - **iOS App Store:** app is webwrapper → risico op afwijzing richtlijn **4.2** (minimum functionality). Tegengif = native NMEA-plugin, mits gedemonstreerd in App Review Notes + demo/mock. Verder: locatie-purpose-strings, privacyverklaring-URL + App Privacy-label, nette offline-fallback. TestFlight **intern** (tot 100 testers, geen review; externe mailadressen mogen als App Store Connect-gebruiker met beperkte rol); **extern** = lichte Beta App Review.
-- Overig uit oude projectstatus: iOS-build (Apple Developer €99/jr, Xcode, TestFlight), in-app-aankoop NMEA (RevenueCat), Open-Meteo commercieel (~$29/mnd) vóór betaald, CARTO-basemap evt. vervangen, Admiralty-UK-getij checken, wekelijkse ENC-verversing automatiseren.
+- Overig uit oude projectstatus: iOS-build (Apple Developer €99/jr, Xcode, TestFlight), in-app-aankoop NMEA (RevenueCat), Open-Meteo commercieel (~$29/mnd) vóór betaald, Admiralty-UK-getij checken, wekelijkse ENC-verversing automatiseren.
 
 ## Kees' voorkeuren
 - Werkt snel en iteratief; wil vaak eerst een kort voorstel/keuze vóór grotere wijzigingen ("eerst voorleggen").

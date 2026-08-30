@@ -101,6 +101,12 @@ BOYSAW, BCNLAT/BCNCAR, LIGHTS. RWS-cellen zijn wekelijks vers en CC-0.
 
 ## Bekende beperkingen / valkuilen
 
+- **Basiskaarten met sleutelplicht**: CARTO ging in aug 2026 "API KEY REQUIRED"
+  dwars over elke tegel zetten. De lichte ondergrond van de zeekaartmodus komt
+  nu uit dezelfde OSM-tegels als de landkaart, verbleekt met een CSS-filter
+  (`.basis-bleek`, meegegeven als `className` aan de tileLayer). Controleer bij
+  een rare kaart dus altijd éérst een losse tegel-URL in de browser voordat je
+  in de eigen code gaat zoeken.
 - **Copernicus-stromingstegels** gaan native maar tot zoom 9; daarboven neemt
   de eigen pijlenlaag het over.
 - **Overpass** (OSM) is vaak rate-limited: altijd cachen, ruime time-outs,
