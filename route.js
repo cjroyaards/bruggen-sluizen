@@ -12,6 +12,7 @@ const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
   neu:"new route", total:"total", bridges:"bridges", locks:"locks", fixed:"fixed",
   viaBtn:"+ via point", hintVia:"Tap a point the route must pass through", via:"Via",
   hoogte:"air draft", hoogteHint:"Height of your boat above the water — the route avoids fixed bridges that are too low.",
+  verVanVaarweg:(km)=>`Your point is ${km} km from the nearest fairway; the route starts there.`,
   noneHoogte:"No route with this air draft. There is no way through that is high enough everywhere; try a lower value, a via point, or clear the field to see all routes.",
   lowest:"lowest fixed bridge", narrowest:"narrowest passage",
   mastwarn:(hf,m)=>`Warning: lowest fixed bridge is ${hf} m — too low for an air draft of ${m} m`,
@@ -25,6 +26,7 @@ const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
   neu:"nieuwe route", total:"totaal", bridges:"bruggen", locks:"sluizen", fixed:"vast",
   viaBtn:"+ via-punt", hintVia:"Tik een punt aan waar de route langs moet", via:"Via",
   hoogte:"doorvaarthoogte", hoogteHint:"Hoogte van je boot boven water — de route gaat om te lage vaste bruggen heen.",
+  verVanVaarweg:(km)=>`Je punt ligt ${km} km van de dichtstbijzijnde vaargeul; de route begint daar.`,
   noneHoogte:"Geen route gevonden met deze doorvaarthoogte. Er is geen weg die overal hoog genoeg is; probeer een lagere hoogte, een via-punt, of laat het veld leeg om alle routes te zien.",
   lowest:"laagste vaste brug", narrowest:"smalste doorvaart",
   mastwarn:(hf,m)=>`Let op: laagste vaste brug is ${hf} m — te laag voor doorvaarthoogte ${m} m`,
@@ -83,7 +85,9 @@ function loadNet(){
 
 /* dichtstbijzijnde punt op het netwerk (bbox-voorselectie per kant) */
 function snap(la1e5, lo1e5, maxM){
-  maxM = maxM || 3000;
+  /* op breed water (Haringvliet, Oosterschelde, IJsselmeer) loopt de officiële
+     vaargeul soms kilometers van de plek waar je tikt; daarom ruim zoeken */
+  maxM = maxM || 6000;
   let best = null;
   const margLat = maxM/1.1132, margLon = maxM/mPerLon(la1e5);
   for (let ei=0; ei<NET.edges.length; ei++){
@@ -490,7 +494,7 @@ async function compute(){
   hint(NET ? TXT.calc : TXT.loading);
   try { await loadNet(); } catch(err){ hint("net.json.gz: "+err.message); return; }
   /* per traject tussen opeenvolgende punten zoeken en aan elkaar plakken */
-  const geo=[];
+  const geo=[]; let snapMax=0;
   for (let i=0;i<punten.length-1;i++){
     const a=punten[i].latlng, b=punten[i+1].latlng;
     const sa = snap(Math.round(a.lat*1e5), Math.round(a.lng*1e5));
@@ -498,11 +502,13 @@ async function compute(){
     /* de opgegeven doorvaarthoogte stuurt de route: secties onder een te lage
        vaste brug vallen af. Werkt sinds het netwerk uit de RWS-vaarwegdata komt
        en 97% van de bruggen aan een sectie gekoppeld is. */
+    if (sa) snapMax=Math.max(snapMax, sa.d);
+    if (sb) snapMax=Math.max(snapMax, sb.d);
     const deel = (sa && sb) ? findRoute(sa, sb, nodigeHoogte()) : null;
     if (!deel){ hint(nodigeHoogte()!=null ? TXT.noneHoogte : TXT.none); panel.querySelector(".rp-actions").hidden=false; return; }
     geo.push(...(i===0 ? deel.geo : deel.geo.slice(1)));
   }
-  const r = {geo, meters: geoMeters(geo)};
+  const r = {geo, meters: geoMeters(geo), snapMax};
   if (lineBack) map.removeLayer(lineBack);
   if (lineFront) map.removeLayer(lineFront);
   hint("");
@@ -533,6 +539,7 @@ function render(r){
   if (mv!=null && lowest && lowest.o.hf < mv+0.2)
     sum += `<div class="rp-warn">${esc(TXT.mastwarn(fmt1(lowest.o.hf), fmt1(mv)))}</div>`;
   sum += `<div class="rp-note">${TXT.discTitle}</div>`;
+  if (r.snapMax > 500) sum += `<div class="rp-note">${TXT.verVanVaarweg(fmt1(r.snapMax/1000))}</div>`;
   const sm = panel.querySelector("#rp-sum"); sm.innerHTML=sum; sm.hidden=false;
   panel.querySelector(".rp-actions").hidden=false;
   panel.querySelector("#rp-list").innerHTML = items.map(i=>
