@@ -283,10 +283,14 @@ html.napp header input{touch-action:manipulation}
 #curbar[hidden]{display:none}
 #maplegend{position:absolute;z-index:999;left:12px;bottom:14px;background:var(--surface);border:1px solid var(--grid);border-radius:9px;box-shadow:0 2px 10px rgba(5,10,16,.18);padding:7px 9px;font-size:11px;line-height:1.35;color:var(--ink);max-width:172px}
 #maplegend[hidden]{display:none}
-/* Zeekaartmodus: de ondergrond wordt bleek gemaakt met tegel-opacity boven een witte
-   achtergrond. Bewust géén CSS-filter: dat moet bij elke zoomstap opnieuw gerasterd
-   worden en liet de kaart op een telefoon tijdens het zoomen wit wegvallen. */
+/* Zeekaartmodus: bleke ondergrond boven een witte achtergrond. De doorzichtigheid
+   staat hier in CSS op de laagcontainer en NIET als Leaflet-optie `opacity`: die
+   laat Leaflet elke tegel apart infaden, en werd dat infaden onderbroken (bij veel
+   zoomen op een drukke kaart), dan bleven tegels op nul staan en werd de kaart wit.
+   Een CSS-`filter` is hier ook geen optie: dat moet bij elke zoomstap opnieuw
+   gerasterd worden. */
 #map.zeewit{background:#fff}
+.basis-bleek{opacity:.45 !important}
 #maplegend .lg-t{font-weight:700;margin:2px 0 3px;font-size:11px}
 #maplegend .lg-t:not(:first-child){margin-top:7px}
 #maplegend .lg-row{display:flex;align-items:flex-start;gap:6px}
@@ -579,7 +583,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260830-14</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260830-15</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1689,7 +1693,11 @@ function quickCls(o){
 }
 function initMap(){
   if (map) return;
-  map = L.map("map", {preferCanvas:true}).setView([52.2,5.3], 8);
+  /* fadeAnimation uit: Leaflet faadt tegels normaal per stuk in met een eigen
+   animatielus. Op een drukke kaart (zeekaartmodus) wordt die lus onderbroken en
+   blijven tegels onzichtbaar staan — dan is de kaart ineens wit. Zonder infaden
+   verschijnen tegels gewoon meteen. */
+  map = L.map("map", {preferCanvas:true, fadeAnimation:false}).setView([52.2,5.3], 8);
   // popups nooit onder de knoppenbalk/panelen: kaart schuift automatisch mee met ruime marges
   L.Popup.prototype.options.autoPan = true;
   L.Popup.prototype.options.autoPanPaddingTopLeft = L.point(72, 96);
@@ -1716,8 +1724,14 @@ function initMap(){
     const laag = zeechartView ? baseLight : baseOSM;
     if (!laag || !map.hasLayer(laag)) return;
     const c = laag.getContainer(); if (!c) return;
-    const goed = [...c.querySelectorAll("img")].filter(t=>t.complete && t.naturalWidth>0).length;
-    if (goed === 0) laag.redraw();
+    const nodig = Math.ceil(map.getSize().x/256) * Math.ceil(map.getSize().y/256);
+    let goed = 0;
+    for (const t of c.querySelectorAll("img")){
+      if (!(t.complete && t.naturalWidth>0)) continue;
+      if (+getComputedStyle(t).opacity < 0.05) { t.style.opacity = ""; continue; }   // blijven hangen in het infaden
+      goed++;
+    }
+    if (goed < nodig*0.5){ console.log("OpenPilot: ondergrond was leeg ("+goed+"/"+nodig+" tegels), opnieuw opgehaald"); laag.redraw(); }
   }
   map.on("zoomend moveend", ()=>{ clearTimeout(tegelWacht); tegelWacht = setTimeout(tegelsTerughalen, 1200); });
   cluster = L.markerClusterGroup(clusterOpts());
@@ -2638,7 +2652,7 @@ function setZeeChart(on){
        OSM-tegels als de landkaart, met een CSS-filter eroverheen zodat het land verbleekt
        en de dieptevlakken erboven leesbaar blijven — geen sleutel, geen extra leverancier. */
     if (!baseLight) baseLight = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-      { maxZoom:19, opacity:0.42, attribution:'© OpenStreetMap' });
+      { maxZoom:19, className:"basis-bleek", attribution:'© OpenStreetMap' });
     document.getElementById("map").classList.add("zeewit");   // witte achtergrond onder de halfdoorzichtige tegels
     if (map.hasLayer(baseOSM)) map.removeLayer(baseOSM);
     baseLight.addTo(map);
