@@ -583,7 +583,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260830-15</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260830-16</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1733,7 +1733,34 @@ function initMap(){
     }
     if (goed < nodig*0.5){ console.log("OpenPilot: ondergrond was leeg ("+goed+"/"+nodig+" tegels), opnieuw opgehaald"); laag.redraw(); }
   }
-  map.on("zoomend moveend", ()=>{ clearTimeout(tegelWacht); tegelWacht = setTimeout(tegelsTerughalen, 1200); });
+  /* Hetzelfde voor de dieptevlakken. Die staan op een canvas, en een canvas mag de
+     browser onder geheugendruk leeggooien; Leaflet merkt dat niet en tekent pas bij
+     de volgende beweging opnieuw. We prikken een paar kleine stukjes van het canvas:
+     was er inhoud en is die ineens weg, dan tekenen we de vectorlagen opnieuw. */
+  let vlakkenHaddenInhoud = false;
+  function vlakkenTerughalen(){
+    if (!zeechartView || !encDepthLayer || !map.hasLayer(encDepthLayer)) return;
+    const c = map.getPane("depthPane").querySelector("canvas");
+    if (!c || !c.width) return;
+    let inhoud = false;
+    try{
+      const ctx = c.getContext("2d");
+      for (const [fx,fy] of [[.5,.5],[.28,.4],[.72,.62],[.5,.8]]){
+        const d = ctx.getImageData(Math.round(c.width*fx)-8, Math.round(c.height*fy)-8, 16, 16).data;
+        for (let i=3;i<d.length;i+=4) if (d[i]>10){ inhoud = true; break; }
+        if (inhoud) break;
+      }
+    }catch(_){ return; }
+    if (inhoud){ vlakkenHaddenInhoud = true; return; }
+    if (!vlakkenHaddenInhoud) return;                       // hier was gewoon niets te zien
+    console.log("OpenPilot: dieptevlakken waren leeg, opnieuw getekend");
+    vlakkenHaddenInhoud = false;                            // niet blijven herhalen
+    for (const lg of [encDepthLayer, coastLayer, depthLineLayer, ...Object.values(depthRegionLayers)])
+      if (lg && lg !== "loading" && map.hasLayer(lg)) lg.eachLayer(l=>{ if (l.redraw) l.redraw(); });
+  }
+  const nakijken = ()=>{ tegelsTerughalen(); vlakkenTerughalen(); };
+  map.on("zoomend moveend", ()=>{ clearTimeout(tegelWacht); tegelWacht = setTimeout(nakijken, 1200); });
+  setInterval(()=>{ if (zeechartView && !document.hidden) nakijken(); }, 4000);
   cluster = L.markerClusterGroup(clusterOpts());
   buildMarkers();
   map.addLayer(cluster);
@@ -2623,6 +2650,20 @@ let regionsHooked = false;
 function loadDepthRegions(){
   if (!zeechartView || !map) return;
   const b = map.getBounds();
+  /* Regio's die ver buiten beeld liggen weer loslaten. Elk gebied is 1-5 MB
+     geojson en werd nooit opgeruimd; wie een tijdje rondvaart op de kaart had ze
+     uiteindelijk allemaal in het geheugen, en dan gaat de browser tegels en
+     canvasinhoud weggooien (witte kaart). Opnieuw ophalen kost niets: de
+     fetch komt uit de browsercache. */
+  const marge = Math.max(b.getNorth()-b.getSouth(), b.getEast()-b.getWest());
+  for (const r of DEPTH_REGIONS){
+    const lay = depthRegionLayers[r.id];
+    if (!lay || lay === "loading") continue;
+    const [s2,w2,n2,e2] = r.bbox;
+    const ver = b.getSouth()-marge > n2 || b.getNorth()+marge < s2
+             || b.getWest()-marge  > e2 || b.getEast()+marge  < w2;
+    if (ver){ map.removeLayer(lay); delete depthRegionLayers[r.id]; }
+  }
   for (const r of DEPTH_REGIONS){
     if (depthRegionLayers[r.id]) continue;
     const [s,w,n,e] = r.bbox;

@@ -123,8 +123,14 @@ BOYSAW, BCNLAT/BCNCAR, LIGHTS. RWS-cellen zijn wekelijks vers en CC-0.
   liep het geheugen zo op dat de browser de tegels weggooide en de kaart wit
   werd (in de test crashte het tabblad zelfs). Nu worden de lagen één keer
   gebouwd en daarna alleen los-/vastgekoppeld, en wordt de geojson na het bouwen
-  losgelaten. Daarnaast staat er een vangnet op `zoomend/moveend`: zijn er geen
-  geladen tegels meer in beeld, dan `redraw()` op de ondergrond.
+  losgelaten. Regio-dieptebestanden (1-5 MB per stuk) worden weer losgelaten
+  zodra ze ver buiten beeld liggen; opnieuw ophalen komt uit de browsercache.
+  Verder draait er in zeekaartmodus elke 4 s (en na elke zoom/verschuiving) een
+  **zelfherstel**: te weinig geladen tegels → `redraw()` op de ondergrond; een
+  leeggelopen dieptecanvas (browser gooit canvasinhoud weg onder geheugendruk,
+  Leaflet merkt dat niet) → de vectorlagen opnieuw tekenen. Beide melden zich in
+  de console met `OpenPilot: …`, handig als een gebruiker weer een witte kaart
+  meldt.
 - **Copernicus-stromingstegels** gaan native maar tot zoom 9; daarboven neemt
   de eigen pijlenlaag het over.
 - **Overpass** (OSM) is vaak rate-limited: altijd cachen, ruime time-outs,
