@@ -12,6 +12,8 @@ const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
   neu:"new route", total:"total", bridges:"bridges", locks:"locks", fixed:"fixed",
   viaBtn:"+ via point", hintVia:"Tap a point the route must pass through", via:"Via",
   eindBtn:"destination", hintEindKnop:"Tap the destination on the map",
+  hintStartTik:"Tap the starting point; set the destination with the \u201Cdestination\u201D button (or long-press)",
+  hintVolgendeTik:"Another tap = via point · set the destination with the \u201Cdestination\u201D button",
   viaWeg:"via point removed",
   hoogte:"air draft", hoogteHint:"Height of your boat above the water — the route avoids fixed bridges that are too low.",
   verVanVaarweg:(km)=>`Your point is ${km} km from the nearest fairway; the route starts there.`,
@@ -28,6 +30,8 @@ const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
   neu:"nieuwe route", total:"totaal", bridges:"bruggen", locks:"sluizen", fixed:"vast",
   viaBtn:"+ via-punt", hintVia:"Tik een punt aan waar de route langs moet", via:"Via",
   eindBtn:"bestemming", hintEindKnop:"Tik de bestemming aan op de kaart",
+  hintStartTik:"Tik het startpunt aan; de bestemming zet je met de knop \u201Cbestemming\u201D (of lang indrukken)",
+  hintVolgendeTik:"Nog een tik = via-punt · de bestemming zet je met de knop \u201Cbestemming\u201D",
   viaWeg:"via-punt verwijderd",
   hoogte:"doorvaarthoogte", hoogteHint:"Hoogte van je boot boven water — de route gaat om te lage vaste bruggen heen.",
   verVanVaarweg:(km)=>`Je punt ligt ${km} km van de dichtstbijzijnde vaargeul; de route begint daar.`,
@@ -358,9 +362,14 @@ function css(){
 #routepanel .rp-h{display:inline-flex;align-items:center;gap:6px;margin-left:auto;font-size:12.5px;color:var(--ink2)}
 #routepanel .rp-h input{width:58px;padding:5px 7px;font-size:13px;text-align:right;
   border:1px solid var(--grid);border-radius:7px;background:var(--surface);color:var(--ink)}
-#routepanel .rp-disc{padding:10px 20px 14px;color:var(--ink2);font-size:11.5px;line-height:1.45;
+#routepanel .rp-disc{color:var(--ink2);font-size:11.5px;line-height:1.45;
   border-top:1px solid var(--grid);background:var(--chip-ser-bg)}
-#routepanel .rp-disc-t{display:block;color:var(--serious);font-size:12px;margin-bottom:3px}
+#routepanel .rp-disc-t{padding:9px 20px;color:var(--serious);font-size:12px;font-weight:700;
+  cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px}
+#routepanel .rp-disc-t::-webkit-details-marker{display:none}
+#routepanel .rp-disc-t::after{content:"▾";margin-left:auto;font-size:11px;opacity:.7}
+#routepanel .rp-disc[open] .rp-disc-t::after{content:"▴"}
+#routepanel .rp-disc-body{padding:0 20px 12px}
 #routepanel .rp-stamp{margin-top:5px;color:var(--muted);font-size:10.5px}
 .rp-arming .leaflet-marker-pane *,.rp-arming .leaflet-shadow-pane *{pointer-events:none !important}
 .rp-arming .leaflet-marker-pane,.rp-arming .leaflet-shadow-pane{pointer-events:none !important}
@@ -393,8 +402,8 @@ function initPanel(){
     </div>
     <div class="rp-sum" id="rp-sum" hidden></div>
     <div class="rp-list" id="rp-list"></div>
-    <div class="rp-disc"><b class="rp-disc-t">⚠ ${TXT.discTitle}</b>${TXT.disc}
-      <div id="rp-stamp" class="rp-stamp"></div></div>
+    <details class="rp-disc"><summary class="rp-disc-t">⚠ ${TXT.discTitle}</summary>
+      <div class="rp-disc-body">${TXT.disc}<div id="rp-stamp" class="rp-stamp"></div></div></details>
   </div>`);
   document.getElementById("v-kaart").appendChild(panel);
   panel.querySelector(".rp-x").addEventListener("click", e=>{ e.preventDefault(); e.stopPropagation(); off(); });
@@ -423,7 +432,14 @@ function initPanel(){
   }, true);
 }
 
-function hint(t){ const e=panel.querySelector("#rp-hint"); e.textContent=t; e.hidden=!t; }
+const tikscherm = (typeof matchMedia==="function") && matchMedia("(pointer:coarse)").matches;
+function hint(t){
+  /* op een telefoon of tablet bestaat rechtsklikken niet; wijs dan de knop aan
+     (lang indrukken werkt op sommige toestellen wel, maar niet betrouwbaar) */
+  if (t===TXT.hintStart && tikscherm) t = TXT.hintStartTik;
+  if (t===TXT.hintVolgende && tikscherm) t = TXT.hintVolgendeTik;
+  const e=panel.querySelector("#rp-hint"); e.textContent=t; e.hidden=!t;
+}
 
 /* netwerkdatum tonen: zo is meteen te zien of een oud tabblad nog oude data heeft */
 function stampNet(){
