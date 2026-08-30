@@ -579,7 +579,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260830-13</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260830-14</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1706,6 +1706,20 @@ function initMap(){
   map.createPane("encPane");   map.getPane("encPane").style.zIndex = 320;
   map.createPane("seaPane");   map.getPane("seaPane").style.zIndex = 350;
   map.createPane("rainPane");  map.getPane("rainPane").style.zIndex = 245; map.getPane("rainPane").style.pointerEvents = "none";
+  /* Vangnet voor een wit geworden kaart. Bij veel heen-en-weer zoomen (vooral in
+     zeekaartmodus, waar veel data in beeld staat) gooit de browser onder
+     geheugendruk de tegels weg; Leaflet vraagt ze dan niet vanzelf opnieuw op en
+     je houdt een leeg vlak over. Even na elke zoom/verschuiving kijken we of er
+     nog tegels ín beeld zijn en zo niet, dan halen we ze terug. */
+  let tegelWacht = null;
+  function tegelsTerughalen(){
+    const laag = zeechartView ? baseLight : baseOSM;
+    if (!laag || !map.hasLayer(laag)) return;
+    const c = laag.getContainer(); if (!c) return;
+    const goed = [...c.querySelectorAll("img")].filter(t=>t.complete && t.naturalWidth>0).length;
+    if (goed === 0) laag.redraw();
+  }
+  map.on("zoomend moveend", ()=>{ clearTimeout(tegelWacht); tegelWacht = setTimeout(tegelsTerughalen, 1200); });
   cluster = L.markerClusterGroup(clusterOpts());
   buildMarkers();
   map.addLayer(cluster);
@@ -2381,9 +2395,17 @@ function setSea(on){
    alles zelf verwerkt en zelf-gehost, werkt offline. */
 const SMOOTH_COL = { w:"#cfe3c5", b0:"#7fb8dc", b2:"#a3cce8", b5:"#c3def1", b10:"#d9eaf7", b15:"#e7f2fa", b20:"#f2f8fc" };
 function drawSmoothDepth(gj){
-  // cumulatief getekend: ondiep eerst, dieper eroverheen — geen naden/slivers
-  encDepthLayer = L.geoJSON(gj, { pane:"depthPane", interactive:false,
-    style: f => ({ stroke:false, fill:true, fillColor: SMOOTH_COL[f.properties.t]||"#e7f2fa", fillOpacity:1 }) }).addTo(map);
+  /* Eén keer opbouwen en daarna hergebruiken. Vroeger werd deze laag bij elke
+     moduswissel opnieuw uit de geojson gebouwd én bleef de geojson (6 MB, 157k
+     punten) ook nog in het geheugen staan; samen met de dieptelijnen en de kust
+     liep dat zo op dat de browser bij veel zoomen tegels ging weggooien en de
+     kaart wit werd. Nu: bouwen, geojson loslaten, laag bewaren. */
+  if (!encDepthLayer)
+    // cumulatief getekend: ondiep eerst, dieper eroverheen — geen naden/slivers
+    encDepthLayer = L.geoJSON(gj, { pane:"depthPane", interactive:false,
+      style: f => ({ stroke:false, fill:true, fillColor: SMOOTH_COL[f.properties.t]||"#e7f2fa", fillOpacity:1 }) });
+  encDepthLayer.addTo(map);
+  encDepthGeo = null;
 }
 function depthLineStyle(f){
   const v = f.properties.v;
@@ -2392,11 +2414,17 @@ function depthLineStyle(f){
   return { color:"#7fb0d2", weight:0.5, opacity:0.7 };                 // overige isobaten dun
 }
 function drawDepthLines(gj){
-  depthLineLayer = L.geoJSON(gj, { pane:"encPane", interactive:false, style: depthLineStyle }).addTo(map);
+  if (!depthLineLayer)
+    depthLineLayer = L.geoJSON(gj, { pane:"encPane", interactive:false, style: depthLineStyle });
+  depthLineLayer.addTo(map);
+  depthLineGeo = null;
 }
 function drawCoast(gj){
-  coastLayer = L.geoJSON(gj, { pane:"depthLinePane", interactive:false,
-    style: { color:"#6b5a38", weight:0.9, opacity:0.9 } }).addTo(map);
+  if (!coastLayer)
+    coastLayer = L.geoJSON(gj, { pane:"depthLinePane", interactive:false,
+      style: { color:"#6b5a38", weight:0.9, opacity:0.9 } });
+  coastLayer.addTo(map);
+  coastGeo = null;
 }
 /* ---- hover-info voor OpenSeaMap-symbolen (zelfde OSM-brondata, via Overpass) ---- */
 let smLayer=null, smSeen=new Set(), smTimer=null, smHooked=false;
@@ -2615,8 +2643,8 @@ function setZeeChart(on){
     if (map.hasLayer(baseOSM)) map.removeLayer(baseOSM);
     baseLight.addTo(map);
     // Eigen gladde dieptevlakken (zelf-gehost, vector, offline) — licht gekleurde dieptezones
-    if (encDepthGeo) drawSmoothDepth(encDepthGeo);
-    else fetch("data/depth_smooth.geojson?v=20260723b", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{ encDepthGeo=gj; if(zeechartView) drawSmoothDepth(gj); }).catch(()=>{});
+    if (encDepthLayer) encDepthLayer.addTo(map);
+    else fetch("data/depth_smooth.geojson?v=20260723b", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{ if(zeechartView) drawSmoothDepth(gj); }).catch(()=>{});
     // Proef buitenland (EU-RIS-route): Duitse Rijn als waterlint uit de WSV Inland ENC (ELWIS, vrij gebruik)
     if (!window.deWaterLayer){
       fetch("data/de_water.geojson?v=20260722b", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{
@@ -2626,11 +2654,11 @@ function setZeeChart(on){
       }).catch(()=>{});
     } else window.deWaterLayer.addTo(map);
     // Eigen kustlijn (COALNE) — bron: RWS Inland ENC (CC-0)
-    if (coastGeo) drawCoast(coastGeo);
-    else fetch("data/coast.geojson?v=20260722d", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{ coastGeo=gj; if(zeechartView) drawCoast(gj); }).catch(()=>{});
+    if (coastLayer) coastLayer.addTo(map);
+    else fetch("data/coast.geojson?v=20260722d", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{ if(zeechartView) drawCoast(gj); }).catch(()=>{});
     // Eigen dieptelijnen (DEPCNT) met nadruk op de 2 m-lijn — heel NL, zelf-gehost, offline
-    if (depthLineGeo) drawDepthLines(depthLineGeo);
-    else fetch("data/depth_lines.geojson?v=20260722b", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{ depthLineGeo=gj; if(zeechartView) drawDepthLines(gj); }).catch(()=>{});
+    if (depthLineLayer) depthLineLayer.addTo(map);
+    else fetch("data/depth_lines.geojson?v=20260722b", {cache:"force-cache"}).then(r=>r.json()).then(gj=>{ if(zeechartView) drawDepthLines(gj); }).catch(()=>{});
     if (!seaChartLayer){
       seaChartLayer = L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",
         { maxZoom:18, pane:"seaPane", attribution:'© OpenSeaMap' });
@@ -2642,9 +2670,9 @@ function setZeeChart(on){
     if (buoyLayer && map.hasLayer(buoyLayer)) map.removeLayer(buoyLayer);
     if (smLayer) map.removeLayer(smLayer);
     if (window.deWaterLayer) map.removeLayer(window.deWaterLayer);
-    if (coastLayer){ map.removeLayer(coastLayer); coastLayer=null; }
-    if (depthLineLayer){ map.removeLayer(depthLineLayer); depthLineLayer=null; }
-    if (encDepthLayer){ map.removeLayer(encDepthLayer); encDepthLayer=null; }
+    if (coastLayer) map.removeLayer(coastLayer);
+    if (depthLineLayer) map.removeLayer(depthLineLayer);
+    if (encDepthLayer) map.removeLayer(encDepthLayer);
     if (iencLayer) map.removeLayer(iencLayer);
     if (emodnetDepth && map.hasLayer(emodnetDepth)) map.removeLayer(emodnetDepth);
     if (seaChartLayer) map.removeLayer(seaChartLayer);

@@ -110,6 +110,15 @@ BOYSAW, BCNLAT/BCNCAR, LIGHTS. RWS-cellen zijn wekelijks vers en CC-0.
   het zoomen wit weg. **Geen `filter` op een laag die meebeweegt met de kaart.**
   Controleer bij een rare kaart altijd éérst een losse tegel-URL in de browser
   voordat je in de eigen code gaat zoeken.
+- **Witte kaart na veel zoomen** (aug 2026). In zeekaartmodus stond het
+  dieptevlak (6 MB / 157k punten), de kustlijn en de dieptelijnen zowel als
+  Leaflet-laag *als* als geparste geojson in het geheugen, en bij elke
+  moduswissel werden die lagen opnieuw opgebouwd. Bij veel heen-en-weer zoomen
+  liep het geheugen zo op dat de browser de tegels weggooide en de kaart wit
+  werd (in de test crashte het tabblad zelfs). Nu worden de lagen één keer
+  gebouwd en daarna alleen los-/vastgekoppeld, en wordt de geojson na het bouwen
+  losgelaten. Daarnaast staat er een vangnet op `zoomend/moveend`: zijn er geen
+  geladen tegels meer in beeld, dan `redraw()` op de ondergrond.
 - **Copernicus-stromingstegels** gaan native maar tot zoom 9; daarboven neemt
   de eigen pijlenlaag het over.
 - **Overpass** (OSM) is vaak rate-limited: altijd cachen, ruime time-outs,
