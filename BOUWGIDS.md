@@ -124,8 +124,11 @@ Kaartknop **Route**: eerste klik = start, elke volgende klik = via-punt,
 rechtsklik (of de knop *bestemming*) = eindpunt, rechtsklik óp een via-punt
 haalt hem weg. Het paneel heeft dezelfde afmeting als het detailpaneel van een
 brug of sluis (`min(600px,100%)`, volle hoogte); op een telefoon is het een
-bodemlade die laag blijft zolang je punten aanwijst en pas uitklapt als de
-route er is. A* draait client-side over `data/net.json.gz`.
+bodemlade die laag blijft zolang je punten aanwijst en uitklapt als de route er
+is; met de greep erbovenop sleept de gebruiker hem zelf tussen 22% en 80% van
+het scherm (hoger mag niet, anders verdwijnen de kaartknoppen eronder). Zodra
+de route klaar is verdwijnen op mobiel de drie knoppen — een tik op de kaart
+voegt nog steeds een via-punt toe, lang indrukken verzet de bestemming. A* draait client-side over `data/net.json.gz`.
 
 **Bron: het officiële vaarwegennetwerk van Rijkswaterstaat** (FIS
 `section` + `fairway`), dezelfde dataservice als de bruggen en sluizen. Dat is

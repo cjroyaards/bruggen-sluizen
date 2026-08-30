@@ -373,7 +373,16 @@ function css(){
 #routepanel .rp-stamp{margin-top:5px;color:var(--muted);font-size:10.5px}
 .rp-arming .leaflet-marker-pane *,.rp-arming .leaflet-shadow-pane *{pointer-events:none !important}
 .rp-arming .leaflet-marker-pane,.rp-arming .leaflet-shadow-pane{pointer-events:none !important}
+#routepanel .rp-grip{display:none}
 @media (max-width:640px){
+  /* greep om de lade zelf hoger of lager te slepen */
+  #routepanel .rp-grip{display:block;padding:7px 0 3px;cursor:row-resize;touch-action:none;flex:none}
+  #routepanel .rp-grip span{display:block;width:44px;height:4px;margin:0 auto;border-radius:2px;background:var(--grid)}
+  /* route klaar: de knoppen weg, dat scheelt een hele regel. Een tik op de kaart
+     voegt nog steeds een via-punt toe, lang indrukken verzet de bestemming. */
+  #routepanel.rp-klaar .rp-actions button{display:none}
+  #routepanel.rp-klaar .rp-actions{padding-top:6px;padding-bottom:6px}
+  #routepanel.rp-klaar .rp-h{margin-left:0}
   /* op een telefoon een hoge bodemlade: de kaart blijft aantikbaar om punten te zetten */
   #routepanel{top:auto;left:0;right:0;bottom:0;width:auto;height:62%;
     border-left:none;border-top:1px solid var(--grid);border-radius:14px 14px 0 0}
@@ -392,6 +401,7 @@ function initPanel(){
   if (panel) return;
   css();
   panel = el(`<div id="routepanel" hidden>
+    <div class="rp-grip" title="sleep om de lijst groter of kleiner te maken"><span></span></div>
     <div class="rp-head"><span>${TXT.title}</span><button type="button" class="rp-x" aria-label="sluiten" title="sluiten">✕</button></div>
     <div class="rp-hint" id="rp-hint"></div>
     <div class="rp-actions" hidden>
@@ -406,6 +416,7 @@ function initPanel(){
       <div class="rp-disc-body">${TXT.disc}<div id="rp-stamp" class="rp-stamp"></div></div></details>
   </div>`);
   document.getElementById("v-kaart").appendChild(panel);
+  maakSleepbaar();
   panel.querySelector(".rp-x").addEventListener("click", e=>{ e.preventDefault(); e.stopPropagation(); off(); });
   panel.querySelector("#rp-new").onclick = restart;
   const armKnop = (id, m, tekst)=>{
@@ -525,7 +536,38 @@ function dot(latlng, color, label, viaPunt){
 }
 
 /* alleen de getekende lijn en lijst weghalen, punten laten staan */
-function kiesstand(aan){ if (panel) panel.classList.toggle("rp-kiezen", !!aan); }
+let handmatigeHoogte = false;      // heeft de gebruiker de lade zelf versleept?
+
+function kiesstand(aan){
+  if (!panel) return;
+  panel.classList.toggle("rp-kiezen", !!aan && !handmatigeHoogte);
+  panel.classList.toggle("rp-klaar", !aan);
+}
+
+/* de lade op een telefoon met de greep hoger of lager slepen */
+function maakSleepbaar(){
+  const grip = panel.querySelector(".rp-grip");
+  let bezig = false;
+  const zet = y=>{
+    const h = Math.min(innerHeight*0.80, Math.max(innerHeight*0.22, innerHeight - y));
+    panel.style.height = Math.round(h)+"px";
+    panel.style.maxHeight = "none";
+  };
+  grip.addEventListener("pointerdown", e=>{
+    if (innerWidth>640) return;
+    bezig=true; handmatigeHoogte=true;
+    panel.classList.remove("rp-kiezen");
+    grip.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  grip.addEventListener("pointermove", e=>{ if (bezig) zet(e.clientY); });
+  const stop = e=>{ if(!bezig) return; bezig=false;
+    try{ grip.releasePointerCapture(e.pointerId); }catch(_){}
+    if (map) map.invalidateSize();
+  };
+  grip.addEventListener("pointerup", stop);
+  grip.addEventListener("pointercancel", stop);
+}
 
 function clearLijn(){
   for (const ly of [lineBack,lineFront]) if (ly) map.removeLayer(ly);
