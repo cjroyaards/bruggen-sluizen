@@ -121,7 +121,11 @@ BOYSAW, BCNLAT/BCNCAR, LIGHTS. RWS-cellen zijn wekelijks vers en CC-0.
 ## Routeplanner (`route.js` + `scripts/build_net.py`)
 
 Kaartknop **Route**: eerste klik = start, elke volgende klik = via-punt,
-rechtsklik = bestemming. A* draait client-side over `data/net.json.gz`.
+rechtsklik (of de knop *bestemming*) = eindpunt, rechtsklik óp een via-punt
+haalt hem weg. Het paneel heeft dezelfde afmeting als het detailpaneel van een
+brug of sluis (`min(600px,100%)`, volle hoogte); op een telefoon is het een
+bodemlade die laag blijft zolang je punten aanwijst en pas uitklapt als de
+route er is. A* draait client-side over `data/net.json.gz`.
 
 **Bron: het officiële vaarwegennetwerk van Rijkswaterstaat** (FIS
 `section` + `fairway`), dezelfde dataservice als de bruggen en sluizen. Dat is
