@@ -11,7 +11,8 @@ const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
   none:"No route found. The planner follows the official Rijkswaterstaat fairways; if your point is on other water (a city canal, a polder lake, the North Sea) it cannot get there. Otherwise tap closer to a fairway.",
   neu:"new route", total:"total", bridges:"bridges", locks:"locks", fixed:"fixed",
   viaBtn:"+ via point", hintVia:"Tap a point the route must pass through", via:"Via",
-  hoogte:"air draft", hoogteHint:"Height of your boat above the water — fixed bridges that are too low are flagged.",
+  hoogte:"air draft", hoogteHint:"Height of your boat above the water — the route avoids fixed bridges that are too low.",
+  noneHoogte:"No route with this air draft. There is no way through that is high enough everywhere; try a lower value, a via point, or clear the field to see all routes.",
   lowest:"lowest fixed bridge", narrowest:"narrowest passage",
   mastwarn:(hf,m)=>`Warning: lowest fixed bridge is ${hf} m — too low for an air draft of ${m} m`,
   discTitle:"Bridge and lock planner — not a navigation route",
@@ -23,7 +24,8 @@ const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
   none:"Geen route gevonden. De planner volgt de officiële vaarwegen van Rijkswaterstaat; ligt je punt op ander water (een stadsgracht, een polderplas, de Noordzee), dan kan hij er niet komen. Tik anders iets dichter bij een vaarweg.",
   neu:"nieuwe route", total:"totaal", bridges:"bruggen", locks:"sluizen", fixed:"vast",
   viaBtn:"+ via-punt", hintVia:"Tik een punt aan waar de route langs moet", via:"Via",
-  hoogte:"doorvaarthoogte", hoogteHint:"Hoogte van je boot boven water — te lage vaste bruggen worden gemeld.",
+  hoogte:"doorvaarthoogte", hoogteHint:"Hoogte van je boot boven water — de route gaat om te lage vaste bruggen heen.",
+  noneHoogte:"Geen route gevonden met deze doorvaarthoogte. Er is geen weg die overal hoog genoeg is; probeer een lagere hoogte, een via-punt, of laat het veld leeg om alle routes te zien.",
   lowest:"laagste vaste brug", narrowest:"smalste doorvaart",
   mastwarn:(hf,m)=>`Let op: laagste vaste brug is ${hf} m — te laag voor doorvaarthoogte ${m} m`,
   discTitle:"Bruggen- en sluizenplanner — geen vaarroute",
@@ -493,12 +495,11 @@ async function compute(){
     const a=punten[i].latlng, b=punten[i+1].latlng;
     const sa = snap(Math.round(a.lat*1e5), Math.round(a.lng*1e5));
     const sb = snap(Math.round(b.lat*1e5), Math.round(b.lng*1e5));
-    /* nodigeHoogte() nog niet meegeven: het netwerk kent de doorvaarthoogtes al
-       (data/net.json.gz), maar de bruggenlijst werkt op nabijheid en meldt dan
-       bruggen die je niet echt passeert. Eerst objecten per vaarwegvak koppelen,
-       daarna kan de planner ook echt om te lage bruggen heen zoeken. */
-    const deel = (sa && sb) ? findRoute(sa, sb, null) : null;
-    if (!deel){ hint(TXT.none); panel.querySelector(".rp-actions").hidden=false; return; }
+    /* de opgegeven doorvaarthoogte stuurt de route: secties onder een te lage
+       vaste brug vallen af. Werkt sinds het netwerk uit de RWS-vaarwegdata komt
+       en 97% van de bruggen aan een sectie gekoppeld is. */
+    const deel = (sa && sb) ? findRoute(sa, sb, nodigeHoogte()) : null;
+    if (!deel){ hint(nodigeHoogte()!=null ? TXT.noneHoogte : TXT.none); panel.querySelector(".rp-actions").hidden=false; return; }
     geo.push(...(i===0 ? deel.geo : deel.geo.slice(1)));
   }
   const r = {geo, meters: geoMeters(geo)};

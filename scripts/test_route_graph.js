@@ -114,6 +114,30 @@ function check(naam, cond, extra) {
   check("geen zelfgemaakte verbindingen", verzonnen === 0, verzonnen + " gevonden");
 }
 
+/* 7c. Lange overspanning: de Zeelandbrug wordt gemeld op routes die hem kruisen */
+{
+  const sa = snap(Math.round(51.515e5), Math.round(3.995e5));   // Wemeldinge
+  const sb = snap(Math.round(51.635e5), Math.round(3.917e5));   // Zierikzee
+  const r = sa && sb && RP.findRoute(sa, sb);
+  const namen = r ? RP.objsOnRoute(r.geo).map(i => i.o.n) : [];
+  check("Zeelandbrug gemeld via overspanning", namen.some(n => /Zeelandbrug/.test(n)),
+        namen.join(", ") || "geen");
+}
+
+/* 7d. Doorvaarthoogte stuurt de route om te lage vaste bruggen heen */
+{
+  const sa = snap(Math.round(52.846e5), Math.round(5.709e5));   // Lemmer
+  const sb = snap(Math.round(53.196e5), Math.round(5.795e5));   // Leeuwarden
+  const laag = RP.findRoute(sa, sb);                            // zonder beperking
+  const hoog = RP.findRoute(sa, sb, 6.7);                       // met 6,5 m + marge
+  const lg = laag ? RP.objsOnRoute(laag.geo).filter(i => i.o.t === "B" && !i.o.open && i.o.hf != null) : [];
+  const hg = hoog ? RP.objsOnRoute(hoog.geo).filter(i => i.o.t === "B" && !i.o.open && i.o.hf != null) : [];
+  const min = a => a.length ? Math.min(...a.map(i => i.o.hf)) : 99;
+  check("zonder hoogte gaat hij onder een lage brug door", min(lg) < 3, "laagste " + min(lg) + " m");
+  check("met 6,5 m mijdt hij die bruggen", !!hoog && min(hg) >= 6.7 - 0.2,
+        hoog ? "laagste " + min(hg) + " m" : "geen route");
+}
+
 /* 8. Onbereikbaar: punt ver op zee snapt niet */
 {
   const s = snap(Math.round(54.5e5), Math.round(4.0e5));

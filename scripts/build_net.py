@@ -30,7 +30,7 @@ De app koppelt secties aan elkaar op exact gelijke eindpuntcoördinaten.
 Draaien: python3 scripts/build_net.py
 Controleren: python3 scripts/audit_net.py  en  node scripts/test_route_graph.js
 """
-import gzip, json, math, os, sys, time, urllib.request
+import gzip, json, math, os, sys, time, urllib.parse, urllib.request
 from collections import defaultdict
 
 BASE = "https://www.vaarweginformatie.nl/wfswms/dataservice/1.3"
@@ -173,8 +173,10 @@ def main():
         edges.append([nm, flat, kf, 0])
 
     zet_hoogtes(edges)
+    spans = overspanningen(edges)
 
-    out = {"v": 2, "built": int(time.time() * 1000), "names": names, "e": edges}
+    out = {"v": 2, "built": int(time.time() * 1000), "names": names, "e": edges,
+           "spans": spans}
     raw = json.dumps(out, separators=(",", ":")).encode()
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with gzip.open(OUT, "wb", compresslevel=9) as f:
@@ -182,6 +184,121 @@ def main():
     npts = sum((len(e[1]) - 2) // 2 + 1 for e in edges)
     print(f"net.json.gz: {len(edges)} secties, {npts} punten, "
           f"{len(raw)/1e6:.1f} MB raw, {os.path.getsize(OUT)/1e6:.2f} MB gzip")
+
+
+OVERPASS = ["https://overpass-api.de/api/interpreter",
+            "https://lz4.overpass-api.de/api/interpreter"]
+SPAN_MIN_W = 40.0        # alleen brede doorvaarten kunnen een lange overspanning zijn
+SPAN_VER_M = 150.0       # ligt het RWS-punt verder dan dit van de vaargeul, dan nodig
+SPAN_KOPPEL_M = 150.0    # RWS-brug hoort bij een overspanning binnen deze afstand
+
+
+def celindex(edges):
+    """celindex over alle netwerksegmenten, voor snelle afstandsvragen"""
+    cel = defaultdict(list)
+    for e in edges:
+        flat = e[1]
+        la, lo = flat[0], flat[1]
+        pts = [(la, lo)]
+        for i in range(2, len(flat), 2):
+            la += flat[i]; lo += flat[i + 1]
+            pts.append((la, lo))
+        for a, b in zip(pts, pts[1:]):
+            for k in {(a[0] // 900, a[1] // 1400), (b[0] // 900, b[1] // 1400)}:
+                cel[k].append((a, b))
+    return cel
+
+
+def afstand_tot_net(cel, la, lo):
+    pla, plo = round(la * 1e5), round(lo * 1e5)
+    kx = math.cos(math.radians(la))
+    best = 1e18
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            for a, b in cel.get((pla // 900 + dy, plo // 1400 + dx), []):
+                ay, ax = a[0] * 1.1132, a[1] * 1.1132 * kx
+                by, bx = b[0] * 1.1132, b[1] * 1.1132 * kx
+                py, px = pla * 1.1132, plo * 1.1132 * kx
+                ddy, ddx = by - ay, bx - ax
+                L2 = ddy * ddy + ddx * ddx or 1e-9
+                t = max(0.0, min(1.0, ((py - ay) * ddy + (px - ax) * ddx) / L2))
+                best = min(best, math.hypot(py - (ay + t * ddy), px - (ax + t * ddx)))
+    return best
+
+
+def overspanningen(edges):
+    """Lange bruggen over open water.
+
+    De RWS-data geeft één punt per brug. Bij de Zeelandbrug ligt dat punt bij de
+    beweegbare overspanning, terwijl de vaargeul het bouwwerk 800 m verderop
+    kruist — dan mist de routelijst die brug, juist waar de doorvaarthoogte
+    telt. Voor die enkele gevallen halen we de échte overspanningslijn uit
+    OpenStreetMap op. Het raakt alleen de objectenlijst, nooit de routering.
+    """
+    try:
+        stat = json.load(gzip.open(STAT))
+    except Exception as e:  # noqa: BLE001
+        print(f"  static.json.gz niet leesbaar ({e}); overspanningen overgeslagen", file=sys.stderr)
+        return []
+    cel = celindex(edges)
+    bruggen = [o for o in stat["objs"] if o.get("t") == "B"
+               and BBOX[0] < o["lat"] < BBOX[2] and BBOX[1] < o["lon"] < BBOX[3]]
+    kand = [o for o in bruggen if (o.get("w") or 0) >= SPAN_MIN_W
+            and SPAN_VER_M < afstand_tot_net(cel, o["lat"], o["lon"]) < 5000]
+    print(f"  overspanningen nodig voor {len(kand)} bruggen: "
+          + ", ".join(o["n"][:24] for o in kand))
+    if not kand:
+        return []
+
+    delen = "".join(f'way["bridge"]["highway"](around:2500,{o["lat"]:.5f},{o["lon"]:.5f});'
+                    f'way["bridge"]["railway"](around:2500,{o["lat"]:.5f},{o["lon"]:.5f});'
+                    for o in kand)
+    ways = []
+    for m in OVERPASS:
+        try:
+            print("  Overpass (overspanningen):", m)
+            req = urllib.request.Request(
+                m, data=urllib.parse.urlencode({"data": f"[out:json][timeout:180];({delen});out geom;"}).encode(),
+                headers=UA)
+            with urllib.request.urlopen(req, timeout=240) as r:
+                ways = [w for w in json.load(r)["elements"] if w.get("geometry")]
+            break
+        except Exception as e:  # noqa: BLE001
+            print(f"    mislukt ({e})", file=sys.stderr)
+            time.sleep(5)
+    if not ways:
+        print("    geen overspanningen opgehaald; lijst blijft leeg", file=sys.stderr)
+        return []
+
+    spans, gezien = [], set()
+    for w in ways:
+        g = [(p["lat"], p["lon"]) for p in w["geometry"]]
+        lengte = sum(math.hypot((b[0] - a[0]) * 111320,
+                                (b[1] - a[1]) * 111320 * math.cos(math.radians(a[0])))
+                     for a, b in zip(g, g[1:]))
+        if lengte < 250:
+            continue
+        simp = dp_simplify(g, 40.0)
+        ip = [(round(la * 1e5), round(lo * 1e5)) for la, lo in simp]
+        sleutel = (ip[0], ip[-1])
+        if sleutel in gezien:
+            continue
+        ids = []
+        for o in bruggen:
+            d = min(math.hypot((o["lat"] - a[0]) * 111320,
+                               (o["lon"] - a[1]) * 111320 * math.cos(math.radians(o["lat"])))
+                    for a in simp)
+            if d < SPAN_KOPPEL_M:
+                ids.append(o["id"])
+        if not ids:
+            continue
+        gezien.add(sleutel)
+        flat = [ip[0][0], ip[0][1]]
+        for (la, lo), (pla, plo) in zip(ip[1:], ip[:-1]):
+            flat += [la - pla, lo - plo]
+        spans.append([flat, ids])
+    print(f"  {len(spans)} overspanningslijnen vastgelegd")
+    return spans
 
 
 def zet_hoogtes(edges):

@@ -131,7 +131,7 @@ eindknooppunt), en open water zit erin als de officiële betonde routes. 4630
 secties, 0,15 MB gzip. Secties krijgen een voorkeursfactor uit de CEMT-klasse
 en de doorvaarthoogte van de laagste vaste brug erboven.
 
-Testen: `node scripts/test_route_graph.js` (19 controles op de echte data:
+Testen: `node scripts/test_route_graph.js` (22 controles op de echte data:
 dijkpassages, Zeeland binnendoor, Friesland via het Prinses Margrietkanaal) en
 `python3 scripts/audit_net.py` (meldt verbindingen die over land lopen; hoort 0
 te zijn — het netwerk bevat geen zelfgemaakte lijnen meer).
@@ -148,22 +148,16 @@ Broek in Waterland). Vier rondes fixes hielpen niet afdoende; de audit stond op
 
 ### Open punten routeplanner
 
-1. **Lange bruggen over open water.** De RWS-data geeft één punt per brug,
-   terwijl bijvoorbeeld de Zeelandbrug 5 km overspant en de vaargeul hem op
-   ~1,4 km van dat punt kruist. Zo'n brug ontbreekt dan in de lijst — juist
-   riskant bij een hoge mast. Eerder loste een `spans`-laag uit OSM dit op
-   (zie git-geschiedenis); die kan terug als losse stap die alleen de
-   objectenlijst raakt, niet de routering.
-2. **Hoogte laten meewegen in de route.** De doorvaarthoogtes zitten al per
-   sectie in `net.json.gz` en `findRoute()` heeft er een parameter voor, maar
-   die staat uit. Aanzetten kan zodra punt 1 opgelost is, anders stuurt hij om
-   voor bruggen die hij zelf niet compleet kent.
-3. **Tijdsbewust plannen**: met vertrektijd en kruissnelheid per brug de
-   aankomsttijd tonen en waarschuwen bij bedieningstijden.
-4. **Bruggen buiten de RWS-data.** Op de kaart (OpenStreetMap) staan veel meer
-   bruggen dan in het RWS-bestand; die krijgen geen statusbolletje. Op de
-   officiële vaarwegen is de RWS-dekking compleet, dus binnen de scope van de
-   planner speelt dit niet meer.
+1. **Tijdsbewust plannen**: met vertrektijd en kruissnelheid per brug de
+   aankomsttijd tonen en waarschuwen bij bedieningstijden. De bedieningstijden
+   zitten al in `static.json.gz`.
+2. **Bruggen buiten de RWS-data.** Op de kaart (OpenStreetMap) staan veel meer
+   bruggen dan in het RWS-bestand; die krijgen geen statusbolletje. Binnen de
+   scope van de planner speelt dit niet: op de officiële vaarwegen ligt 97% van
+   de RWS-bruggen binnen 60 m van een sectie, en de handvol uitzonderingen over
+   open water zijn met `spans` afgevangen.
+3. **Buitenland.** De RWS-data bevat ook Belgische en Duitse stukken, soms maar
+   half. Bewust niet opgelost: de planner is voor Nederland bedoeld.
 
 ## Snel beginnen
 
