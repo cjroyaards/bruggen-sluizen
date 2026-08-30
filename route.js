@@ -1,33 +1,33 @@
 /* OpenPilot — routeplanner over het vaarwegennetwerk (lazy geladen, zie BOUWGIDS.md).
-   Data: data/net.json.gz (scripts/build_net.py, OSM-waterwegen, wekelijks ververst).
-   Gebruikt globals uit index.html: map, L, DATA, cardHTML, esc, LANG, fetchGz, mastVal.
-   Alleen binnenwateren (rivieren/kanalen); groot open water zit nog niet in de graaf. */
+   Data: data/net.json.gz — het officiële vaarwegennetwerk van Rijkswaterstaat
+   (scripts/build_net.py), dezelfde bron als de bruggen en sluizen.
+   Gebruikt globals uit index.html: map, L, DATA, cardHTML, esc, LANG, fetchGz, mastVal. */
 window.RoutePlanner = (function(){
 "use strict";
 
 const TXT = (typeof LANG!=="undefined" && LANG==="en") ? {
   title:"Route planner", hintStart:"Click the starting point; right-click sets the destination", hintEnd:"Now tap the destination", hintVolgende:"Click again for a via point · right-click sets the destination",
   loading:"Loading waterway network…", calc:"Calculating route…",
-  none:"No route found. The planner follows canals and rivers only — large open waters (IJsselmeer, Markermeer, Zeeland waters, Wadden Sea) are not included, so it cannot route across them. Otherwise tap a bit further from the bank, or reload the page.",
+  none:"No route found. The planner follows the official Rijkswaterstaat fairways; if your point is on other water (a city canal, a polder lake, the North Sea) it cannot get there. Otherwise tap closer to a fairway.",
   neu:"new route", total:"total", bridges:"bridges", locks:"locks", fixed:"fixed",
   viaBtn:"+ via point", hintVia:"Tap a point the route must pass through", via:"Via",
   hoogte:"air draft", hoogteHint:"Height of your boat above the water — fixed bridges that are too low are flagged.",
   lowest:"lowest fixed bridge", narrowest:"narrowest passage",
   mastwarn:(hf,m)=>`Warning: lowest fixed bridge is ${hf} m — too low for an air draft of ${m} m`,
   discTitle:"Bridge and lock planner — not a navigation route",
-  disc:"This shows <b>which bridges and locks</b> lie along your way, so you can check operating times and clearances in advance. The planner follows <b>canals and rivers only</b>; large open waters such as the IJsselmeer and the Zeeland waters are not included. It is <b>not a sailing route</b>: the line is not a fairway and ignores depth and buoyage. An object very close to the line may be listed without you actually passing it. Always navigate on the official chart.",
+  disc:"This shows <b>which bridges and locks</b> lie along your way, so you can check operating times and clearances in advance. The route follows the <b>official Rijkswaterstaat fairway network</b>, including the buoyed routes across the IJsselmeer and the Zeeland waters. Still <b>not a sailing route</b>: it ignores depth, width and current conditions, and on very long bridges a span may be missed. Always navigate on the official chart.",
   start:"Start", end:"Destination"
 } : {
   title:"Routeplanner", hintStart:"Klik het startpunt aan; rechtsklik zet de bestemming", hintEnd:"Tik nu de bestemming aan", hintVolgende:"Nog een klik = via-punt · rechtsklik zet de bestemming",
   loading:"Vaarwegennetwerk laden…", calc:"Route berekenen…",
-  none:"Geen route gevonden. De planner volgt alleen kanalen en rivieren — grote open wateren (IJsselmeer, Markermeer, Zeeuwse wateren, Waddenzee) zitten er niet in, dus routes daaroverheen kan hij niet maken. Tik anders iets verder uit de kant, of herlaad de pagina.",
+  none:"Geen route gevonden. De planner volgt de officiële vaarwegen van Rijkswaterstaat; ligt je punt op ander water (een stadsgracht, een polderplas, de Noordzee), dan kan hij er niet komen. Tik anders iets dichter bij een vaarweg.",
   neu:"nieuwe route", total:"totaal", bridges:"bruggen", locks:"sluizen", fixed:"vast",
   viaBtn:"+ via-punt", hintVia:"Tik een punt aan waar de route langs moet", via:"Via",
   hoogte:"doorvaarthoogte", hoogteHint:"Hoogte van je boot boven water — te lage vaste bruggen worden gemeld.",
   lowest:"laagste vaste brug", narrowest:"smalste doorvaart",
   mastwarn:(hf,m)=>`Let op: laagste vaste brug is ${hf} m — te laag voor doorvaarthoogte ${m} m`,
   discTitle:"Bruggen- en sluizenplanner — geen vaarroute",
-  disc:"Dit laat zien <b>welke bruggen en sluizen</b> op je weg liggen, zodat je bedieningstijden en doorvaarthoogtes vooraf kunt nakijken. De planner volgt <b>alleen kanalen en rivieren</b>; grote open wateren zoals het IJsselmeer en de Zeeuwse wateren zitten er niet in. Het is <b>geen vaarroute</b>: de lijn is geen vaargeul en houdt geen rekening met diepte of betonning. Een object vlak langs de lijn kan meegeteld worden zonder dat je het echt passeert. Vaar altijd op de officiële kaart.",
+  disc:"Dit laat zien <b>welke bruggen en sluizen</b> op je weg liggen, zodat je bedieningstijden en doorvaarthoogtes vooraf kunt nakijken. De route volgt het <b>officiële vaarwegennetwerk van Rijkswaterstaat</b>, inclusief de betonde routes over het IJsselmeer en de Zeeuwse wateren. Toch <b>geen vaarroute</b>: er wordt geen rekening gehouden met diepte, breedte of actuele omstandigheden, en bij zeer lange bruggen kan een overspanning gemist worden. Vaar altijd op de officiële kaart.",
   start:"Start", end:"Bestemming"
 };
 
@@ -235,7 +235,11 @@ function objsOnRoute(geo, maxM){
   for (const o of DATA.objs){
     if (o.t!=="B" && o.t!=="S") continue;
     const ola=Math.round(o.lat*1e5), olo=Math.round(o.lon*1e5);
-    const zoek=(o.t==="S")?Math.max(maxM,400):maxM;
+    /* grote bouwwerken staan met één punt in de data terwijl ze honderden
+       meters overspannen (Zeelandbrug, naviducten). De breedte van de doorvaart
+       verraadt hoe groot het is; zoek daar navenant ruimer omheen. */
+    const groot = Math.min(400, Math.max(0, (o.w||0)*3));
+    const zoek=(o.t==="S")?Math.max(maxM,400):Math.max(maxM,groot);
     const margLat=zoek/1.1132, margLon=zoek/mPerLon(ola);
     let best=null;
     for (const [c,e,mnLa,mxLa,mnLo,mxLo] of chunks){
@@ -252,7 +256,7 @@ function objsOnRoute(geo, maxM){
     }
     /* sluizen zijn grote complexen (een naviduct is honderden meters breed) en
        het RWS-punt ligt zelden precies op de vaarlijn — ruimere marge dan bruggen */
-    const marge = (o.t==="S") ? Math.max(maxM, 400) : maxM;
+    const marge = (o.t==="S") ? Math.max(maxM, 400) : Math.max(maxM, groot);
     if (best && best.d<=marge) out.push({o, along:best.along});
   }
 

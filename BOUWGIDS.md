@@ -121,63 +121,49 @@ BOYSAW, BCNLAT/BCNCAR, LIGHTS. RWS-cellen zijn wekelijks vers en CC-0.
 ## Routeplanner (`route.js` + `scripts/build_net.py`)
 
 Kaartknop **Route**: eerste klik = start, elke volgende klik = via-punt,
-rechtsklik = bestemming. A* draait client-side over `data/net.json.gz`
-(alleen echte OSM-vaarweglijnen, wekelijks ververst via
-`.github/workflows/net.yml`). Kanten dragen een voorkeursfactor (CEMT-klasse:
-hoofdvaarweg telt zijn echte lengte, een naamloos slootje bijna dubbel) en de
-doorvaarthoogte van de laagste vaste brug erboven. Lange bruggen staan apart
-als overspanningslijn in `spans`, omdat de RWS-data één punt geeft voor een
-brug van kilometers (Zeelandbrug).
+rechtsklik = bestemming. A* draait client-side over `data/net.json.gz`.
 
-Testen: `node scripts/test_route_graph.js` (18 controles op de echte data,
-inclusief dijk- en sluispassages) plus Playwright voor de UI.
+**Bron: het officiële vaarwegennetwerk van Rijkswaterstaat** (FIS
+`section` + `fairway`), dezelfde dataservice als de bruggen en sluizen. Dat is
+bewust gekozen na een pijnlijke omweg (zie hieronder): het bevat alleen echt
+bevaarbaar water, de topologie zit er al in (elke sectie heeft start- en
+eindknooppunt), en open water zit erin als de officiële betonde routes. 4630
+secties, 0,15 MB gzip. Secties krijgen een voorkeursfactor uit de CEMT-klasse
+en de doorvaarthoogte van de laagste vaste brug erboven.
 
-**Open water staat UIT** (`OPEN_WATER = False` in `build_net.py`). Het vaargrid
-over meren en alle andere zélf verzonnen verbindingen zijn eruit: ze bleken
-telkens ergens dwars over een dijk of polder te lopen (Durgerdam, Muiden, Broek
-in Waterland). De planner volgt nu uitsluitend vaarweglijnen die echt in OSM
-staan; een route over het IJsselmeer of de Zeeuwse wateren geeft dus "geen
-route". Netwerkbestand ging daarmee van 0,9 naar 0,5 MB.
+Testen: `node scripts/test_route_graph.js` (19 controles op de echte data:
+dijkpassages, Zeeland binnendoor, Friesland via het Prinses Margrietkanaal) en
+`python3 scripts/audit_net.py` (meldt verbindingen die over land lopen; hoort 0
+te zijn — het netwerk bevat geen zelfgemaakte lijnen meer).
 
-Wil je het weer aanzetten: `OPEN_WATER = True`, dan `build_net.py`, dan
-**`python3 scripts/audit_net.py`** — dat script loopt alle verzonnen
-verbindingen na en meldt welke over land lopen. **Pas mergen als dat 0 is.**
-Bij de laatste poging stond het op 299 (waarvan 34 bedoelde sluisdoorgangen),
-na drie ronden fixes vanaf 533. Draai daarna `scripts/test_route_graph.js` en
-herstel de open-watercontroles daarin (zie git-geschiedenis).
+### Wat hier eerder misging (niet opnieuw doen)
+
+Het netwerk kwam eerst uit OpenStreetMap: alles met `waterway=canal|river`.
+Die tag zegt niets over bevaarbaarheid, dus de planner stuurde je door
+Amsterdamse grachten met bruggen van 0,63 m. Open water had geen lijnen, dus
+daar lag een zelfbedacht raster over de meren, vastgeknoopt aan het lijnennet.
+Dat leverde telkens routes dwars door dijken op (Durgerdam, Muiden/Krijgsman,
+Broek in Waterland). Vier rondes fixes hielpen niet afdoende; de audit stond op
+299 meldingen. Met de RWS-data verdween het hele probleem in één keer.
 
 ### Open punten routeplanner
 
-1. **Mastgat ontbreekt → omweg in Zeeland.** Hellevoetsluis → Roompot gaat
-   132 km om via het Schelde-Rijnkanaal in plaats van ~75 km via de
-   Krammersluizen. Oorzaak: `fetch_lakes()` haalt alleen watervlakken **met
-   naam** op, en het Mastgat tussen Krammer en Zijpe heeft er geen — daardoor
-   valt daar een gat van >1 km in het netwerk. Fix: de `["name"]`-eis uit de
-   Overpass-query halen (de oppervlaktedrempel houdt het aantal beperkt).
-   Nog niet doorgevoerd omdat Overpass tijdens het testen rate-limitte (429);
-   eerst opnieuw bouwen en de 18 tests draaien vóór dit live gaat.
-2. **Lus in de route bij Tholen/Krammer.** De lijn buigt daar terug op
-   zichzelf; vermoedelijk wordt een gridverbinding in twee richtingen gebruikt.
-   Los uitzoeken van punt 1.
-3. **Woordkeus in de brugkaartjes.** `mastIssue()` in `index.html` zegt nog
-   "te laag voor mast X m"; het routepaneel heeft het over doorvaarthoogte.
-   Gelijktrekken.
-4. **Hoogte laten meewegen in de route.** De doorvaarthoogtes zitten al in
-   `net.json.gz` en `findRoute()` heeft er een parameter voor, maar die staat
-   uit: de bruggenlijst werkt op nabijheid en meldt dan bruggen die je niet
-   echt passeert. Eerst objecten per vaarwegvak koppelen (in `build_net.py`,
-   net als de hoogtes), dan kan de planner echt om te lage bruggen heen.
-5. **Rechte lijnen dwars door land — grotendeels opgelost.** Twee oorzaken,
-   beide in `lake_grids()`: (a) het vaargrid hechtte aan élk netwerkpunt binnen
-   4x de gridafstand, ook aan een punt kilometers landinwaarts — nu alleen aan
-   punten die zélf binnen 150 m van het waterpolygoon liggen; (b) de
-   sluisdoorgang trok een rechte lijn door de sluis naar buren tot 1,5 km ver,
-   wat bij Muiden (Krijgsman) dwars door de polder ging — nu hoogstens 700 m en
-   minstens 120 graden hoek. Let op bij verder sleutelen: te streng zetten
-   breekt de Groote Zeesluis Muiden (IJmeer -> Vecht) en de havenaanloop van
-   Stavoren. Beide staan in de testset.
-6. **Tijdsbewust plannen**: met vertrektijd en kruissnelheid per brug de
-   aankomsttijd tonen en waarschuwen bij bedieningstijden. Data zit er al in.
+1. **Lange bruggen over open water.** De RWS-data geeft één punt per brug,
+   terwijl bijvoorbeeld de Zeelandbrug 5 km overspant en de vaargeul hem op
+   ~1,4 km van dat punt kruist. Zo'n brug ontbreekt dan in de lijst — juist
+   riskant bij een hoge mast. Eerder loste een `spans`-laag uit OSM dit op
+   (zie git-geschiedenis); die kan terug als losse stap die alleen de
+   objectenlijst raakt, niet de routering.
+2. **Hoogte laten meewegen in de route.** De doorvaarthoogtes zitten al per
+   sectie in `net.json.gz` en `findRoute()` heeft er een parameter voor, maar
+   die staat uit. Aanzetten kan zodra punt 1 opgelost is, anders stuurt hij om
+   voor bruggen die hij zelf niet compleet kent.
+3. **Tijdsbewust plannen**: met vertrektijd en kruissnelheid per brug de
+   aankomsttijd tonen en waarschuwen bij bedieningstijden.
+4. **Bruggen buiten de RWS-data.** Op de kaart (OpenStreetMap) staan veel meer
+   bruggen dan in het RWS-bestand; die krijgen geen statusbolletje. Op de
+   officiële vaarwegen is de RWS-dekking compleet, dus binnen de scope van de
+   planner speelt dit niet meer.
 
 ## Snel beginnen
 

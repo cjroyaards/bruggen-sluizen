@@ -66,21 +66,52 @@ function check(naam, cond, extra) {
   check("korte route zelfde vaarweg", !!r && r.meters < 2000, r ? Math.round(r.meters) + " m" : "geen");
 }
 
-/* 4-7. Open water staat uit (OPEN_WATER=False in build_net.py): routes die
-   alleen over een meer kunnen, horen nu géén route op te leveren in plaats van
-   een verzonnen lijn dwars over een dijk. Zet je open water weer aan, herstel
-   dan ook deze controles (zie git-geschiedenis). */
+/* 4. Open water via de officiële betonde routes (RWS-vaarwegennetwerk) */
 {
   const sa = snap(Math.round(52.700e5), Math.round(5.300e5));   // Enkhuizen
   const sb = snap(Math.round(52.880e5), Math.round(5.360e5));   // Stavoren
   const r = sa && sb && RP.findRoute(sa, sb);
-  check("IJsselmeer-oversteek geeft geen route (open water uit)", !r);
+  check("Enkhuizen->Stavoren over het IJsselmeer", !!r && r.meters > 18e3 && r.meters < 30e3,
+        r ? (r.meters / 1000).toFixed(1) + " km" : "geen");
 }
+
+/* 5. Dijkcheck: de Houtribdijk mag alleen via de sluis */
 {
-  const raw = JSON.parse(require("zlib").gunzipSync(
+  const sa = snap(Math.round(52.700e5), Math.round(5.300e5));
+  const sb = snap(Math.round(52.517e5), Math.round(5.435e5));   // Lelystad
+  const r = sa && sb && RP.findRoute(sa, sb);
+  const sluizen = r ? RP.objsOnRoute(r.geo).filter(i => i.o.t === "S").map(i => i.o.n) : [];
+  check("Houtribdijk via de Houtribsluizen", sluizen.some(n => /Houtrib|Krabbersgat/i.test(n)),
+        sluizen.join(", ") || "geen sluizen");
+}
+
+/* 6. Zeeland: Willemstad -> Middelburg binnendoor */
+{
+  const sa = snap(Math.round(51.690e5), Math.round(4.436e5));
+  const sb = snap(Math.round(51.500e5), Math.round(3.610e5));
+  const r = sa && sb && RP.findRoute(sa, sb);
+  const sluizen = r ? RP.objsOnRoute(r.geo).filter(i => i.o.t === "S").map(i => i.o.n) : [];
+  check("Willemstad->Middelburg gevonden", !!r && r.meters > 60e3 && r.meters < 110e3,
+        r ? (r.meters / 1000).toFixed(0) + " km" : "geen");
+  check("route passeert de Volkeraksluizen", sluizen.includes("Volkeraksluizen"), sluizen.slice(0,4).join(", "));
+}
+
+/* 7. Friesland volgt het Prinses Margrietkanaal, niet de kleine vaarten */
+{
+  const sa = snap(Math.round(52.846e5), Math.round(5.709e5));   // Lemmer
+  const sb = snap(Math.round(53.196e5), Math.round(5.795e5));   // Leeuwarden
+  const r = sa && sb && RP.findRoute(sa, sb);
+  check("Lemmer->Leeuwarden plausibel (40-60 km)", !!r && r.meters > 40e3 && r.meters < 60e3,
+        r ? (r.meters / 1000).toFixed(1) + " km" : "geen");
+}
+
+/* 7b. Het netwerk komt uit de RWS-vaarwegdata, niet uit zelfgemaakte lijnen */
+{
+  const netraw = JSON.parse(require("zlib").gunzipSync(
     require("fs").readFileSync(require("path").join(root, "data/net.json.gz"))));
-  const verzonnen = raw.e.filter(e => e.length > 4 && e[4]).length;
-  check("netwerk bevat geen zelfgemaakte verbindingen", verzonnen === 0, verzonnen + " gevonden");
+  check("netwerkversie 2 (RWS-secties)", netraw.v === 2, "v=" + netraw.v);
+  const verzonnen = netraw.e.filter(e => e.length > 4 && e[4]).length;
+  check("geen zelfgemaakte verbindingen", verzonnen === 0, verzonnen + " gevonden");
 }
 
 /* 8. Onbereikbaar: punt ver op zee snapt niet */
