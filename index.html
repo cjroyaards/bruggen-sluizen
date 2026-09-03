@@ -160,7 +160,12 @@ a.tel:hover{border-color:var(--accent);text-decoration:none}
 #ovl{position:fixed;inset:0;background:rgba(9,14,20,.45);z-index:1100;display:none}
 #panel{position:fixed;top:env(safe-area-inset-top,0px);overscroll-behavior:contain;right:0;bottom:0;width:min(600px,100%);background:var(--surface);z-index:1101;display:none;overflow-y:auto;border-left:1px solid var(--grid);padding:18px 22px 48px}
 #panel.open,#ovl.open{display:block}
-.p-close{position:sticky;top:0;float:right;background:var(--surface);border:1px solid var(--grid);border-radius:7px;padding:4px 11px;cursor:pointer;color:var(--ink2);font-size:13px}
+/* Sluitknop blijft in beeld terwijl je door het paneel scrollt. Let op: hij stond
+   op `position:sticky` mét `float:right`, en dat werkt niet — een zwevend element
+   plakt niet, dus de knop scrolde gewoon mee omhoog en je moest eerst terug naar
+   boven om hem te kunnen raken. Nu een gewoon blok dat rechts wordt uitgelijnd,
+   met een randje in de paneelkleur zodat de tekst er netjes onderdoor schuift. */
+.p-close{position:sticky;top:0;z-index:6;display:block;width:max-content;margin:0 0 4px auto;background:var(--surface);border:1px solid var(--grid);border-radius:7px;padding:4px 11px;cursor:pointer;color:var(--ink2);font-size:13px;box-shadow:0 0 0 7px var(--surface),0 2px 8px rgba(5,10,16,.16)}
 .p-h{font-size:21px;font-weight:700;margin:2px 0 2px;letter-spacing:-.01em}
 .p-sub{color:var(--muted);font-size:13px;margin-bottom:12px}
 .p-sec{margin-top:20px}
@@ -583,7 +588,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260830-16</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260830-17</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>

@@ -536,7 +536,10 @@ function stampNet(){
   el.style.color = oud ? "var(--serious)" : "";
 }
 
+let alGepast = false;          // is er al één keer op de hele route ingezoomd?
+
 function clearRoute(){
+  alGepast = false;
   for (const p of punten) if (p.marker) map.removeLayer(p.marker);
   punten=[];
   for (const ly of [lineBack,lineFront]) if (ly) map.removeLayer(ly);
@@ -757,9 +760,15 @@ async function compute(){
   const latlngs = r.geo.map(p=>[p[0]/1e5, p[1]/1e5]);
   lineBack  = L.polyline(latlngs,{color:"#fff",weight:8,opacity:.85,renderer:renderer()}).addTo(map);
   lineFront = L.polyline(latlngs,{color:"#7c3aed",weight:4,opacity:.95,renderer:renderer()}).addTo(map);
-  map.fitBounds(lineFront.getBounds(), innerWidth<=640
-    ? {paddingTopLeft:[30,90], paddingBottomRight:[30, Math.round(innerHeight*0.64)]}
-    : {paddingTopLeft:[70,90], paddingBottomRight:[Math.min(620,innerWidth*.5),40]});
+  /* Alleen de eerste keer op de hele route inzoomen. Daarna niet meer: voeg je een
+     via-punt toe terwijl je ingezoomd naar een stuk vaarweg kijkt, dan wil je daar
+     blijven en niet elke keer terug naar het overzicht. */
+  if (!alGepast){
+    alGepast = true;
+    map.fitBounds(lineFront.getBounds(), innerWidth<=640
+      ? {paddingTopLeft:[30,90], paddingBottomRight:[30, Math.round(innerHeight*0.64)]}
+      : {paddingTopLeft:[70,90], paddingBottomRight:[Math.min(620,innerWidth*.5),40]});
+  }
   render(r);
 }
 

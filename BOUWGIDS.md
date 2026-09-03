@@ -131,6 +131,10 @@ BOYSAW, BCNLAT/BCNCAR, LIGHTS. RWS-cellen zijn wekelijks vers en CC-0.
   Leaflet merkt dat niet) → de vectorlagen opnieuw tekenen. Beide melden zich in
   de console met `OpenPilot: …`, handig als een gebruiker weer een witte kaart
   meldt.
+- **`position:sticky` werkt niet op een zwevend element.** De sluitknop van het
+  detailpaneel stond op `sticky` mét `float:right` en scrolde daardoor gewoon mee
+  weg; je moest eerst terug naar boven om hem te kunnen raken. Nu een blok met
+  `margin-left:auto`.
 - **Copernicus-stromingstegels** gaan native maar tot zoom 9; daarboven neemt
   de eigen pijlenlaag het over.
 - **Overpass** (OSM) is vaak rate-limited: altijd cachen, ruime time-outs,
@@ -177,6 +181,11 @@ telefoon nauwelijks; knoppen in de kop blijven knoppen (`e.target.closest(
 verdwijnen op mobiel de drie knoppen — een tik op de kaart voegt nog steeds een
 via-punt toe, lang indrukken verzet de bestemming. A* draait client-side over
 `data/net.json.gz`.
+
+**Inzoomen op de route gebeurt één keer.** `fitBounds` draait alleen bij de
+eerste berekende route (vlag `alGepast`, gereset in `clearRoute`). Voeg je daarna
+een via-punt toe terwijl je ingezoomd naar een stuk vaarweg kijkt, dan blijft het
+beeld staan.
 
 **Kaart opschuiven bij openen.** Het paneel dekt rechts 600 px (of onderin de
 lade) af; keek je net naar Muiden, dan zat Muiden er meteen achter. `schuifKaart()`
