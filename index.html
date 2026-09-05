@@ -588,7 +588,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260830-17</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260905-1</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1100,6 +1100,12 @@ function scheduleTable(per, highlightToday){
   }
   html += `</div>`;
   if (per[2]) html += `<div class="p-note">${esc(xen(per[2]))}</div>`;
+  // "op het halve uur" (zonder "hele") betekent bij RWS: één draaiing per uur, om xx:30 — niet elk half uur.
+  // Bekend voorbeeld: Spijkenisserbrug. Dat misverstand vangen we hier af.
+  if (per[2] && /op het halve uur/i.test(per[2]) && !/hele/i.test(per[2]))
+    html += `<div class="p-note">${LANG==="en"
+      ? "Note: “on the half hour” means one opening per hour, at xx:30 — not every 30 minutes."
+      : "Let op: “op het halve uur” betekent één draaiing per uur, om xx:30 — niet elk half uur."}</div>`;
   // feestdag bij een weekdag → toelichten dat dit de officiële RWS-regeling voor deze periode is (verschilt per seizoen)
   if (groups.some(g=> g.hol && g.days.some(d=> d<5)))
     html += `<div class="p-note">${LANG==="en"
