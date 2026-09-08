@@ -37,6 +37,7 @@ eigen dieptedata, VTS-sectoren en havens. Tweetalig NL/EN. Live op de GitHub Pag
 |---|---|---|
 | `data/static.json.gz` | alle bruggen/sluizen + bedieningstijden | GitHub Action dagelijks (`scripts/build_data.py`, RWS FIS) |
 | `data/strem.json` | actuele stremmingen | GitHub Action elk uur |
+| *(live)* `BRUGSTATUS_URL/status.json` | bruggen die nú open staan + geplande openingen | Cloudflare Worker `worker/brugstatus`, NDW open data, elke minuut (zie README daar) |
 | `data/nltides.json`, `data/uktides.json` | getijvoorspellingen | GitHub Actions (`scripts/fetch_tides*.py`) |
 | `data/depth_smooth.geojson` | gladde dieptevlakken NL+omstreken | EMODnet-bathymetrie, pijplijn hieronder |
 | `data/depth_kanaalwest.geojson`, `data/depth_denemarken.geojson`, … | dieptevlakken per Europese regio, lazy geladen | `scripts/depth_region.py` |
@@ -67,6 +68,20 @@ S-57-cellen (.000) omzetten met GDAL:
 `OGR_S57_OPTIONS="RETURN_PRIMITIVES=OFF,RETURN_LINKAGES=OFF,LNAM_REFS=OFF,SPLIT_MULTIPOINT=ON,ADD_SOUNDG_DEPTH=ON" ogr2ogr …`
 Relevante lagen: DEPARE, DEPCNT, COALNE, LNDARE, BOYLAT/BOYCAR/BOYSPP/BOYISD/
 BOYSAW, BCNLAT/BCNCAR, LIGHTS. RWS-cellen zijn wekelijks vers en CC-0.
+
+### Live brugstatus (NDW via eigen Worker)
+
+`worker/brugstatus/` is een Cloudflare Worker die elke minuut de NDW-feeds
+`actueel_beeld.xml.gz` (bruggen die nú open staan) en
+`planningsfeed_brugopeningen.xml.gz` (aangemelde openingen) ophaalt, de
+`bridgeSwingInOperation`-records eruit filtert, ze op coördinaten (≤250 m)
+koppelt aan onze beweegbare bruggen (`sid` = `B<id>`) en elke opening in D1
+logt. Installatie en endpoints: `worker/brugstatus/README.md`.
+In `index.html`: blok "live brugstatus" (`BRUGSTATUS_URL`, `loadLive()` elke
+60 s, `liveChip()` in kaart/lijst/detail, `liveSectionHTML()` met geplande en
+laatste openingen, `buildLiveLayer()` = pulserende ring). Alles faalt stil als
+de Worker niet bereikbaar is. Bronvermelding "brugopeningen: NDW" in de footer
+is een licentievoorwaarde.
 
 ## Tweetaligheid
 

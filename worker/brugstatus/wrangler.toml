@@ -1,0 +1,19 @@
+name = "brugstatus"
+main = "src/index.js"
+compatibility_date = "2026-06-01"
+
+# elke minuut pollen; 's nachts de OpenPilot-catalogus (static.json.gz) verversen
+[triggers]
+crons = ["* * * * *", "7 3 * * *"]
+
+[[kv_namespaces]]
+binding = "KV"
+id = "266dcde004534cb6ae6339d9d009fbd3"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "brugstatus"
+database_id = "8dd4b9f4-6b7e-4f21-bba5-aa7ca57d2a84"
+
+[observability]
+enabled = true

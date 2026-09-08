@@ -1,0 +1,15 @@
+{
+  "name": "openpilot-brugstatus",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev --test-scheduled",
+    "tail": "wrangler tail",
+    "schema": "wrangler d1 execute brugstatus --remote --file=schema.sql",
+    "test": "node test/parse.test.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  }
+}

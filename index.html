@@ -349,6 +349,14 @@ html.napp header input{touch-action:manipulation}
 }
 .strem-pin{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;line-height:1}
 .strem-pin.crit{background:var(--critical)} .strem-pin.ser{background:var(--serious)}
+/* live brugstatus: pulserende ring op open bruggen, blauwe chip in lijst/detail */
+.live-pin{width:22px;height:22px;border-radius:50%;border:3px solid #2a78d6;box-sizing:border-box;animation:livepulse 1.6s ease-out infinite;pointer-events:none}
+@keyframes livepulse{0%{transform:scale(.55);opacity:1}100%{transform:scale(1.6);opacity:0}}
+.chip.live{background:rgba(42,120,214,.13);border-radius:6px;padding:1px 8px 1px 6px;color:#1b5fb3;font-weight:600}
+.chip.plan{background:rgba(42,120,214,.07);border-radius:6px;padding:1px 8px 1px 6px;color:#1b5fb3}
+.dot.live{background:#2a78d6;box-shadow:0 0 0 0 rgba(42,120,214,.6);animation:livedot 1.6s ease-out infinite}
+.dot.plan{background:#fff;border:2px solid #2a78d6;box-sizing:border-box;width:8px;height:8px}
+@keyframes livedot{0%{box-shadow:0 0 0 0 rgba(42,120,214,.6)}100%{box-shadow:0 0 0 6px rgba(42,120,214,0)}}
 .harb-pin{width:22px;height:22px;border-radius:50%;background:#122b42;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;padding:3px}
 .harb-pin.tide{background:#0e6e6e}
 .vts-lbl{background:rgba(255,255,255,.82);border:1px solid var(--grid);border-radius:5px;padding:0 5px;font-size:11px;font-weight:750;color:#0d366b;box-shadow:none;white-space:nowrap}
@@ -588,7 +596,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="buildstamp">b20260905-1</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260908-1</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -638,7 +646,12 @@ const EN = {
  "Favoriet":"Favourite","details →":"details →","nu":"now","Getijstation":"Tide station","km van deze locatie":"km from this location",
  "Officieel getijstation Rijkswaterstaat":"Official Rijkswaterstaat tide station","Officieel Admiralty-getijstation (UKHO)":"Official Admiralty tide station (UKHO)",
  "Getij (astronomisch)":"Tide (astronomical)","N→Z / Z→N = schutrichting":"N→S / S→N = locking direction",
- "geen verwachtingen beschikbaar — ververs vannacht":"no predictions available yet — refreshes tonight"
+ "geen verwachtingen beschikbaar — ververs vannacht":"no predictions available yet — refreshes tonight",
+ "brug staat nu open":"bridge is open now","geplande opening":"planned opening","Geplande openingen":"Planned openings",
+ "Laatste openingen":"Recent openings","laden…":"loading…",
+ "Aangemeld door de brugbeheerder (NDW). Tijden zijn indicatief.":"Reported by the bridge operator (NDW). Times are indicative.",
+ "Nog geen openingen geregistreerd (de brug meldt zich mogelijk niet bij NDW).":"No openings logged yet (this bridge may not report to NDW).",
+ "Bron: NDW open data, via OpenPilot-brugstatus.":"Source: NDW open data, via OpenPilot bridge status."
 };
 function T(s){ return LANG==="en" ? (EN[s] ?? s) : s; }
 /* AI-vertaalde RWS/haven-teksten (data/texts_en.json, vooraf vertaald).
@@ -726,6 +739,106 @@ async function loadData(){
     return false;
   });
   if (LANG==="en") for (const o of DATA.objs) o.n = enName(o.n);
+}
+
+/* ---------- live brugstatus (NDW open data via eigen Cloudflare Worker, zie worker/brugstatus) ---------- */
+const BRUGSTATUS_URL = "https://brugstatus.cjroyaards.workers.dev";   // na `wrangler deploy` hier de echte URL invullen
+let LIVE = {ts:0, open:{}, planned:{}, ok:false};
+let liveLayer=null, liveTimer=null;
+function liveIndexSid(item){
+  // Worker levert sid (B<id>) via koppeling op coördinaten; valt terug op eigen koppeling
+  if (item.sid && DATA.objs.some(o=>o.t+o.id===item.sid)) return item.sid;
+  if (item.lat==null) return null;
+  let best=null, bd=250;
+  const kx=111320*Math.cos(item.lat*Math.PI/180), ky=110540;
+  for (const o of DATA.objs){
+    if (o.t!=="B" || !o.open) continue;
+    const dy=(o.lat-item.lat)*ky; if (dy>bd||dy<-bd) continue;
+    const dx=(o.lon-item.lon)*kx; if (dx>bd||dx<-bd) continue;
+    const d=Math.hypot(dx,dy); if (d<bd){ bd=d; best=o; }
+  }
+  return best ? best.t+best.id : null;
+}
+async function loadLive(){
+  if (!BRUGSTATUS_URL || document.hidden) return;
+  try{
+    const r = await fetch(BRUGSTATUS_URL+"/status.json", {cache:"no-cache"});
+    if (!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    const open={}, planned={};
+    for (const it of d.open||[]){ const sid=liveIndexSid(it); if (sid) open[sid]=it; }
+    for (const it of d.planned||[]){ const sid=liveIndexSid(it); if (!sid) continue; (planned[sid]=planned[sid]||[]).push(it); }
+    const changed = JSON.stringify(Object.keys(open).sort()) !== JSON.stringify(Object.keys(LIVE.open).sort());
+    LIVE = {ts:Date.parse(d.ts)||Date.now(), open, planned, ok:true};
+    buildLiveLayer();
+    if (changed){
+      try{ if (panelRefresh && document.querySelector("#panel.open")) panelRefresh(); }catch(_){}
+      try{ renderResults(); renderFavs(); }catch(_){}
+    }
+    const el=$("#livestamp"); if (el) el.textContent = (LANG==="en"?"live bridge status ":"live brugstatus ")+fmtHM(LIVE.ts);
+  }catch(e){ LIVE.ok=false; }
+}
+function startLive(){
+  if (liveTimer) return;
+  loadLive();
+  liveTimer = setInterval(loadLive, 60*1000);
+  document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) loadLive(); });
+}
+function fmtHM(ms){ return new Intl.DateTimeFormat(LANG==="en"?"en-GB":"nl-NL",{timeZone:"Europe/Amsterdam",hour:"2-digit",minute:"2-digit",hour12:false}).format(new Date(ms)); }
+function liveFor(o){ return (o.t==="B") ? LIVE.open[o.t+o.id] : null; }
+function livePlanned(o){ return (o.t==="B") ? (LIVE.planned[o.t+o.id]||[]) : []; }
+/* chip "nu open · sinds 13:37" voor kaart, lijst en detail */
+function liveChip(o){
+  const lv = liveFor(o);
+  if (lv){
+    const since = lv.since ? fmtHM(Date.parse(lv.since)) : "";
+    const until = lv.until ? " · "+T("tot")+" ±"+fmtHM(Date.parse(lv.until)) : "";
+    return `<span class="chip live"><span class="dot live"></span>${T("brug staat nu open")}${since?" · "+T("sinds")+" "+since:""}${until}</span>`;
+  }
+  const pl = livePlanned(o).filter(p=>Date.parse(p.end)>Date.now());
+  if (pl.length){
+    const p = pl[0];
+    return `<span class="chip plan"><span class="dot plan"></span>${T("geplande opening")} ${fmtHM(Date.parse(p.start))}–${fmtHM(Date.parse(p.end))}</span>`;
+  }
+  return "";
+}
+function liveSectionHTML(o){
+  if (o.t!=="B" || !LIVE.ok) return "";
+  const planHTML = pl => `<h3>${T("Geplande openingen")}</h3><div class="kv">` +
+      pl.map(p=>`<span class="k">${fmtDateShort(Date.parse(p.start))}</span><span>${fmtHM(Date.parse(p.start))} – ${fmtHM(Date.parse(p.end))}</span>`).join("") +
+      `</div><div class="note">${T("Aangemeld door de brugbeheerder (NDW). Tijden zijn indicatief.")}</div>`;
+  const pl0 = livePlanned(o).filter(p=>Date.parse(p.end)>Date.now());
+  let h = `<div class="p-sec" id="liveplan"${pl0.length?"":" hidden"}>${pl0.length?planHTML(pl0):""}</div>`;
+  // volledige planning (~24 u) per brug ophalen; status.json bevat alleen de komende 2 uur
+  fetch(BRUGSTATUS_URL+`/planned.json?sid=${o.t}${o.id}`).then(r=>r.json()).then(d=>{
+    const box=$("#liveplan"); if(!box) return;
+    const items=(d.items||[]).filter(p=>Date.parse(p.end)>Date.now()).slice(0,16);
+    if (items.length){ box.innerHTML = planHTML(items); box.hidden=false; }
+  }).catch(()=>{});
+  h += `<div class="p-sec" id="livehist"><h3>${T("Laatste openingen")}</h3><div class="note" style="margin-top:0">${T("laden…")}</div></div>`;
+  fetch(BRUGSTATUS_URL+`/history.json?sid=${o.t}${o.id}&days=14`).then(r=>r.json()).then(d=>{
+    const box=$("#livehist"); if(!box) return;
+    const rows=(d.openings||[]).slice(0,10);
+    if (!rows.length){ box.innerHTML = `<h3>${T("Laatste openingen")}</h3><div class="note" style="margin-top:0">${T("Nog geen openingen geregistreerd (de brug meldt zich mogelijk niet bij NDW).")}</div>`; return; }
+    box.innerHTML = `<h3>${T("Laatste openingen")}</h3><div class="kv">` + rows.map(r=>{
+      const dur = r.end ? Math.round((Date.parse(r.end)-Date.parse(r.start))/60e3) : null;
+      return `<span class="k">${fmtDateShort(Date.parse(r.start))}</span><span>${fmtHM(Date.parse(r.start))}${dur!=null?` · ${dur} min`:""}</span>`;
+    }).join("") + `</div><div class="note">${T("Bron: NDW open data, via OpenPilot-brugstatus.")}</div>`;
+  }).catch(()=>{ const box=$("#livehist"); if(box) box.remove(); });
+  return h;
+}
+function fmtDateShort(ms){ return new Intl.DateTimeFormat(LANG==="en"?"en-GB":"nl-NL",{timeZone:"Europe/Amsterdam",weekday:"short",day:"numeric",month:"short"}).format(new Date(ms)); }
+/* pulserende ring op de kaart bij bruggen die nu open staan */
+function buildLiveLayer(){
+  if (!map) return;
+  if (liveLayer){ map.removeLayer(liveLayer); liveLayer=null; }
+  liveLayer = L.layerGroup();
+  for (const [sid, it] of Object.entries(LIVE.open)){
+    const o = DATA.objs.find(x=>x.t+x.id===sid); if (!o) continue;
+    const icon = L.divIcon({className:"", html:`<div class="live-pin"></div>`, iconSize:[22,22], iconAnchor:[11,11]});
+    L.marker([o.lat,o.lon], {icon, zIndexOffset:600, interactive:false}).addTo(liveLayer);
+  }
+  liveLayer.addTo(map);
 }
 
 /* ---------- tijd & feestdagen (Europe/Amsterdam) ---------- */
@@ -969,6 +1082,7 @@ function cardHTML(o){
       </div>
       <div class="row2">
         <span class="chip ${st.cls}"><span class="dot ${st.cls}"></span>${esc(st.label)}${st.extra?" · "+esc(st.extra):""}</span>
+        ${liveChip(o)}
         ${o.vhf&&o.vhf.length?`<span class="vhf">VHF ${o.vhf.join(", ")}</span>`:""}
         ${telHTML(o)}
         ${o.t==="H"?(o.lock?`<span class="vhf">${T("sluis")}</span>`:"")+(o.bridge?`<span class="vhf">${T("brug")}</span>`:""):""}
@@ -1658,11 +1772,13 @@ function openDetail(o){
     <div class="p-sub">${T(o.t==="B"?"Brug":"Sluis")}${o.c?" · "+esc(o.c):""}${o.fw?" · "+esc(o.fw):""}</div>
     <div class="row2" style="margin-top:0">
       <span class="chip ${st.cls}"><span class="dot ${st.cls}"></span>${esc(st.label)}${st.extra?" · "+esc(st.extra):""}</span>
+      ${liveChip(o)}
       ${o.vhf&&o.vhf.length?`<span class="vhf">VHF ${o.vhf.join(", ")}</span>`:""}
       ${telHTML(o)}
       <a href="#" class="tel showOnMap">${T("toon op kaart")}</a>
     </div>
     ${mastIssue(o)?`<div class="mastwarn">${esc(mastIssue(o))}</div>`:""}
+    ${liveSectionHTML(o)}
     ${sec}
     ${wxSectionHTML()}
     <div class="p-sec"><h3>${T("Gegevens")}</h3><div class="kv">${kv.map(([k,v])=>`<span class="k">${k}</span><span>${v}</span>`).join("")}</div></div>
@@ -1777,6 +1893,7 @@ function initMap(){
   map.addLayer(cluster);
   buildStremLayer();
   buildHarbourLayer();
+  buildLiveLayer();
   initCurrents();
 }
 
@@ -2304,7 +2421,7 @@ function buildMarkers(){
     const icon = L.divIcon({ className:"", iconSize:[box,box], iconAnchor:[box/2,box/2],
       html:`<span class="mk"><i style="width:${d}px;height:${d}px;background:${markerColor(o)}"></i></span>` });
     const m = L.marker([o.lat, o.lon], {icon});
-    m.bindPopup(`<b>${esc(o.n)}</b><br>${T(o.t==="B"?"brug":"sluis")}${o.c?" · "+esc(o.c):""}<br><span class="pop-open" data-open="${o.t}${o.id}">${T("details →")}</span>`);
+    m.bindPopup(()=>`<b>${esc(o.n)}</b><br>${T(o.t==="B"?"brug":"sluis")}${o.c?" · "+esc(o.c):""}${liveChip(o)?"<br>"+liveChip(o):""}<br><span class="pop-open" data-open="${o.t}${o.id}">${T("details →")}</span>`);
     ms.push(m);
   }
   cluster.addLayers(ms);
@@ -3129,6 +3246,7 @@ loadData().then(()=>{
   setHeaderH();
   console.log('OpenPilot build', (document.getElementById('buildstamp')||{}).textContent||'?');
   switchView("kaart");
+  startLive();
 }).catch(err=>{
   $("#loading").textContent = "Kon gegevens niet laden: "+err;
 });
