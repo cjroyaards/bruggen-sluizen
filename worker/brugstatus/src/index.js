@@ -107,7 +107,9 @@ async function pollActueel(env, health) {
   // gesloten sinds vorige ronde → loggen in D1
   const closed = Object.values(prev).filter(p => !open[p.code]);
   if (closed.length && env.DB) {
-    const nowIso = new Date(now).toISOString();
+    // sluittijd = nu; maar na een gat in het pollen (> 3 min) weten we het niet → end = null
+    const gap = health.actueelTs ? now - Date.parse(health.actueelTs) : 0;
+    const nowIso = gap > 180e3 ? null : new Date(now).toISOString();
     const stmt = env.DB.prepare("INSERT OR IGNORE INTO openings (code, sid, start, end, src) VALUES (?1, ?2, ?3, ?4, ?5)");
     await env.DB.batch(closed.map(p => stmt.bind(p.code, p.sid, p.since, nowIso, p.src)));
     changed = true;

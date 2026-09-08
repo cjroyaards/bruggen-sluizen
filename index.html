@@ -596,7 +596,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260908-1</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260908-2</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -706,6 +706,8 @@ async function loadData(){
     fetch("data/nltides.json", {cache:"no-cache"}).then(r=>r.ok?r.json():null).catch(()=>null),
   ]);
   DATA = stat; STREM = st.strem; STREMTS = st.ts;
+  // RWS-regel die tot middernacht loopt heeft eindtijd 0 (bv. Spijkenisserbrug 22:00–00:00) → 1440, anders toont hij als los "22:00"
+  for (const ot of Object.values(DATA.ot||{})) for (const p of ot[1]||[]) for (const r of p[3]||[]) if (r[2]===0 && r[1]>0) r[2]=1440;
   UKCHECKED = uk.checked || "";
   for (const h of uk.harbours||[]){
     h.c = h.co || "UK"; h.fw = AREALBL[h.area] || (h.c==="BE" ? "Belgische kust" : "UK kust");
