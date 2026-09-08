@@ -90,12 +90,16 @@ async function pollActueel(env, health) {
   const reg  = (await env.KV.get("bridges", "json")) || { bridges: {} };
   const cat  = await getSiteCatalog(env);
   const open = {};
+  const closed = [];
   let changed = false;
 
   for (const r of recs) {
     if (!r.code) continue;
     const b = ensureBridge(reg, r, cat);
-    const p = prev[r.code];
+    let p = prev[r.code];
+    // NDW schuift de begintijd op als de brug tussentijds dicht en weer open ging (zelfde bericht-id):
+    // > 2 min later dan wat wij hadden → vorige opening afsluiten, nieuwe beginnen
+    if (p && r.start && Date.parse(r.start) - Date.parse(p.since) > 120e3) { closed.push({ ...p, endAt: r.start }); p = null; }
     open[r.code] = {
       code: r.code, sid: b.sid || null, name: b.name || null, city: b.city || null,
       lat: b.lat, lon: b.lon,
@@ -105,13 +109,13 @@ async function pollActueel(env, health) {
     if (!p) { b.n = (b.n || 0) + 1; b.last = open[r.code].since; changed = true; }
   }
   // gesloten sinds vorige ronde → loggen in D1
-  const closed = Object.values(prev).filter(p => !open[p.code]);
+  for (const p of Object.values(prev)) if (!open[p.code]) closed.push(p);
   if (closed.length && env.DB) {
     // sluittijd = nu; maar na een gat in het pollen (> 3 min) weten we het niet → end = null
     const gap = health.actueelTs ? now - Date.parse(health.actueelTs) : 0;
     const nowIso = gap > 180e3 ? null : new Date(now).toISOString();
     const stmt = env.DB.prepare("INSERT OR IGNORE INTO openings (code, sid, start, end, src) VALUES (?1, ?2, ?3, ?4, ?5)");
-    await env.DB.batch(closed.map(p => stmt.bind(p.code, p.sid, p.since, nowIso, p.src)));
+    await env.DB.batch(closed.map(p => stmt.bind(p.code, p.sid, p.since, p.endAt ? (gap > 180e3 ? null : p.endAt) : nowIso, p.src)));
     changed = true;
   }
   await env.KV.put("open", JSON.stringify(open));
