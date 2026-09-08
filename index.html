@@ -349,14 +349,13 @@ html.napp header input{touch-action:manipulation}
 }
 .strem-pin{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;line-height:1}
 .strem-pin.crit{background:var(--critical)} .strem-pin.ser{background:var(--serious)}
-/* live brugstatus: pulserende ring op open bruggen, blauwe chip in lijst/detail */
-.live-pin{width:22px;height:22px;border-radius:50%;border:3px solid #2a78d6;box-sizing:border-box;animation:livepulse 1.6s ease-out infinite;pointer-events:none}
-@keyframes livepulse{0%{transform:scale(.55);opacity:1}100%{transform:scale(1.6);opacity:0}}
+/* live brugstatus: icoontje "open brug" bij open bruggen (ingezoomd), blauwe chip in lijst/detail */
+.live-pin{width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid #2a78d6;box-sizing:border-box;box-shadow:0 1px 4px rgba(0,0,0,.35);padding:2px;pointer-events:none;transform:translate(9px,-9px)}
+.live-pin svg{display:block;width:100%;height:100%}
 .chip.live{background:rgba(42,120,214,.13);border-radius:6px;padding:1px 8px 1px 6px;color:#1b5fb3;font-weight:600}
 .chip.plan{background:rgba(42,120,214,.07);border-radius:6px;padding:1px 8px 1px 6px;color:#1b5fb3}
-.dot.live{background:#2a78d6;box-shadow:0 0 0 0 rgba(42,120,214,.6);animation:livedot 1.6s ease-out infinite}
+.dot.live{background:#2a78d6}
 .dot.plan{background:#fff;border:2px solid #2a78d6;box-sizing:border-box;width:8px;height:8px}
-@keyframes livedot{0%{box-shadow:0 0 0 0 rgba(42,120,214,.6)}100%{box-shadow:0 0 0 6px rgba(42,120,214,0)}}
 .harb-pin{width:22px;height:22px;border-radius:50%;background:#122b42;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;padding:3px}
 .harb-pin.tide{background:#0e6e6e}
 .vts-lbl{background:rgba(255,255,255,.82);border:1px solid var(--grid);border-radius:5px;padding:0 5px;font-size:11px;font-weight:750;color:#0d366b;box-shadow:none;white-space:nowrap}
@@ -596,7 +595,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260908-2</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260908-3</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -830,17 +829,25 @@ function liveSectionHTML(o){
   return h;
 }
 function fmtDateShort(ms){ return new Intl.DateTimeFormat(LANG==="en"?"en-GB":"nl-NL",{timeZone:"Europe/Amsterdam",weekday:"short",day:"numeric",month:"short"}).format(new Date(ms)); }
-/* pulserende ring op de kaart bij bruggen die nu open staan */
+/* icoontje "open brug" op de kaart bij bruggen die nu open staan — alleen ingezoomd (vanaf LIVE_MINZOOM) */
+const LIVE_MINZOOM = 10;
+const OPENBRIDGESVG = `<svg viewBox="0 0 24 24" fill="none" stroke="#2a78d6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 16h6"/><path d="M8 16l6-10"/><path d="M16 16h6"/><path d="M8 16v3M16 16v3"/></svg>`;
 function buildLiveLayer(){
   if (!map) return;
   if (liveLayer){ map.removeLayer(liveLayer); liveLayer=null; }
   liveLayer = L.layerGroup();
   for (const [sid, it] of Object.entries(LIVE.open)){
     const o = DATA.objs.find(x=>x.t+x.id===sid); if (!o) continue;
-    const icon = L.divIcon({className:"", html:`<div class="live-pin"></div>`, iconSize:[22,22], iconAnchor:[11,11]});
+    const icon = L.divIcon({className:"", html:`<div class="live-pin" title="${esc(o.n)}">${OPENBRIDGESVG}</div>`, iconSize:[24,24], iconAnchor:[12,12]});
     L.marker([o.lat,o.lon], {icon, zIndexOffset:600, interactive:false}).addTo(liveLayer);
   }
-  liveLayer.addTo(map);
+  applyLiveZoom();
+}
+function applyLiveZoom(){
+  if (!map || !liveLayer) return;
+  const on = map.getZoom() >= LIVE_MINZOOM;
+  if (on && !map.hasLayer(liveLayer)) liveLayer.addTo(map);
+  else if (!on && map.hasLayer(liveLayer)) map.removeLayer(liveLayer);
 }
 
 /* ---------- tijd & feestdagen (Europe/Amsterdam) ---------- */
@@ -1896,6 +1903,7 @@ function initMap(){
   buildStremLayer();
   buildHarbourLayer();
   buildLiveLayer();
+  map.on("zoomend", applyLiveZoom);
   initCurrents();
 }
 
@@ -2374,7 +2382,7 @@ const ZC_MINZOOM = 11;   // zeekaartmodus: VTS/sluizen/getijstations/havens pas 
 /* Havens en getijstations staan bij een eerste bezoek uit — ze maken het overzicht
    druk en de meeste mensen komen voor bruggen en sluizen. Zet je ze aan, dan
    onthoudt de site dat voor de volgende keer. */
-let wantTide = readStore("bs_lay_tide", false), wantHarb = readStore("bs_lay_harb", false);
+let wantTide = readStore("bs_lay_tide", false), wantHarb = false;   // havens: altijd uit bij start (aanzetten geldt voor deze sessie)
 let gateBand = { vts:null, tide:null, obj:null, harb:null };   // laatste zoom-band per item (boven/onder drempel)
 /* Zoom-gate mét handmatige override: onder de drempel worden items automatisch uitgevinkt/verborgen,
    maar je kunt ze altijd handmatig aanvinken om ze tóch te tonen. De auto-actie gebeurt alleen bij het
