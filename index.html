@@ -482,6 +482,7 @@ a.coffee.small{padding:1px 8px;font-size:12px;font-weight:600;border-radius:6px;
           <label><input type="checkbox" id="obj-bedien" checked> <span data-i18n="o_bedien">Bedienbaar</span></label>
           <label><input type="checkbox" id="obj-vast" checked> <span data-i18n="o_vast">Niet bedienbaar</span></label>
           <label><input type="checkbox" id="obj-strem"> <span data-i18n="o_strem">Stremmingen</span></label>
+          <label><input type="checkbox" id="obj-live" checked> <span data-i18n="o_live">Live brugopeningen</span></label>
         </div>
       </div>
       <div class="dropwrap">
@@ -622,7 +623,7 @@ a.coffee.small{padding:1px 8px;font-size:12px;font-weight:600;border-radius:6px;
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260909-9</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260909-11</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -898,9 +899,10 @@ function buildLiveLayer(){
   }
   applyLiveZoom();
 }
+let showLive = readStore("bs_lay_live", true);   // vinkje "Live brugopeningen" (standaard aan, onthouden)
 function applyLiveZoom(){
   if (!map || !liveLayer) return;
-  const on = map.getZoom() >= LIVE_MINZOOM;
+  const on = showLive && map.getZoom() >= LIVE_MINZOOM;
   if (on && !map.hasLayer(liveLayer)) liveLayer.addTo(map);
   else if (!on && map.hasLayer(liveLayer)) map.removeLayer(liveLayer);
 }
@@ -1897,11 +1899,16 @@ function initMap(){
    animatielus. Op een drukke kaart (zeekaartmodus) wordt die lus onderbroken en
    blijven tegels onzichtbaar staan — dan is de kaart ineens wit. Zonder infaden
    verschijnen tegels gewoon meteen. */
-  /* zoomAnimation uit (sept 2026): op een zware kaart (zeekaartmodus, veel vectorlagen)
-     bleef de zoomanimatie soms halverwege steken — de oude tegels bleven vergroot op de
-     verkeerde plek staan en de nieuwe kwamen nooit; de rest van de kaart was wit. Zonder
-     animatie zet Leaflet de tegels bij elke zoomstap meteen goed neer. */
-  map = L.map("map", {preferCanvas:true, fadeAnimation:false, zoomAnimation:false}).setView([52.2,5.3], 8);
+  /* Zoomanimatie: aan op de landkaart, uit in zeekaartmodus (zie setZeeChart). Op de
+     zware zeekaart bleef de animatie soms halverwege steken — oude tegels vergroot op de
+     verkeerde plek, nieuwe kwamen nooit, rest wit. Daarnaast een waakhond hieronder die
+     een hangende animatie na 1,5 s afmaakt. */
+  map = L.map("map", {preferCanvas:true, fadeAnimation:false}).setView([52.2,5.3], 8);
+  let zoomHang = 0;
+  setInterval(()=>{
+    if (map._animatingZoom){ zoomHang++; if (zoomHang>=3){ console.log("OpenPilot: zoomanimatie bleef hangen, afgemaakt"); try{ map._onZoomTransitionEnd(); }catch(_){} zoomHang=0; } }
+    else zoomHang = 0;
+  }, 500);
   // popups nooit onder de knoppenbalk/panelen: kaart schuift automatisch mee met ruime marges
   L.Popup.prototype.options.autoPan = true;
   L.Popup.prototype.options.autoPanPaddingTopLeft = L.point(72, 96);
@@ -2911,6 +2918,7 @@ function loadDepthRegions(){
 }
 function setZeeChart(on){
   zeechartView = on;
+  map._zoomAnimated = !on;   // zeekaart: geen zoomanimatie (bleef hangen → witte kaart); landkaart: wel
   if (on){
     // ver uitgezoomd is de zeekaart traag (heel veel dieptevlakken in beeld) → eerst wat inzoomen
     if (map && map.getZoom()<9) map.setView(map.getCenter(), 9, {animate:false});
@@ -3003,6 +3011,8 @@ function updateObjs(){ showBedien=$("#obj-bedien").checked; showVast=$("#obj-vas
 $("#obj-bedien").addEventListener("change", updateObjs);
 $("#obj-vast").addEventListener("change", updateObjs);
 $("#obj-strem").addEventListener("change", ()=>{ showStrem=$("#obj-strem").checked; buildStremLayer(); });
+$("#obj-live").checked = showLive;
+$("#obj-live").addEventListener("change", ()=>{ showLive=$("#obj-live").checked; store("bs_lay_live", showLive); applyLiveZoom(); });
 /* vinkjes gelijkzetten met wat je vorige keer koos (standaard: allebei uit) */
 $("#obj-harb").checked = wantHarb; $("#tide-stations").checked = wantTide;
 $("#obj-harb").addEventListener("change", ()=>{ wantHarb=$("#obj-harb").checked; store("bs_lay_harb", wantHarb); if(harbLayerH){ wantHarb?harbLayerH.addTo(map):map.removeLayer(harbLayerH); } });
@@ -3203,7 +3213,7 @@ window.updateLegend = updateLegend;
 const STATIC_EN = {
   tab_kaart:"Map", tab_fav:"Favourites", tab_strem:"Closures",
   mb_locate:"Follow me",
-  mb_objs:"Bridges & locks", dm_objs:"On the map", o_bedien:"Operable", o_vast:"Non-operable", o_strem:"Closures", o_harb:"Harbours",
+  mb_objs:"Bridges & locks", dm_objs:"On the map", o_bedien:"Operable", o_vast:"Non-operable", o_strem:"Closures", o_live:"Live bridge openings", o_harb:"Harbours",
   mb_tide:"Tide, current & wind", dm_tide:"Tide", t_stations:"Tide stations",
   dm_wind:"Wind", w_arrows:"Wind arrows (Beaufort)", w_part:"Wind particles", w_color:"Wind colour (speed)",
   dm_rain:"Precipitation & thunder", r_radar:"Rain radar ⚡",
