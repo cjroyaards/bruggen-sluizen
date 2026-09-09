@@ -367,6 +367,10 @@ html.napp header input{touch-action:manipulation}
 .hist-t{white-space:nowrap;margin-right:4px}
 .hist-t small{color:var(--muted);font-size:11px}
 .hist-t.live{color:#1b5fb3;font-weight:600}
+/* steun-knop (bunq.me) */
+a.coffee{display:inline-block;background:#f5c542;color:#2b2200;font-weight:700;text-decoration:none;border-radius:8px;padding:8px 14px;font-size:14px;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+a.coffee:hover{background:#ffd457}
+a.coffee.small{padding:1px 8px;font-size:12px;font-weight:600;border-radius:6px;box-shadow:none}
 .harb-pin{width:22px;height:22px;border-radius:50%;background:#122b42;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;padding:3px}
 .harb-pin.tide{background:#0e6e6e}
 .vts-lbl{background:rgba(255,255,255,.82);border:1px solid var(--grid);border-radius:5px;padding:0 5px;font-size:11px;font-weight:750;color:#0d366b;box-shadow:none;white-space:nowrap}
@@ -605,11 +609,15 @@ html.napp header input{touch-action:manipulation}
         <span class="k">Android</span><span>Open deze site in <b>Chrome</b> → tik op <b>⋮</b> (menu) → kies <b>"App installeren"</b> of <b>"Toevoegen aan startscherm"</b>.</span>
       </div>
     </div>
+    <div class="p-sec" id="steun"><h3>Steun OpenPilot</h3>
+      <p>OpenPilot is gratis en zonder advertenties, gemaakt door één schipper in zijn vrije tijd. De servers, de live brugstatus en de weer- en stromingsdata kosten wel geld. Vind je de site handig? Een kop koffie helpt om hem gratis te houden.</p>
+      <p><a class="coffee" href="https://bunq.me/openpilot" target="_blank" rel="noopener">☕ Trakteer op een koffie (iDEAL)</a></p>
+    </div>
   </section>
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260909-3</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <a class="coffee small" href="https://bunq.me/openpilot" target="_blank" rel="noopener">☕ steun OpenPilot</a> · <span id="livestamp"></span> · <span id="buildstamp">b20260909-4</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -3243,6 +3251,10 @@ function applyStaticLang(){
         <span class="k">iPhone / iPad</span><span>Open in <b>Safari</b> → tap the <b>share button</b> → <b>"Add to Home Screen"</b>.</span>
         <span class="k">Android</span><span>Open in <b>Chrome</b> → tap <b>⋮</b> → <b>"Install app"</b> or <b>"Add to home screen"</b>.</span>
       </div>
+    </div>
+    <div class="p-sec" id="steun"><h3 style="color:var(--ink)">Support OpenPilot</h3>
+      <p>OpenPilot is free and ad-free, built by one skipper in his spare time. The servers, the live bridge status and the weather and current data do cost money. Find the site useful? A coffee helps keep it free.</p>
+      <p><a class="coffee" href="https://bunq.me/openpilot" target="_blank" rel="noopener">☕ Buy me a coffee (iDEAL / card)</a></p>
     </div>`;
   const mb = document.querySelector(".h-search .mastbox");
   if (mb) mb.childNodes[0].textContent = "mast ";
@@ -3250,7 +3262,7 @@ function applyStaticLang(){
   $("#loading") && ($("#loading").textContent = "Loading data…");
   $("#stq") && ($("#stq").placeholder = "Filter by waterway, place or object…");
   const foot = $("#foot");
-  if (foot){ const bs=(document.getElementById("buildstamp")||{}).textContent||""; foot.innerHTML = `Data: Rijkswaterstaat FIS &amp; notices to skippers · bridge openings: NDW · refreshed automatically · not an official source, verify locally. · <span id="livestamp"></span> · <span id="buildstamp">${bs}</span>`; }
+  if (foot){ const bs=(document.getElementById("buildstamp")||{}).textContent||""; foot.innerHTML = `Data: Rijkswaterstaat FIS &amp; notices to skippers · bridge openings: NDW · refreshed automatically · not an official source, verify locally. · <a class="coffee small" href="https://bunq.me/openpilot" target="_blank" rel="noopener">☕ support OpenPilot</a> · <span id="livestamp"></span> · <span id="buildstamp">${bs}</span>`; }
 }
 document.addEventListener("click", e=>{
   const lb = e.target.closest(".langbtn");
