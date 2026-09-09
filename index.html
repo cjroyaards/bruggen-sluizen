@@ -352,12 +352,12 @@ html.napp header input{touch-action:manipulation}
 /* live brugstatus: icoontje "open brug" bij open bruggen (ingezoomd), blauwe chip in lijst/detail */
 .live-pin{width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid #2a78d6;box-sizing:border-box;box-shadow:0 1px 4px rgba(0,0,0,.35);padding:2px;pointer-events:none;transform:translate(9px,-9px)}
 .live-pin svg{display:block;width:100%;height:100%}
-.live-pin.plan{border-style:dashed;opacity:.9}
-.live-pin.plan svg{opacity:.65}
+.live-pin.plan{border-color:#8dbdea}
+.live-pin.plan svg path{stroke:#6fa9e0}
 .chip.live{background:rgba(42,120,214,.13);border-radius:6px;padding:1px 8px 1px 6px;color:#1b5fb3;font-weight:600}
-.chip.plan{background:rgba(42,120,214,.07);border-radius:6px;padding:1px 8px 1px 6px;color:#1b5fb3}
+.chip.plan{background:rgba(42,120,214,.07);border-radius:6px;padding:1px 8px 1px 6px;color:#3d7fc4;font-weight:600}
 .dot.live{background:#2a78d6}
-.dot.plan{background:#fff;border:2px solid #2a78d6;box-sizing:border-box;width:8px;height:8px}
+.dot.plan{background:#8dbdea}
 /* logboek openingen: samenvatting, uurpatroon, uitklapbare dagen */
 .hist-sum{font-size:13.5px;margin:2px 0 8px}
 .hist-pat{margin:4px 0 10px}
@@ -554,7 +554,7 @@ a.coffee.small{padding:1px 8px;font-size:12px;font-weight:600;border-radius:6px;
     <div class="p-sec"><h3>Wat je hier ziet</h3>
       <div class="kv">
         <span class="k">Bruggen &amp; sluizen</span><span>Bedieningstijden per periode van het jaar, doorvaarthoogte, marifoonkanaal en telefoonnummer, en of een object bedienbaar of vast is.</span>
-        <span class="k">Brug staat nu open</span><span>Live: staat een brug op dit moment open, dan zie je dat als blauwe chip in de lijst en het detail en — ingezoomd — als open-brug-icoontje op de kaart. In het detail staan ook de <b>verwachte openingen</b> (alleen waar de brugbeheerder die vooraf meldt: bedieningscentrale Noord-Holland — Zaan, Noordhollandsch Kanaal, Ringvaart, Spaarne, Amsterdam; op de kaart een gestippeld icoontje als een opening binnen 15 minuten begint) en de <b>laatste openingen</b> met duur uit ons eigen logboek.</span>
+        <span class="k">Brug staat nu open</span><span>Live: staat een brug op dit moment open, dan zie je dat als blauwe chip in de lijst en het detail en — ingezoomd — als open-brug-icoontje op de kaart. In het detail staan ook de <b>verwachte openingen</b> (alleen waar de brugbeheerder die vooraf meldt: bedieningscentrale Noord-Holland — Zaan, Noordhollandsch Kanaal, Ringvaart, Spaarne, Amsterdam; op de kaart een lichtblauw icoontje als een opening binnen 15 minuten begint) en de <b>laatste openingen</b> met duur uit ons eigen logboek.</span>
         <span class="k">Scheepvaartberichten</span><span>Actuele en aangekondigde stremmingen en beperkingen, met doorklik naar het volledige bericht op vaarweginformatie.nl.</span>
         <span class="k">Masthoogte-check</span><span>Vul je masthoogte in (vergrootglas → mast); vaste bruggen die te laag zijn krijgen dan een waarschuwing.</span>
         <span class="k">Routeplanner</span><span>Kaartknop "Route": de kaart schuift meteen een stukje op zodat het gebied waar je naar keek niet achter het paneel verdwijnt. Klik het startpunt aan, elke volgende klik is een via-punt, rechtsklik zet het eindpunt. Een via-punt haal je weg door er met rechts op te klikken. <b>Op een telefoon of tablet</b> gebruik je de knop "bestemming" voor het eindpunt (lang ingedrukt houden werkt op sommige toestellen ook, maar niet overal). Zodra de route klaar is verdwijnen de knoppen om ruimte te sparen; met het greepje of de kopbalk sleep je de lijst zelf hoger of lager. Staat "Volg mij" aan, dan schuift de lijst mee: de eerstvolgende brug of sluis staat in beeld en is omrand. Je ziet dan de route over vaarwegen én groot open water (IJsselmeer, Markermeer, Randmeren, Zeeuwse wateren), met alle bruggen en sluizen op volgorde van passage — inclusief laagste vaste brug en smalste doorvaart. Indicatief: op open water volgt de route niet de betonde geulen; Waddenzee en Noordzee zitten er niet in.</span>
@@ -626,7 +626,7 @@ a.coffee.small{padding:1px 8px;font-size:12px;font-weight:600;border-radius:6px;
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260909-12</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260909-14</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -3275,7 +3275,7 @@ function applyStaticLang(){
     <div class="p-sec"><h3 style="color:var(--ink)">What you see here</h3>
       <div class="kv">
         <span class="k">Bridges &amp; locks</span><span>Operating times per season, clearance height, VHF channel and phone number, and whether an object is operated or fixed.</span>
-        <span class="k">Bridge is open now</span><span>Live: if a bridge is open right now you see a blue chip in the list and detail and — zoomed in — an open-bridge icon on the map. The detail also shows <b>expected openings</b> (only where the operator announces them in advance: the Noord-Holland control centre — Zaan, Noordhollandsch Kanaal, Ringvaart, Spaarne, Amsterdam; on the map a dotted icon when an opening starts within 15 minutes) and the <b>recent openings</b> with duration from our own log.</span>
+        <span class="k">Bridge is open now</span><span>Live: if a bridge is open right now you see a blue chip in the list and detail and — zoomed in — an open-bridge icon on the map. The detail also shows <b>expected openings</b> (only where the operator announces them in advance: the Noord-Holland control centre — Zaan, Noordhollandsch Kanaal, Ringvaart, Spaarne, Amsterdam; on the map a light-blue icon when an opening starts within 15 minutes) and the <b>recent openings</b> with duration from our own log.</span>
         <span class="k">Notices to skippers</span><span>Current and announced closures and restrictions, with a link through to the full notice on vaarweginformatie.nl.</span>
         <span class="k">Mast-height check</span><span>Enter your mast height (magnifier → mast); fixed bridges that are too low then get a warning.</span>
         <span class="k">Route planner</span><span>Map button "Route": the map shifts a little so the area you were looking at does not end up behind the panel. Click the start point, every next click adds a via point, right-click sets the end point. Remove a via point by right-clicking on it. <b>On a phone or tablet</b> use the "destination" button for the end point (long-press works on some devices, but not everywhere). Once the route is ready the buttons disappear to save space; drag the handle or the header to make the list taller or shorter. With "Follow me" on the list scrolls along: the next bridge or lock stays in view and is outlined. You then see the route across waterways and large open water (IJsselmeer, Markermeer, border lakes, Zeeland waters), with all bridges and locks in order of passage — including the lowest fixed bridge and narrowest passage. Indicative: on open water the route does not follow the buoyed channels; the Wadden Sea and North Sea are not included.</span>
