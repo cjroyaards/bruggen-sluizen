@@ -31,13 +31,16 @@ npm run schema                                # tabel aanmaken in D1
 npm run deploy                                # → https://brugstatus.<jouw-subdomein>.workers.dev
 ```
 
-**Let op — cron-triggers.** Op dit Cloudflare-account gaan de cron-triggers
+**Let op — de klok.** Op dit Cloudflare-account gaat de minuut-cron-trigger
 niet af (bekend Cloudflare-probleem in 2026: geregistreerd, "Next" loopt door,
-maar `scheduled()` wordt nooit aangeroepen). Daarom twee vangnetten:
-`.github/workflows/brugstatus-poll.yml` roept elke minuut `/poll` aan (gratis
-op een openbare repo), en `status.json` ververst zichzelf als de data ouder is
-dan 90 s. `/poll` en de cron slaan over als de data jonger is dan 45 s, dus ze
-bijten elkaar niet.
+maar `scheduled()` wordt nooit aangeroepen; de nachtelijke 03:07 gaat wél).
+Het minuutwerk doet daarom een **Durable Object** (`Poller`, naam "klok") dat
+zichzelf elke minuut wekt met een alarm. Starten: één keer `/start` openen
+(elke `/status.json`- en `/poll`-aanroep doet dat ook). Vangnetten daarbovenop:
+`.github/workflows/brugstatus-poll.yml` roept elke 10 min `/poll` + `/start`
+aan, en `status.json` ververst zichzelf als de data ouder is dan 90 s. Alles
+slaat over als de data jonger is dan 45 s, dus niets bijt elkaar.
+`/health` toont in `by` wie de laatste ronde deed.
 
 Daarna:
 

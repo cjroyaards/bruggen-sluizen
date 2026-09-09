@@ -1,23 +1,16 @@
-# Stoot de brugstatus-Worker aan: elke 5 min een run die 4½ minuut lang elke
-# minuut /poll aanroept. Nodig omdat Cloudflare-cron-triggers op dit account
-# niet afgaan (bekend probleem 2026). De Worker slaat over als de data < 45 s is.
+# Vangnet voor de brugstatus-Worker: elke 10 min /poll aanroepen. Dat ververst de
+# data als die oud is én zet de klok (Durable Object-alarm) weer aan als die
+# ooit stilvalt. Het echte minuutwerk doet de klok in de Worker zelf.
 name: brugstatus-poll
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/10 * * * *"
   workflow_dispatch:
-concurrency:
-  group: brugstatus-poll
-  cancel-in-progress: false
 jobs:
   poll:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 2
     steps:
-      - name: poll elke minuut
-        run: |
-          for i in 1 2 3 4 5; do
-            curl -s -m 40 -o /dev/null -w "poll $i: %{http_code}\n" https://brugstatus.cjroyaards.workers.dev/poll || true
-            [ $i -lt 5 ] && sleep 55
-          done
-          curl -s -m 20 https://brugstatus.cjroyaards.workers.dev/health
+      - run: |
+          curl -s -m 40 https://brugstatus.cjroyaards.workers.dev/poll; echo
+          curl -s -m 20 https://brugstatus.cjroyaards.workers.dev/start; echo

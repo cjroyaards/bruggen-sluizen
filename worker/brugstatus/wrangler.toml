@@ -17,3 +17,12 @@ database_id = "8dd4b9f4-6b7e-4f21-bba5-aa7ca57d2a84"
 
 [observability]
 enabled = true
+
+# klok: Durable Object met alarm elke minuut (vervangt de niet-werkende cron-trigger)
+[[durable_objects.bindings]]
+name = "POLLER"
+class_name = "Poller"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Poller"]

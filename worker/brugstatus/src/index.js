@@ -22,8 +22,30 @@ const SITE_STATIC  = "https://cjroyaards.github.io/bruggen-sluizen/data/static.j
 const MATCH_M      = 250;        // max afstand NDW-punt ↔ OpenPilot-brug
 const PLAN_HOURS   = 2;          // horizon geplande openingen in status.json (volledige planning: /planned.json)
 
+/* Klok: een Durable Object dat zichzelf elke minuut wekt (alarm). Onafhankelijk van
+   Cloudflare-cron-triggers, die op dit account niet afgaan. Wordt gestart via /start
+   en herstart zichzelf; elke /status.json-aanroep controleert of hij nog loopt. */
+export class Poller {
+  constructor(state, env) { this.state = state; this.env = env; }
+  async fetch(req) {
+    const url = new URL(req.url);
+    const cur = await this.state.storage.getAlarm();
+    if (url.pathname === "/start" && cur == null) await this.state.storage.setAlarm(Date.now() + 1000);
+    return new Response(JSON.stringify({ alarm: cur ? new Date(cur).toISOString() : null }), { headers: { "Content-Type": "application/json" } });
+  }
+  async alarm() {
+    await this.state.storage.setAlarm(Date.now() + 60_000);       // eerst herplannen, dan werken
+    try { await pollIfStale(this.env, 45e3); } catch (_) {}
+  }
+}
+async function ensureClock(env) {
+  if (!env.POLLER) return null;
+  const stub = env.POLLER.get(env.POLLER.idFromName("klok"));
+  return stub.fetch("https://klok/start");
+}
+
 export default {
-  // Cloudflare-cron (werkt op sommige accounts niet — daarom ook /poll via GitHub Action, zie .github/workflows/brugstatus-poll.yml)
+  // Cloudflare-cron: draait de nachtelijke catalogus (die gaat wél af); minuutcron als extra vangnet
   async scheduled(event, env, ctx) {
     ctx.waitUntil(event.cron === "7 3 * * *" ? runPoll(env, event.cron) : pollIfStale(env, 45e3));
   },
@@ -33,7 +55,8 @@ export default {
     try {
       switch (url.pathname) {
         case "/":              return index();
-        case "/status.json":   ctx.waitUntil(pollIfStale(env)); return kvJson(env, "status", 20);
+        case "/start":         return json(await (await ensureClock(env)).json());
+        case "/status.json":   ctx.waitUntil(Promise.all([pollIfStale(env), ensureClock(env)])); return kvJson(env, "status", 20);
         case "/bridges.json":  return kvJson(env, "bridges", 300);
         case "/planned.json":  return planned(env, url);
         case "/health":        return kvJson(env, "health", 0);
@@ -41,6 +64,7 @@ export default {
         case "/stats.json":    return stats(env, url);
         case "/poll":          // aanstoten door GitHub Action / handmatig; slaat over als data < 45 s oud is
           await pollIfStale(env, 45e3);
+          ctx.waitUntil(ensureClock(env));
           return kvJson(env, "health", 0);
         default:               return json({ error: "not found" }, 404);
       }
@@ -78,6 +102,7 @@ async function runPoll(env, cron) {
   }
   health.ts = new Date().toISOString();
   health.ms = Date.now() - t0;
+  health.by = cron;   // wie pollde: "* * * * *" = klok/cron/poll, "7 3 * * *" = catalogus
   await env.KV.put("health", JSON.stringify(health));
 }
 
