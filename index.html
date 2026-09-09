@@ -356,6 +356,17 @@ html.napp header input{touch-action:manipulation}
 .chip.plan{background:rgba(42,120,214,.07);border-radius:6px;padding:1px 8px 1px 6px;color:#1b5fb3}
 .dot.live{background:#2a78d6}
 .dot.plan{background:#fff;border:2px solid #2a78d6;box-sizing:border-box;width:8px;height:8px}
+/* logboek openingen: samenvatting, uurpatroon, uitklapbare dagen */
+.hist-sum{font-size:13.5px;margin:2px 0 8px}
+.hist-pat{margin:4px 0 10px}
+.hist-bars{display:flex;align-items:flex-end;gap:2px;height:42px;padding:0 2px;border-bottom:1px solid var(--grid)}
+.hist-bars i{flex:1;display:block;min-height:1px;background:#2a78d6;opacity:.75;border-radius:2px 2px 0 0}
+.hist-ax{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);padding:1px 0 0}
+.hist-day{display:flex;gap:10px;padding:4px 0;border-top:1px solid var(--grid);font-size:13px;line-height:1.7}
+.hist-day .k{flex:0 0 76px;color:var(--muted)}
+.hist-t{white-space:nowrap;margin-right:4px}
+.hist-t small{color:var(--muted);font-size:11px}
+.hist-t.live{color:#1b5fb3;font-weight:600}
 .harb-pin{width:22px;height:22px;border-radius:50%;background:#122b42;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;padding:3px}
 .harb-pin.tide{background:#0e6e6e}
 .vts-lbl{background:rgba(255,255,255,.82);border:1px solid var(--grid);border-radius:5px;padding:0 5px;font-size:11px;font-weight:750;color:#0d366b;box-shadow:none;white-space:nowrap}
@@ -531,6 +542,7 @@ html.napp header input{touch-action:manipulation}
     <div class="p-sec"><h3>Wat je hier ziet</h3>
       <div class="kv">
         <span class="k">Bruggen &amp; sluizen</span><span>Bedieningstijden per periode van het jaar, doorvaarthoogte, marifoonkanaal en telefoonnummer, en of een object bedienbaar of vast is.</span>
+        <span class="k">Brug staat nu open</span><span>Live: staat een brug op dit moment open, dan zie je dat als blauwe chip in de lijst en het detail en — ingezoomd — als open-brug-icoontje op de kaart. In het detail staan ook de <b>geplande openingen</b> (waar de brugbeheerder die vooraf meldt, o.a. Noord-Holland en Amsterdam) en de <b>laatste openingen</b> met duur uit ons eigen logboek.</span>
         <span class="k">Scheepvaartberichten</span><span>Actuele en aangekondigde stremmingen en beperkingen, met doorklik naar het volledige bericht op vaarweginformatie.nl.</span>
         <span class="k">Masthoogte-check</span><span>Vul je masthoogte in (vergrootglas → mast); vaste bruggen die te laag zijn krijgen dan een waarschuwing.</span>
         <span class="k">Routeplanner</span><span>Kaartknop "Route": de kaart schuift meteen een stukje op zodat het gebied waar je naar keek niet achter het paneel verdwijnt. Klik het startpunt aan, elke volgende klik is een via-punt, rechtsklik zet het eindpunt. Een via-punt haal je weg door er met rechts op te klikken. <b>Op een telefoon of tablet</b> gebruik je de knop "bestemming" voor het eindpunt (lang ingedrukt houden werkt op sommige toestellen ook, maar niet overal). Zodra de route klaar is verdwijnen de knoppen om ruimte te sparen; met het greepje of de kopbalk sleep je de lijst zelf hoger of lager. Staat "Volg mij" aan, dan schuift de lijst mee: de eerstvolgende brug of sluis staat in beeld en is omrand. Je ziet dan de route over vaarwegen én groot open water (IJsselmeer, Markermeer, Randmeren, Zeeuwse wateren), met alle bruggen en sluizen op volgorde van passage — inclusief laagste vaste brug en smalste doorvaart. Indicatief: op open water volgt de route niet de betonde geulen; Waddenzee en Noordzee zitten er niet in.</span>
@@ -551,6 +563,7 @@ html.napp header input{touch-action:manipulation}
       <div class="kv">
         <span class="k">Bedieningstijden &amp; objecten</span><span>Elke nacht opnieuw opgebouwd uit de bron (volledige dataset, dagelijks).</span>
         <span class="k">Scheepvaartberichten</span><span>Elk uur ververst, zodat stremmingen snel doorkomen.</span>
+        <span class="k">Brugopeningen (live)</span><span>Elke minuut opgehaald bij NDW; de site ververst de status elke minuut terwijl je kijkt. Het logboek van openingen loopt sinds september 2026 en groeit vanzelf.</span>
         <span class="k">Getij NL</span><span>Dagelijks ververst; astronomische voorspelling die meerdere dagen vooruit rekent.</span>
         <span class="k">Getij UK</span><span>Dagelijks ververst; officiële voorspelling, 7 dagen vooruit.</span>
         <span class="k">Getijstroom</span><span>Live opgehaald in je browser zodra je de laag aanzet; modelverwachting per uur, tot 6 dagen vooruit.</span>
@@ -564,6 +577,7 @@ html.napp header input{touch-action:manipulation}
     <div class="p-sec"><h3>Waar de gegevens vandaan komen</h3>
       <div class="kv">
         <span class="k">Bruggen, sluizen &amp; berichten</span><span>Rijkswaterstaat — Fairway Information Services (vaarweginformatie.nl): de objectgegevens en de scheepvaartberichten (NtS/FTM).</span>
+        <span class="k">Brugopeningen (live)</span><span><b>NDW</b> (Nationaal Dataportaal Wegverkeer, opendata.ndw.nu) — open data over bruggen die op dit moment open staan en over aangemelde openingen. NDW krijgt dit van de brugbeheerders (bedieningscentrales van Rijkswaterstaat en provincies, via Blauwe Golf Verbindend) en van sensoren op de bruggen. Wij halen de ruwe NDW-feed elke minuut zelf op, koppelen de bruggen op locatie aan onze objecten en houden een eigen logboek bij; er zit geen andere partij tussen. Niet elke brug meldt zich bij NDW: ontbreekt de chip, dan weten we het niet. Bron: NDW.</span>
         <span class="k">Getij Nederland</span><span>Rijkswaterstaat WaterWebservices (waterinfo) — astronomische voorspelling, hoogtes t.o.v. <b>NAP</b>.</span>
         <span class="k">Getij Verenigd Koninkrijk</span><span>UK Hydrographic Office — Admiralty-voorspellingen, hoogtes boven <b>kaartnul (LAT)</b>.</span>
         <span class="k">Getijstroom</span><span>Copernicus Marine Service, NWShelf-model (~1,5 km). Pijlen en kleurvlakken zijn de kant-en-klare WMTS-tegels; de deeltjesanimatie komt uit hetzelfde model door de uo/vo-tegels terug te rekenen naar m/s. De klik-info en de 12-uurstabel worden per punt exact bij het model opgevraagd.</span>
@@ -581,7 +595,7 @@ html.napp header input{touch-action:manipulation}
         <span class="k">Kaartondergrond</span><span>© OpenStreetMap-bijdragers.</span>
       </div>
       <p style="color:var(--muted);font-size:12.5px">Hoogtes uit verschillende bronnen hebben verschillende nulvlakken (NAP, kaartnul/LAT, gemiddeld zeeniveau) en zijn niet zomaar met elkaar of met kaartdieptes te verrekenen.</p>
-      <p style="color:var(--muted);font-size:12.5px">Status-legenda: <span class="chip good"><span class="dot good"></span>bediening nu</span> <span class="chip warn"><span class="dot warn"></span>let op / gesloten</span> <span class="chip ser"><span class="dot ser"></span>beperking</span> <span class="chip crit"><span class="dot crit"></span>gestremd / geen bediening</span> <span class="chip mut"><span class="dot mut"></span>vast object</span></p>
+      <p style="color:var(--muted);font-size:12.5px">Status-legenda: <span class="chip good"><span class="dot good"></span>bediening nu</span> <span class="chip warn"><span class="dot warn"></span>let op / gesloten</span> <span class="chip ser"><span class="dot ser"></span>beperking</span> <span class="chip crit"><span class="dot crit"></span>gestremd / geen bediening</span> <span class="chip mut"><span class="dot mut"></span>vast object</span> <span class="chip live"><span class="dot live"></span>brug staat nu open</span> <span class="chip plan"><span class="dot plan"></span>geplande opening</span></p>
       <p style="color:var(--muted);font-size:12.5px"><b>Geen officiële bron</b> — controleer bij twijfel het bericht via de link, of roep de brug/sluis op via marifoon of telefoon.</p>
     </div>
     <div class="p-sec"><h3>Als app op je telefoon</h3>
@@ -595,7 +609,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260909-1</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260909-2</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -650,6 +664,8 @@ const EN = {
  "Laatste openingen":"Recent openings","laden…":"loading…",
  "Aangemeld door de brugbeheerder (NDW). Tijden zijn indicatief.":"Reported by the bridge operator (NDW). Times are indicative.",
  "Nog geen openingen geregistreerd sinds de start van het logboek.":"No openings logged since the log started.","nu open":"open now",
+ "Openingen":"Openings","vandaag":"today","gisteren":"yesterday","open":"open","gem.":"avg.","alle openingen":"all openings","dagen":"days",
+ "Wanneer deze brug meestal opengaat":"When this bridge usually opens","in 90 dagen":"in 90 days",
  "Bron: NDW open data, via OpenPilot-brugstatus.":"Source: NDW open data, via OpenPilot bridge status."
 };
 function T(s){ return LANG==="en" ? (EN[s] ?? s) : s; }
@@ -816,18 +832,41 @@ function liveSectionHTML(o){
     const items=(d.items||[]).filter(p=>Date.parse(p.end)>Date.now()).slice(0,16);
     if (items.length){ box.innerHTML = planHTML(items); box.hidden=false; }
   }).catch(()=>{});
-  h += `<div class="p-sec" id="livehist"><h3>${T("Laatste openingen")}</h3><div class="note" style="margin-top:0">${T("laden…")}</div></div>`;
-  fetch(BRUGSTATUS_URL+`/history.json?sid=${o.t}${o.id}&days=14`).then(r=>r.json()).then(d=>{
+  h += `<div class="p-sec" id="livehist"><h3>${T("Openingen")}</h3><div class="note" style="margin-top:0">${T("laden…")}</div></div>`;
+  const sidq = `sid=${o.t}${o.id}`;
+  Promise.all([
+    fetch(BRUGSTATUS_URL+`/history.json?${sidq}&days=14`).then(r=>r.json()),
+    fetch(BRUGSTATUS_URL+`/stats.json?${sidq}`).then(r=>r.ok?r.json():null).catch(()=>null),
+  ]).then(([d, stats])=>{
     const box=$("#livehist"); if(!box) return;
-    const rows=(d.openings||[]).slice(0,10);
+    const rows=(d.openings||[]).slice();
     const lv=liveFor(o);
     if (lv && lv.since && !rows.some(r=>r.start===lv.since)) rows.unshift({start:lv.since, end:null, live:true});   // lopende opening bovenaan
-    if (!rows.length){ box.innerHTML = `<h3>${T("Laatste openingen")}</h3><div class="note" style="margin-top:0">${T("Nog geen openingen geregistreerd sinds de start van het logboek.")}</div>`; return; }
-    box.innerHTML = `<h3>${T("Laatste openingen")}</h3><div class="kv">` + rows.map(r=>{
-      const dur = r.end ? Math.round((Date.parse(r.end)-Date.parse(r.start))/60e3) : null;
-      const tail = r.live ? ` · <b>${T("nu open")}</b>` : (dur!=null ? ` · ${dur} min` : "");
-      return `<span class="k">${fmtDateShort(Date.parse(r.start))}</span><span>${fmtHM(Date.parse(r.start))}${tail}</span>`;
-    }).join("") + `</div><div class="note">${T("Bron: NDW open data, via OpenPilot-brugstatus.")}</div>`;
+    if (!rows.length){ box.innerHTML = `<h3>${T("Openingen")}</h3><div class="note" style="margin-top:0">${T("Nog geen openingen geregistreerd sinds de start van het logboek.")}</div>`; return; }
+    // per dag groeperen (Europe/Amsterdam)
+    const dayKey = ms => new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Amsterdam",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(ms));
+    const todayK = dayKey(Date.now()), yestK = dayKey(Date.now()-86400e3);
+    const dayLbl = k => k===todayK ? T("vandaag") : k===yestK ? T("gisteren") : fmtDateShort(Date.parse(k+"T12:00:00"));
+    const groups = new Map();
+    for (const r of rows){ const k=dayKey(Date.parse(r.start)); (groups.get(k)||groups.set(k,[]).get(k)).push(r); }
+    const durOf = r => r.end ? Math.round((Date.parse(r.end)-Date.parse(r.start))/60e3) : null;
+    const summ = k => { const g=groups.get(k)||[]; if(!g.length) return null; const ds=g.map(durOf).filter(x=>x!=null&&x>0); return `${g.length}× ${T("open")}`+(ds.length?` (${T("gem.")} ${Math.round(ds.reduce((a,b)=>a+b,0)/ds.length)} min)`:""); };
+    const sT = summ(todayK), sY = summ(yestK);
+    let html = `<h3>${T("Openingen")}</h3>`;
+    html += `<div class="hist-sum">${T("vandaag")}: <b>${sT||"0×"}</b> · ${T("gisteren")}: <b>${sY||"0×"}</b></div>`;
+    // patroon per uur van de dag (90 dagen) zodra er genoeg is
+    if (stats && stats.total>=20 && stats.byHour){
+      const mx = Math.max(...stats.byHour, 1);
+      html += `<div class="hist-pat"><div class="hist-bars">${stats.byHour.map((n,hh)=>`<i style="height:${Math.round(n/mx*100)}%" title="${String(hh).padStart(2,"0")}:00 – ${n}×"></i>`).join("")}</div><div class="hist-ax"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div><div class="note" style="margin-top:2px">${T("Wanneer deze brug meestal opengaat")} — ${stats.total}× ${T("in 90 dagen")}${stats.avgMinutes?`, ${T("gem.")} ${Math.round(stats.avgMinutes)} min`:""}</div></div>`;
+    }
+    html += `<details class="period"><summary>${T("alle openingen")} (${rows.length}, 14 ${T("dagen")})</summary>`;
+    for (const [k,g] of groups){
+      html += `<div class="hist-day"><span class="k">${dayLbl(k)}</span><span>` + g.map(r=>{
+        const dur=durOf(r); return `<span class="hist-t${r.live?" live":""}">${fmtHM(Date.parse(r.start))}${r.live?` <b>${T("nu open")}</b>`:(dur!=null?`<small> ${dur}′</small>`:"")}</span>`;
+      }).join(" ") + `</span></div>`;
+    }
+    html += `</details><div class="note">${T("Bron: NDW open data, via OpenPilot-brugstatus.")}</div>`;
+    box.innerHTML = html;
   }).catch(()=>{ const box=$("#livehist"); if(box) box.remove(); });
   return h;
 }
@@ -3142,6 +3181,7 @@ function applyStaticLang(){
     <div class="p-sec"><h3 style="color:var(--ink)">What you see here</h3>
       <div class="kv">
         <span class="k">Bridges &amp; locks</span><span>Operating times per season, clearance height, VHF channel and phone number, and whether an object is operated or fixed.</span>
+        <span class="k">Bridge is open now</span><span>Live: if a bridge is open right now you see a blue chip in the list and detail and — zoomed in — an open-bridge icon on the map. The detail also shows <b>planned openings</b> (where the operator announces them in advance, e.g. Noord-Holland and Amsterdam) and the <b>recent openings</b> with duration from our own log.</span>
         <span class="k">Notices to skippers</span><span>Current and announced closures and restrictions, with a link through to the full notice on vaarweginformatie.nl.</span>
         <span class="k">Mast-height check</span><span>Enter your mast height (magnifier → mast); fixed bridges that are too low then get a warning.</span>
         <span class="k">Route planner</span><span>Map button "Route": the map shifts a little so the area you were looking at does not end up behind the panel. Click the start point, every next click adds a via point, right-click sets the end point. Remove a via point by right-clicking on it. <b>On a phone or tablet</b> use the "destination" button for the end point (long-press works on some devices, but not everywhere). Once the route is ready the buttons disappear to save space; drag the handle or the header to make the list taller or shorter. With "Follow me" on the list scrolls along: the next bridge or lock stays in view and is outlined. You then see the route across waterways and large open water (IJsselmeer, Markermeer, border lakes, Zeeland waters), with all bridges and locks in order of passage — including the lowest fixed bridge and narrowest passage. Indicative: on open water the route does not follow the buoyed channels; the Wadden Sea and North Sea are not included.</span>
@@ -3162,6 +3202,7 @@ function applyStaticLang(){
       <div class="kv">
         <span class="k">Operating times &amp; objects</span><span>Rebuilt from source every night (full dataset, daily).</span>
         <span class="k">Notices to skippers</span><span>Refreshed hourly, so closures come through quickly.</span>
+        <span class="k">Bridge openings (live)</span><span>Fetched from NDW every minute; the site refreshes the status every minute while you watch. The opening log runs since September 2026 and grows by itself.</span>
         <span class="k">Tides NL</span><span>Refreshed daily; astronomical prediction computed several days ahead.</span>
         <span class="k">Tides UK</span><span>Refreshed daily; official prediction, 7 days ahead.</span>
         <span class="k">Tidal current</span><span>Fetched live in your browser when you enable the layer; hourly model forecast, up to 6 days ahead.</span>
@@ -3175,6 +3216,7 @@ function applyStaticLang(){
     <div class="p-sec"><h3 style="color:var(--ink)">Where the data comes from</h3>
       <div class="kv">
         <span class="k">Bridges, locks &amp; notices</span><span>Rijkswaterstaat — Fairway Information Services (vaarweginformatie.nl): the object data and the notices to skippers (NtS/FTM). Dutch descriptions stay in Dutch.</span>
+        <span class="k">Bridge openings (live)</span><span><b>NDW</b> (Dutch National Road Traffic Data Portal, opendata.ndw.nu) — open data on bridges that are open right now and on announced openings. NDW receives this from the bridge operators (control centres of Rijkswaterstaat and the provinces, via "Blauwe Golf Verbindend") and from sensors on the bridges. We fetch the raw NDW feed ourselves every minute, match the bridges to our objects by location and keep our own log; no third party in between. Not every bridge reports to NDW: no chip means we simply don't know. Source: NDW.</span>
         <span class="k">Tides Netherlands</span><span>Rijkswaterstaat WaterWebservices (waterinfo) — astronomical prediction, heights relative to <b>NAP</b>.</span>
         <span class="k">Tides United Kingdom</span><span>UK Hydrographic Office — Admiralty predictions, heights above <b>chart datum (LAT)</b>.</span>
         <span class="k">Tidal current</span><span>Copernicus Marine Service, NWShelf model (~1.5 km). Arrows and colour bands are the ready-made WMTS tiles; the particle animation comes from the same model by decoding the uo/vo tiles back to m/s. Tap info and the 12-hour table are queried from the model per point.</span>
@@ -3192,7 +3234,7 @@ function applyStaticLang(){
         <span class="k">Base map</span><span>© OpenStreetMap contributors.</span>
       </div>
       <p style="color:var(--muted);font-size:12.5px">Heights from different sources use different datums (NAP, chart datum/LAT, mean sea level) and cannot simply be combined with each other or with charted depths.</p>
-      <p style="color:var(--muted);font-size:12.5px">Status legend: <span class="chip good"><span class="dot good"></span>operating now</span> <span class="chip warn"><span class="dot warn"></span>caution / closed</span> <span class="chip ser"><span class="dot ser"></span>restriction</span> <span class="chip crit"><span class="dot crit"></span>blocked / no operation</span> <span class="chip mut"><span class="dot mut"></span>fixed object</span></p>
+      <p style="color:var(--muted);font-size:12.5px">Status legend: <span class="chip good"><span class="dot good"></span>operating now</span> <span class="chip warn"><span class="dot warn"></span>caution / closed</span> <span class="chip ser"><span class="dot ser"></span>restriction</span> <span class="chip crit"><span class="dot crit"></span>blocked / no operation</span> <span class="chip mut"><span class="dot mut"></span>fixed object</span> <span class="chip live"><span class="dot live"></span>bridge is open now</span> <span class="chip plan"><span class="dot plan"></span>planned opening</span></p>
       <p style="color:var(--muted);font-size:12.5px"><b>Not an official source</b> — when in doubt check the notice via its link, or call the bridge/lock on VHF or phone.</p>
     </div>
     <div class="p-sec"><h3 style="color:var(--ink)">As an app on your phone</h3>
@@ -3208,7 +3250,7 @@ function applyStaticLang(){
   $("#loading") && ($("#loading").textContent = "Loading data…");
   $("#stq") && ($("#stq").placeholder = "Filter by waterway, place or object…");
   const foot = $("#foot");
-  if (foot) foot.textContent = "Data: Rijkswaterstaat FIS & notices to skippers · refreshed automatically · not an official source, verify locally.";
+  if (foot){ const bs=(document.getElementById("buildstamp")||{}).textContent||""; foot.innerHTML = `Data: Rijkswaterstaat FIS &amp; notices to skippers · bridge openings: NDW · refreshed automatically · not an official source, verify locally. · <span id="livestamp"></span> · <span id="buildstamp">${bs}</span>`; }
 }
 document.addEventListener("click", e=>{
   const lb = e.target.closest(".langbtn");
