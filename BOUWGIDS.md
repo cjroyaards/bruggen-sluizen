@@ -151,6 +151,13 @@ is een licentievoorwaarde.
   zoomniveau binnen het beeld (`laag._tiles`), herstelt eerst zacht met
   `laag._update()` en pas na drie keer met `redraw()`; en de 4-secondencheck
   loopt nu ook op de landkaart.
+- **Scheepvaartbericht van de buurbrug** (sept 2026). Berichten worden op
+  afstand (400 m) aan objecten gekoppeld; de Kooybrug kreeg zo de "geen
+  bediening" van de Oostoeverbrug als status. `stremAboutOther()` kijkt of de
+  locatietekst van het bericht met naam een ánder object binnen 600 m noemt en
+  niet dit object — dan telt het bericht niet mee voor status/markerkleur, maar
+  blijft het wel staan onder "Berichten in de buurt". Scheelde 434 van 2242
+  koppelingen. Gebruikt `objIndex` (zelfde rasterindex als `stremIndex`).
 - **`position:sticky` werkt niet op een zwevend element.** De sluitknop van het
   detailpaneel stond op `sticky` mét `float:right` en scrolde daardoor gewoon mee
   weg; je moest eerst terug naar boven om hem te kunnen raken. Nu een blok met

@@ -626,7 +626,7 @@ a.coffee.small{padding:1px 8px;font-size:12px;font-weight:600;border-radius:6px;
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260909-14</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260909-15</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -993,7 +993,7 @@ function statusFor(obj){
   if (obj.t==="H") return {cls:"mut", label:harbLabel(obj), strems:[]};
   if (obj.t==="G") return {cls:"mut", label:T("getijstation"), strems:[]};
   const strems = stremsNear(obj);
-  const actStrems = strems.filter(s=>s.act);          // alleen berichten die nú gelden
+  const actStrems = strems.filter(s=>s.act && !stremAboutOther(obj,s));   // alleen berichten die nú gelden én over dit object gaan
   const worst = actStrems.length ? Math.max(...actStrems.map(s=>sevRank(s.code))) : 0;
   if (!obj.open){
     const st = {cls:"mut", label: obj.t==="B" ? T("vaste brug") : T("geen bediening"), strems};
@@ -1068,6 +1068,27 @@ function stremsNear(obj){
   return out;
 }
 function ntsUrl(s){ return "https://www.vaarweginformatie.nl/frp/main/#/nts/FTM/"+encodeURIComponent(s.nts); }
+/* Een bericht binnen 400 m kan over een ándere brug gaan (Kooybrug kreeg de "geen
+   bediening" van de Oostoeverbrug). Noemt de locatietekst met naam een ander object
+   en niet dit object, dan telt het bericht niet mee voor de status — het blijft wel
+   staan onder "Berichten in de buurt". */
+let objIndex = null;   // zelfde rasterindex als stremIndex, maar dan voor bruggen/sluizen
+function objsNear(lat, lon, m){
+  if (!objIndex){
+    objIndex = new Map();
+    for (const x of DATA.objs){ if (x.t!=="B" && x.t!=="S") continue; const k=Math.round(x.lat*100)+"_"+Math.round(x.lon*100); (objIndex.get(k)||objIndex.set(k,[]).get(k)).push(x); }
+  }
+  const out=[], kx=Math.round(lat*100), ky=Math.round(lon*100);
+  for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){ const arr=objIndex.get((kx+i)+"_"+(ky+j)); if(arr) for(const x of arr) if (dist2(lat,lon,x.lat,x.lon)<m) out.push(x); }
+  return out;
+}
+function stremAboutOther(o, s){
+  if (!s._about){
+    const nl = norm(s.loc||"");
+    s._about = nl.length<5 ? [] : objsNear(s.lat, s.lon, 600).filter(x=>x.n && x.n.length>=6 && nl.includes(norm(x.n))).map(x=>x.t+x.id);
+  }
+  return s._about.length>0 && !s._about.includes(o.t+o.id);
+}
 
 /* ---------- zoeken ---------- */
 function norm(x){ return (x||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""); }
@@ -1916,7 +1937,7 @@ function markerColor(o){
   return {good:"#0ca30c", warn:"#fab219", ser:"#ec835a", crit:"#d03b3b", mut:"#898781", open:"#2a78d6"}[st];
 }
 function quickCls(o){
-  const strems = stremsNear(o).filter(s=>s.act);
+  const strems = stremsNear(o).filter(s=>s.act && !stremAboutOther(o,s));
   const worst = strems.length ? Math.max(...strems.map(s=>sevRank(s.code))) : 0;
   if (worst>=3) return "crit";
   if (worst===2) return "ser";
