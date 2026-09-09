@@ -145,7 +145,12 @@ is een licentievoorwaarde.
   leeggelopen dieptecanvas (browser gooit canvasinhoud weg onder geheugendruk,
   Leaflet merkt dat niet) → de vectorlagen opnieuw tekenen. Beide melden zich in
   de console met `OpenPilot: …`, handig als een gebruiker weer een witte kaart
-  meldt.
+  meldt. **Sept 2026:** de tegelcontrole telde álle tegels in de container mee,
+  ook die van oude zoomniveaus, waardoor een half-witte kaart (bv. alleen een
+  strook bovenin) als "goed" doorging. Nu telt hij alleen tegels van het huidige
+  zoomniveau binnen het beeld (`laag._tiles`), herstelt eerst zacht met
+  `laag._update()` en pas na drie keer met `redraw()`; en de 4-secondencheck
+  loopt nu ook op de landkaart.
 - **`position:sticky` werkt niet op een zwevend element.** De sluitknop van het
   detailpaneel stond op `sticky` mét `float:right` en scrolde daardoor gewoon mee
   weg; je moest eerst terug naar boven om hem te kunnen raken. Nu een blok met

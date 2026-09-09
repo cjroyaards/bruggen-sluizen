@@ -622,7 +622,7 @@ a.coffee.small{padding:1px 8px;font-size:12px;font-weight:600;border-radius:6px;
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <a class="coffee small" href="https://bunq.me/openpilot" target="_blank" rel="noopener">☕ steun OpenPilot</a> · <span id="livestamp"></span> · <span id="buildstamp">b20260909-6</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <a class="coffee small" href="https://bunq.me/openpilot" target="_blank" rel="noopener">☕ steun OpenPilot</a> · <span id="livestamp"></span> · <span id="buildstamp">b20260909-7</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1910,19 +1910,32 @@ function initMap(){
      geheugendruk de tegels weg; Leaflet vraagt ze dan niet vanzelf opnieuw op en
      je houdt een leeg vlak over. Even na elke zoom/verschuiving kijken we of er
      nog tegels ín beeld zijn en zo niet, dan halen we ze terug. */
-  let tegelWacht = null;
+  let tegelWacht = null, tegelHerstelPoging = 0;
+  /* Telt alleen de tegels van het huidige zoomniveau die écht in beeld horen
+     (Leaflet houdt ook tegels van oude zoomniveaus vast — die telden eerder mee,
+     waardoor een half-lege kaart als "goed genoeg" doorging). Ontbreken er tegels,
+     dan eerst Leaflet zijn tegelraster laten bijwerken (_update: alleen de gaten
+     ophalen, geen flits); helpt dat niet, dan de hele laag opnieuw. */
   function tegelsTerughalen(){
     const laag = zeechartView ? baseLight : baseOSM;
-    if (!laag || !map.hasLayer(laag)) return;
-    const c = laag.getContainer(); if (!c) return;
-    const nodig = Math.ceil(map.getSize().x/256) * Math.ceil(map.getSize().y/256);
+    if (!laag || !map.hasLayer(laag) || !laag._tiles || map._animatingZoom) return;
+    const z = map.getZoom();
+    const pb = map.getPixelBounds();
+    const tr = L.bounds(pb.min.divideBy(256).floor(), pb.max.divideBy(256).floor());
+    const nodig = (tr.max.x-tr.min.x+1) * (tr.max.y-tr.min.y+1);
     let goed = 0;
-    for (const t of c.querySelectorAll("img")){
-      if (!(t.complete && t.naturalWidth>0)) continue;
-      if (+getComputedStyle(t).opacity < 0.05) { t.style.opacity = ""; continue; }   // blijven hangen in het infaden
-      goed++;
+    for (const k in laag._tiles){
+      const t = laag._tiles[k];
+      if (t.coords.z!==z || !tr.contains(t.coords)) continue;
+      const img = t.el;
+      if (img && +getComputedStyle(img).opacity < 0.05) img.style.opacity = "";   // blijven hangen in het infaden
+      if (t.loaded && img && img.complete && img.naturalWidth>0) goed++;
     }
-    if (goed < nodig*0.5){ console.log("OpenPilot: ondergrond was leeg ("+goed+"/"+nodig+" tegels), opnieuw opgehaald"); laag.redraw(); }
+    if (goed >= nodig*0.9){ tegelHerstelPoging = 0; return; }
+    tegelHerstelPoging++;
+    console.log("OpenPilot: ondergrond onvolledig ("+goed+"/"+nodig+" tegels), poging "+tegelHerstelPoging);
+    if (tegelHerstelPoging < 3 && laag._update) laag._update();
+    else { laag.redraw(); tegelHerstelPoging = 0; }
   }
   /* Hetzelfde voor de dieptevlakken. Die staan op een canvas, en een canvas mag de
      browser onder geheugendruk leeggooien; Leaflet merkt dat niet en tekent pas bij
@@ -1951,7 +1964,7 @@ function initMap(){
   }
   const nakijken = ()=>{ tegelsTerughalen(); vlakkenTerughalen(); };
   map.on("zoomend moveend", ()=>{ clearTimeout(tegelWacht); tegelWacht = setTimeout(nakijken, 1200); });
-  setInterval(()=>{ if (zeechartView && !document.hidden) nakijken(); }, 4000);
+  setInterval(()=>{ if (!document.hidden && map && document.getElementById("v-kaart") && !document.getElementById("v-kaart").hidden) nakijken(); }, 4000);   // ook op de landkaart
   cluster = L.markerClusterGroup(clusterOpts());
   buildMarkers();
   map.addLayer(cluster);
