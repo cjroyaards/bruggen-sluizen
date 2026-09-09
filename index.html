@@ -622,7 +622,7 @@ a.coffee.small{padding:1px 8px;font-size:12px;font-weight:600;border-radius:6px;
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260909-8</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260909-9</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1897,7 +1897,11 @@ function initMap(){
    animatielus. Op een drukke kaart (zeekaartmodus) wordt die lus onderbroken en
    blijven tegels onzichtbaar staan — dan is de kaart ineens wit. Zonder infaden
    verschijnen tegels gewoon meteen. */
-  map = L.map("map", {preferCanvas:true, fadeAnimation:false}).setView([52.2,5.3], 8);
+  /* zoomAnimation uit (sept 2026): op een zware kaart (zeekaartmodus, veel vectorlagen)
+     bleef de zoomanimatie soms halverwege steken — de oude tegels bleven vergroot op de
+     verkeerde plek staan en de nieuwe kwamen nooit; de rest van de kaart was wit. Zonder
+     animatie zet Leaflet de tegels bij elke zoomstap meteen goed neer. */
+  map = L.map("map", {preferCanvas:true, fadeAnimation:false, zoomAnimation:false}).setView([52.2,5.3], 8);
   // popups nooit onder de knoppenbalk/panelen: kaart schuift automatisch mee met ruime marges
   L.Popup.prototype.options.autoPan = true;
   L.Popup.prototype.options.autoPanPaddingTopLeft = L.point(72, 96);
@@ -1940,6 +1944,19 @@ function initMap(){
       if (img && +getComputedStyle(img).opacity < 0.05) img.style.opacity = "";   // blijven hangen in het infaden
       if (t.loaded && img && img.complete && img.naturalWidth>0) goed++;
     }
+    // staan de geladen tegels wel op de juiste plek? (achtergebleven zoomtransform → tegels verschoven/vergroot)
+    let scheef = false;
+    if (goed){
+      const mr = map.getContainer().getBoundingClientRect();
+      for (const k in laag._tiles){
+        const t = laag._tiles[k];
+        if (t.coords.z!==z || !t.loaded || !tr.contains(t.coords)) continue;
+        const r = t.el.getBoundingClientRect();
+        const p = map.latLngToContainerPoint(map.unproject(t.coords.scaleBy(L.point(256,256)), z));
+        if (Math.abs(r.left-mr.left-p.x) > 2 || Math.abs(r.top-mr.top-p.y) > 2 || Math.abs(r.width-256) > 2){ scheef = true; break; }
+      }
+    }
+    if (scheef){ console.log("OpenPilot: tegels stonden scheef, laag opnieuw uitgelijnd"); if (laag._resetView) laag._resetView(); else laag.redraw(); return; }
     if (goed >= nodig*0.9){ tegelHerstelPoging = 0; return; }
     tegelHerstelPoging++;
     console.log("OpenPilot: ondergrond onvolledig ("+goed+"/"+nodig+" tegels), poging "+tegelHerstelPoging);
