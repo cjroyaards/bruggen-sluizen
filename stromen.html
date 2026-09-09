@@ -591,5 +591,6 @@ function tryLoad(retryMs) {
 tryLoad(12000);
 setInterval(() => { loadData().then(() => { statusEl.classList.remove('err'); }).catch(() => {}); }, 6 * 3600 * 1000);
 </script>
+<!-- Cloudflare Web Analytics --><script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "261cb17e63224d288ac3078558367747"}'></script>
 </body>
 </html>
