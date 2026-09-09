@@ -595,7 +595,7 @@ html.napp header input{touch-action:manipulation}
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260908-3</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260909-1</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -649,7 +649,7 @@ const EN = {
  "brug staat nu open":"bridge is open now","geplande opening":"planned opening","Geplande openingen":"Planned openings",
  "Laatste openingen":"Recent openings","laden…":"loading…",
  "Aangemeld door de brugbeheerder (NDW). Tijden zijn indicatief.":"Reported by the bridge operator (NDW). Times are indicative.",
- "Nog geen openingen geregistreerd (de brug meldt zich mogelijk niet bij NDW).":"No openings logged yet (this bridge may not report to NDW).",
+ "Nog geen openingen geregistreerd sinds de start van het logboek.":"No openings logged since the log started.","nu open":"open now",
  "Bron: NDW open data, via OpenPilot-brugstatus.":"Source: NDW open data, via OpenPilot bridge status."
 };
 function T(s){ return LANG==="en" ? (EN[s] ?? s) : s; }
@@ -820,10 +820,13 @@ function liveSectionHTML(o){
   fetch(BRUGSTATUS_URL+`/history.json?sid=${o.t}${o.id}&days=14`).then(r=>r.json()).then(d=>{
     const box=$("#livehist"); if(!box) return;
     const rows=(d.openings||[]).slice(0,10);
-    if (!rows.length){ box.innerHTML = `<h3>${T("Laatste openingen")}</h3><div class="note" style="margin-top:0">${T("Nog geen openingen geregistreerd (de brug meldt zich mogelijk niet bij NDW).")}</div>`; return; }
+    const lv=liveFor(o);
+    if (lv && lv.since && !rows.some(r=>r.start===lv.since)) rows.unshift({start:lv.since, end:null, live:true});   // lopende opening bovenaan
+    if (!rows.length){ box.innerHTML = `<h3>${T("Laatste openingen")}</h3><div class="note" style="margin-top:0">${T("Nog geen openingen geregistreerd sinds de start van het logboek.")}</div>`; return; }
     box.innerHTML = `<h3>${T("Laatste openingen")}</h3><div class="kv">` + rows.map(r=>{
       const dur = r.end ? Math.round((Date.parse(r.end)-Date.parse(r.start))/60e3) : null;
-      return `<span class="k">${fmtDateShort(Date.parse(r.start))}</span><span>${fmtHM(Date.parse(r.start))}${dur!=null?` · ${dur} min`:""}</span>`;
+      const tail = r.live ? ` · <b>${T("nu open")}</b>` : (dur!=null ? ` · ${dur} min` : "");
+      return `<span class="k">${fmtDateShort(Date.parse(r.start))}</span><span>${fmtHM(Date.parse(r.start))}${tail}</span>`;
     }).join("") + `</div><div class="note">${T("Bron: NDW open data, via OpenPilot-brugstatus.")}</div>`;
   }).catch(()=>{ const box=$("#livehist"); if(box) box.remove(); });
   return h;
