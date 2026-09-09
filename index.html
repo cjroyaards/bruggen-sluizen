@@ -372,7 +372,7 @@ a.coffee{display:inline-block;background:#f5c542;color:#2b2200;font-weight:700;t
 a.coffee:hover{background:#ffd457}
 a.coffee.small{padding:1px 8px;font-size:12px;font-weight:600;border-radius:6px;box-shadow:none}
 /* subtiele ronde koffieknop op de kaart, rechtsonder boven de kaartbronregel */
-#coffeebtn{position:absolute;z-index:999;right:12px;bottom:34px;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;line-height:1;text-decoration:none;background:var(--surface);border:1px solid var(--grid);box-shadow:0 2px 8px rgba(5,10,16,.18);opacity:.82;transition:opacity .15s,transform .15s}
+#coffeebtn{position:absolute;z-index:999;right:12px;bottom:34px;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;line-height:1;padding:0;cursor:pointer;background:var(--surface);border:1px solid var(--grid);box-shadow:0 2px 8px rgba(5,10,16,.18);opacity:.82;transition:opacity .15s,transform .15s}
 #coffeebtn:hover{opacity:1;transform:scale(1.08)}
 .harb-pin{width:22px;height:22px;border-radius:50%;background:#122b42;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;padding:3px}
 .harb-pin.tide{background:#0e6e6e}
@@ -531,7 +531,7 @@ a.coffee.small{padding:1px 8px;font-size:12px;font-weight:600;border-radius:6px;
     </div>
     <div id="maplegend" hidden></div>
     <div id="map"></div>
-    <a id="coffeebtn" href="https://bunq.me/openpilot" target="_blank" rel="noopener" title="Steun OpenPilot — trakteer op een koffie" aria-label="Steun OpenPilot">☕</a>
+    <button id="coffeebtn" type="button" title="Steun OpenPilot" aria-label="Steun OpenPilot">☕</button>
   </section>
   <section id="v-fav" hidden>
     <div class="note" id="favnote">Markeer objecten met ☆ — favorieten worden in je browser bewaard.</div>
@@ -622,7 +622,7 @@ a.coffee.small{padding:1px 8px;font-size:12px;font-weight:600;border-radius:6px;
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <a class="coffee small" href="https://bunq.me/openpilot" target="_blank" rel="noopener">☕ steun OpenPilot</a> · <span id="livestamp"></span> · <span id="buildstamp">b20260909-7</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260909-8</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -1865,6 +1865,15 @@ function openDetail(o){
   if (map){ map.setView([o.lat,o.lon], Math.max(map.getZoom(), 15), {animate:false}); highlightOnMap(o); }
 }
 function closeDetail(){ $("#panel").classList.remove("open"); $("#ovl").classList.remove("open"); panelRefresh = null; }
+/* koffieknop op de kaart → zelfde tekst als "Steun OpenPilot" op de infopagina, in het zijpaneel */
+function openSteun(){
+  const src = $("#steun"); if (!src) return;
+  panelRefresh = null;
+  $("#panel").innerHTML = `<button class="p-close" id="pclose">${T("sluiten ✕")}</button><div class="p-h">${src.querySelector("h3").textContent}</div>` + src.innerHTML.replace(/<h3[^>]*>.*?<\/h3>/, "");
+  $("#panel").classList.add("open"); $("#ovl").classList.add("open");
+  $("#pclose").onclick = closeDetail;
+}
+document.addEventListener("click", e=>{ if (e.target.closest("#coffeebtn")) openSteun(); });
 
 /* ---------- kaart ---------- */
 let map=null, cluster=null, stremLayer=null, meMarker=null, watchId=null, showBedien=true, showVast=true, showStrem=false;
@@ -3281,8 +3290,8 @@ function applyStaticLang(){
   $("#loading") && ($("#loading").textContent = "Loading data…");
   $("#stq") && ($("#stq").placeholder = "Filter by waterway, place or object…");
   const foot = $("#foot");
-  { const cb=$("#coffeebtn"); if (cb){ cb.title="Support OpenPilot — buy me a coffee"; cb.setAttribute("aria-label","Support OpenPilot"); } }
-  if (foot){ const bs=(document.getElementById("buildstamp")||{}).textContent||""; foot.innerHTML = `Data: Rijkswaterstaat FIS &amp; notices to skippers · bridge openings: NDW · refreshed automatically · not an official source, verify locally. · <a class="coffee small" href="https://bunq.me/openpilot" target="_blank" rel="noopener">☕ support OpenPilot</a> · <span id="livestamp"></span> · <span id="buildstamp">${bs}</span>`; }
+  { const cb=$("#coffeebtn"); if (cb){ cb.title="Support OpenPilot"; cb.setAttribute("aria-label","Support OpenPilot"); } }
+  if (foot){ const bs=(document.getElementById("buildstamp")||{}).textContent||""; foot.innerHTML = `Data: Rijkswaterstaat FIS &amp; notices to skippers · bridge openings: NDW · refreshed automatically · not an official source, verify locally. · <span id="livestamp"></span> · <span id="buildstamp">${bs}</span>`; }
 }
 document.addEventListener("click", e=>{
   const lb = e.target.closest(".langbtn");
