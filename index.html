@@ -352,6 +352,8 @@ html.napp header input{touch-action:manipulation}
 /* live brugstatus: icoontje "open brug" bij open bruggen (ingezoomd), blauwe chip in lijst/detail */
 .live-pin{width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid #2a78d6;box-sizing:border-box;box-shadow:0 1px 4px rgba(0,0,0,.35);padding:2px;pointer-events:none;transform:translate(9px,-9px)}
 .live-pin svg{display:block;width:100%;height:100%}
+.live-pin.plan{border-style:dashed;opacity:.9}
+.live-pin.plan svg{opacity:.65}
 .chip.live{background:rgba(42,120,214,.13);border-radius:6px;padding:1px 8px 1px 6px;color:#1b5fb3;font-weight:600}
 .chip.plan{background:rgba(42,120,214,.07);border-radius:6px;padding:1px 8px 1px 6px;color:#1b5fb3}
 .dot.live{background:#2a78d6}
@@ -483,6 +485,7 @@ a.coffee.small{padding:1px 8px;font-size:12px;font-weight:600;border-radius:6px;
           <label><input type="checkbox" id="obj-vast" checked> <span data-i18n="o_vast">Niet bedienbaar</span></label>
           <label><input type="checkbox" id="obj-strem"> <span data-i18n="o_strem">Stremmingen</span></label>
           <label><input type="checkbox" id="obj-live" checked> <span data-i18n="o_live">Live brugopeningen</span></label>
+          <label><input type="checkbox" id="obj-plan" checked> <span data-i18n="o_plan">Verwachte openingen</span></label>
         </div>
       </div>
       <div class="dropwrap">
@@ -551,7 +554,7 @@ a.coffee.small{padding:1px 8px;font-size:12px;font-weight:600;border-radius:6px;
     <div class="p-sec"><h3>Wat je hier ziet</h3>
       <div class="kv">
         <span class="k">Bruggen &amp; sluizen</span><span>Bedieningstijden per periode van het jaar, doorvaarthoogte, marifoonkanaal en telefoonnummer, en of een object bedienbaar of vast is.</span>
-        <span class="k">Brug staat nu open</span><span>Live: staat een brug op dit moment open, dan zie je dat als blauwe chip in de lijst en het detail en — ingezoomd — als open-brug-icoontje op de kaart. In het detail staan ook de <b>geplande openingen</b> (waar de brugbeheerder die vooraf meldt, o.a. Noord-Holland en Amsterdam) en de <b>laatste openingen</b> met duur uit ons eigen logboek.</span>
+        <span class="k">Brug staat nu open</span><span>Live: staat een brug op dit moment open, dan zie je dat als blauwe chip in de lijst en het detail en — ingezoomd — als open-brug-icoontje op de kaart. In het detail staan ook de <b>verwachte openingen</b> (alleen waar de brugbeheerder die vooraf meldt: bedieningscentrale Noord-Holland — Zaan, Noordhollandsch Kanaal, Ringvaart, Spaarne, Amsterdam; op de kaart een gestippeld icoontje als een opening binnen 15 minuten begint) en de <b>laatste openingen</b> met duur uit ons eigen logboek.</span>
         <span class="k">Scheepvaartberichten</span><span>Actuele en aangekondigde stremmingen en beperkingen, met doorklik naar het volledige bericht op vaarweginformatie.nl.</span>
         <span class="k">Masthoogte-check</span><span>Vul je masthoogte in (vergrootglas → mast); vaste bruggen die te laag zijn krijgen dan een waarschuwing.</span>
         <span class="k">Routeplanner</span><span>Kaartknop "Route": de kaart schuift meteen een stukje op zodat het gebied waar je naar keek niet achter het paneel verdwijnt. Klik het startpunt aan, elke volgende klik is een via-punt, rechtsklik zet het eindpunt. Een via-punt haal je weg door er met rechts op te klikken. <b>Op een telefoon of tablet</b> gebruik je de knop "bestemming" voor het eindpunt (lang ingedrukt houden werkt op sommige toestellen ook, maar niet overal). Zodra de route klaar is verdwijnen de knoppen om ruimte te sparen; met het greepje of de kopbalk sleep je de lijst zelf hoger of lager. Staat "Volg mij" aan, dan schuift de lijst mee: de eerstvolgende brug of sluis staat in beeld en is omrand. Je ziet dan de route over vaarwegen én groot open water (IJsselmeer, Markermeer, Randmeren, Zeeuwse wateren), met alle bruggen en sluizen op volgorde van passage — inclusief laagste vaste brug en smalste doorvaart. Indicatief: op open water volgt de route niet de betonde geulen; Waddenzee en Noordzee zitten er niet in.</span>
@@ -604,7 +607,7 @@ a.coffee.small{padding:1px 8px;font-size:12px;font-weight:600;border-radius:6px;
         <span class="k">Kaartondergrond</span><span>© OpenStreetMap-bijdragers.</span>
       </div>
       <p style="color:var(--muted);font-size:12.5px">Hoogtes uit verschillende bronnen hebben verschillende nulvlakken (NAP, kaartnul/LAT, gemiddeld zeeniveau) en zijn niet zomaar met elkaar of met kaartdieptes te verrekenen.</p>
-      <p style="color:var(--muted);font-size:12.5px">Status-legenda: <span class="chip good"><span class="dot good"></span>bediening nu</span> <span class="chip warn"><span class="dot warn"></span>let op / gesloten</span> <span class="chip ser"><span class="dot ser"></span>beperking</span> <span class="chip crit"><span class="dot crit"></span>gestremd / geen bediening</span> <span class="chip mut"><span class="dot mut"></span>vast object</span> <span class="chip live"><span class="dot live"></span>brug staat nu open</span> <span class="chip plan"><span class="dot plan"></span>geplande opening</span></p>
+      <p style="color:var(--muted);font-size:12.5px">Status-legenda: <span class="chip good"><span class="dot good"></span>bediening nu</span> <span class="chip warn"><span class="dot warn"></span>let op / gesloten</span> <span class="chip ser"><span class="dot ser"></span>beperking</span> <span class="chip crit"><span class="dot crit"></span>gestremd / geen bediening</span> <span class="chip mut"><span class="dot mut"></span>vast object</span> <span class="chip live"><span class="dot live"></span>brug staat nu open</span> <span class="chip plan"><span class="dot plan"></span>verwachte opening</span></p>
       <p style="color:var(--muted);font-size:12.5px"><b>Geen officiële bron</b> — controleer bij twijfel het bericht via de link, of roep de brug/sluis op via marifoon of telefoon.</p>
     </div>
     <div class="p-sec"><h3>Als app op je telefoon</h3>
@@ -623,7 +626,7 @@ a.coffee.small{padding:1px 8px;font-size:12px;font-weight:600;border-radius:6px;
 </main>
 <div id="ovl"></div>
 <aside id="panel" role="dialog" aria-modal="true"></aside>
-<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260909-11</span></footer>
+<footer id="foot">Gegevens: Rijkswaterstaat FIS &amp; scheepvaartberichten · brugopeningen: NDW · automatisch ververst · geen officiële bron, controleer ter plaatse. · <span id="livestamp"></span> · <span id="buildstamp">b20260909-12</span></footer>
 
 <script src="assets/leaflet.min.js"></script>
 <script src="assets/leaflet.markercluster.js"></script>
@@ -674,7 +677,9 @@ const EN = {
  "Officieel getijstation Rijkswaterstaat":"Official Rijkswaterstaat tide station","Officieel Admiralty-getijstation (UKHO)":"Official Admiralty tide station (UKHO)",
  "Getij (astronomisch)":"Tide (astronomical)","N→Z / Z→N = schutrichting":"N→S / S→N = locking direction",
  "geen verwachtingen beschikbaar — ververs vannacht":"no predictions available yet — refreshes tonight",
- "brug staat nu open":"bridge is open now","geplande opening":"planned opening","Geplande openingen":"Planned openings",
+ "brug staat nu open":"bridge is open now","verwachte opening":"expected opening","Verwachte openingen":"Expected openings","over":"in","later vandaag":"later today",
+ "Aangemeld door de brugbeheerder (NDW). Tijden zijn indicatief; de bediener kan afwijken.":"Reported by the bridge operator (NDW). Times are indicative; the operator may deviate.",
+ "Deze brug meldt geen planning. Alleen de bedieningscentrale Noord-Holland (Zaan, Noordhollandsch Kanaal, Ringvaart, Spaarne, Amsterdam) meldt openingen vooraf.":"This bridge does not report a schedule. Only the Noord-Holland control centre (Zaan, Noordhollandsch Kanaal, Ringvaart, Spaarne, Amsterdam) announces openings in advance.",
  "Laatste openingen":"Recent openings","laden…":"loading…",
  "Aangemeld door de brugbeheerder (NDW). Tijden zijn indicatief.":"Reported by the bridge operator (NDW). Times are indicative.",
  "Nog geen openingen geregistreerd sinds de start van het logboek.":"No openings logged since the log started.","nu open":"open now",
@@ -828,23 +833,34 @@ function liveChip(o){
   }
   const pl = livePlanned(o).filter(p=>Date.parse(p.end)>Date.now());
   if (pl.length){
-    const p = pl[0];
-    return `<span class="chip plan"><span class="dot plan"></span>${T("geplande opening")} ${fmtHM(Date.parse(p.start))}–${fmtHM(Date.parse(p.end))}</span>`;
+    const p = pl[0], m = Math.round((Date.parse(p.start)-Date.now())/60e3);
+    return `<span class="chip plan"><span class="dot plan"></span>${T("verwachte opening")} ${m>0&&m<=90?T("over")+" "+m+" min · ":""}${fmtHM(Date.parse(p.start))}–${fmtHM(Date.parse(p.end))}</span>`;
   }
   return "";
 }
 function liveSectionHTML(o){
   if (o.t!=="B" || !LIVE.ok) return "";
-  const planHTML = pl => `<h3>${T("Geplande openingen")}</h3><div class="kv">` +
-      pl.map(p=>`<span class="k">${fmtDateShort(Date.parse(p.start))}</span><span>${fmtHM(Date.parse(p.start))} – ${fmtHM(Date.parse(p.end))}</span>`).join("") +
-      `</div><div class="note">${T("Aangemeld door de brugbeheerder (NDW). Tijden zijn indicatief.")}</div>`;
+  // eerstvolgende drie met "over x min", de rest inklapbaar
+  const rel = p => { const s=Date.parse(p.start), e=Date.parse(p.end), now=Date.now();
+    if (s<=now && e>now) return `<b>${T("nu")}</b> · ${T("tot")} ${fmtHM(e)}`;
+    const m=Math.round((s-now)/60e3);
+    return m<=90 ? `<b>${T("over")} ${m} min</b> · ${fmtHM(s)}–${fmtHM(e)}` : `${fmtHM(s)}–${fmtHM(e)}`; };
+  const planHTML = pl => {
+    const first = pl.slice(0,3), rest = pl.slice(3);
+    let x = `<h3>${T("Verwachte openingen")}</h3><div class="kv">` +
+      first.map(p=>`<span class="k">${fmtDateShort(Date.parse(p.start))}</span><span>${rel(p)}</span>`).join("") + `</div>`;
+    if (rest.length) x += `<details class="period"><summary>${T("later vandaag")} (${rest.length})</summary><div class="kv">` +
+      rest.map(p=>`<span class="k">${fmtDateShort(Date.parse(p.start))}</span><span>${fmtHM(Date.parse(p.start))}–${fmtHM(Date.parse(p.end))}</span>`).join("") + `</div></details>`;
+    return x + `<div class="note">${T("Aangemeld door de brugbeheerder (NDW). Tijden zijn indicatief; de bediener kan afwijken.")}</div>`;
+  };
+  const geenPlan = `<h3>${T("Verwachte openingen")}</h3><div class="note" style="margin-top:0">${T("Deze brug meldt geen planning. Alleen de bedieningscentrale Noord-Holland (Zaan, Noordhollandsch Kanaal, Ringvaart, Spaarne, Amsterdam) meldt openingen vooraf.")}</div>`;
   const pl0 = livePlanned(o).filter(p=>Date.parse(p.end)>Date.now());
-  let h = `<div class="p-sec" id="liveplan"${pl0.length?"":" hidden"}>${pl0.length?planHTML(pl0):""}</div>`;
+  let h = `<div class="p-sec" id="liveplan">${pl0.length?planHTML(pl0):geenPlan}</div>`;
   // volledige planning (~24 u) per brug ophalen; status.json bevat alleen de komende 2 uur
   fetch(BRUGSTATUS_URL+`/planned.json?sid=${o.t}${o.id}`).then(r=>r.json()).then(d=>{
     const box=$("#liveplan"); if(!box) return;
-    const items=(d.items||[]).filter(p=>Date.parse(p.end)>Date.now()).slice(0,16);
-    if (items.length){ box.innerHTML = planHTML(items); box.hidden=false; }
+    const items=(d.items||[]).filter(p=>Date.parse(p.end)>Date.now()).slice(0,40);
+    box.innerHTML = items.length ? planHTML(items) : geenPlan;
   }).catch(()=>{});
   h += `<div class="p-sec" id="livehist"><h3>${T("Openingen")}</h3><div class="note" style="margin-top:0">${T("laden…")}</div></div>`;
   const sidq = `sid=${o.t}${o.id}`;
@@ -888,23 +904,37 @@ function fmtDateShort(ms){ return new Intl.DateTimeFormat(LANG==="en"?"en-GB":"n
 /* icoontje "open brug" op de kaart bij bruggen die nu open staan — alleen ingezoomd (vanaf LIVE_MINZOOM) */
 const LIVE_MINZOOM = 10;
 const OPENBRIDGESVG = `<svg viewBox="0 0 24 24" fill="none" stroke="#2a78d6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 16h6"/><path d="M8 16l6-10"/><path d="M16 16h6"/><path d="M8 16v3M16 16v3"/></svg>`;
+const PLAN_SOON_MIN = 15;   // verwachte opening binnen zoveel minuten → hol icoontje op de kaart
+let planLayer = null;
 function buildLiveLayer(){
   if (!map) return;
   if (liveLayer){ map.removeLayer(liveLayer); liveLayer=null; }
-  liveLayer = L.layerGroup();
+  if (planLayer){ map.removeLayer(planLayer); planLayer=null; }
+  liveLayer = L.layerGroup(); planLayer = L.layerGroup();
   for (const [sid, it] of Object.entries(LIVE.open)){
     const o = DATA.objs.find(x=>x.t+x.id===sid); if (!o) continue;
     const icon = L.divIcon({className:"", html:`<div class="live-pin" title="${esc(o.n)}">${OPENBRIDGESVG}</div>`, iconSize:[24,24], iconAnchor:[12,12]});
     L.marker([o.lat,o.lon], {icon, zIndexOffset:600, interactive:false}).addTo(liveLayer);
   }
+  const now = Date.now();
+  for (const [sid, items] of Object.entries(LIVE.planned)){
+    if (LIVE.open[sid]) continue;
+    const p = items.find(p=>Date.parse(p.end)>now && Date.parse(p.start)-now <= PLAN_SOON_MIN*60e3);
+    if (!p) continue;
+    const o = DATA.objs.find(x=>x.t+x.id===sid); if (!o) continue;
+    const icon = L.divIcon({className:"", html:`<div class="live-pin plan" title="${esc(o.n)} — ${fmtHM(Date.parse(p.start))}">${OPENBRIDGESVG}</div>`, iconSize:[24,24], iconAnchor:[12,12]});
+    L.marker([o.lat,o.lon], {icon, zIndexOffset:590, interactive:false}).addTo(planLayer);
+  }
   applyLiveZoom();
 }
 let showLive = readStore("bs_lay_live", true);   // vinkje "Live brugopeningen" (standaard aan, onthouden)
+let showPlan = readStore("bs_lay_plan", true);   // vinkje "Verwachte openingen" (standaard aan, onthouden)
 function applyLiveZoom(){
   if (!map || !liveLayer) return;
-  const on = showLive && map.getZoom() >= LIVE_MINZOOM;
-  if (on && !map.hasLayer(liveLayer)) liveLayer.addTo(map);
-  else if (!on && map.hasLayer(liveLayer)) map.removeLayer(liveLayer);
+  const z = map.getZoom() >= LIVE_MINZOOM;
+  const tog = (lay, on) => { if (on && !map.hasLayer(lay)) lay.addTo(map); else if (!on && map.hasLayer(lay)) map.removeLayer(lay); };
+  tog(liveLayer, showLive && z);
+  tog(planLayer, showPlan && z);
 }
 
 /* ---------- tijd & feestdagen (Europe/Amsterdam) ---------- */
@@ -3013,6 +3043,8 @@ $("#obj-vast").addEventListener("change", updateObjs);
 $("#obj-strem").addEventListener("change", ()=>{ showStrem=$("#obj-strem").checked; buildStremLayer(); });
 $("#obj-live").checked = showLive;
 $("#obj-live").addEventListener("change", ()=>{ showLive=$("#obj-live").checked; store("bs_lay_live", showLive); applyLiveZoom(); });
+$("#obj-plan").checked = showPlan;
+$("#obj-plan").addEventListener("change", ()=>{ showPlan=$("#obj-plan").checked; store("bs_lay_plan", showPlan); applyLiveZoom(); });
 /* vinkjes gelijkzetten met wat je vorige keer koos (standaard: allebei uit) */
 $("#obj-harb").checked = wantHarb; $("#tide-stations").checked = wantTide;
 $("#obj-harb").addEventListener("change", ()=>{ wantHarb=$("#obj-harb").checked; store("bs_lay_harb", wantHarb); if(harbLayerH){ wantHarb?harbLayerH.addTo(map):map.removeLayer(harbLayerH); } });
@@ -3213,7 +3245,7 @@ window.updateLegend = updateLegend;
 const STATIC_EN = {
   tab_kaart:"Map", tab_fav:"Favourites", tab_strem:"Closures",
   mb_locate:"Follow me",
-  mb_objs:"Bridges & locks", dm_objs:"On the map", o_bedien:"Operable", o_vast:"Non-operable", o_strem:"Closures", o_live:"Live bridge openings", o_harb:"Harbours",
+  mb_objs:"Bridges & locks", dm_objs:"On the map", o_bedien:"Operable", o_vast:"Non-operable", o_strem:"Closures", o_live:"Live bridge openings", o_plan:"Expected openings", o_harb:"Harbours",
   mb_tide:"Tide, current & wind", dm_tide:"Tide", t_stations:"Tide stations",
   dm_wind:"Wind", w_arrows:"Wind arrows (Beaufort)", w_part:"Wind particles", w_color:"Wind colour (speed)",
   dm_rain:"Precipitation & thunder", r_radar:"Rain radar ⚡",
@@ -3243,7 +3275,7 @@ function applyStaticLang(){
     <div class="p-sec"><h3 style="color:var(--ink)">What you see here</h3>
       <div class="kv">
         <span class="k">Bridges &amp; locks</span><span>Operating times per season, clearance height, VHF channel and phone number, and whether an object is operated or fixed.</span>
-        <span class="k">Bridge is open now</span><span>Live: if a bridge is open right now you see a blue chip in the list and detail and — zoomed in — an open-bridge icon on the map. The detail also shows <b>planned openings</b> (where the operator announces them in advance, e.g. Noord-Holland and Amsterdam) and the <b>recent openings</b> with duration from our own log.</span>
+        <span class="k">Bridge is open now</span><span>Live: if a bridge is open right now you see a blue chip in the list and detail and — zoomed in — an open-bridge icon on the map. The detail also shows <b>expected openings</b> (only where the operator announces them in advance: the Noord-Holland control centre — Zaan, Noordhollandsch Kanaal, Ringvaart, Spaarne, Amsterdam; on the map a dotted icon when an opening starts within 15 minutes) and the <b>recent openings</b> with duration from our own log.</span>
         <span class="k">Notices to skippers</span><span>Current and announced closures and restrictions, with a link through to the full notice on vaarweginformatie.nl.</span>
         <span class="k">Mast-height check</span><span>Enter your mast height (magnifier → mast); fixed bridges that are too low then get a warning.</span>
         <span class="k">Route planner</span><span>Map button "Route": the map shifts a little so the area you were looking at does not end up behind the panel. Click the start point, every next click adds a via point, right-click sets the end point. Remove a via point by right-clicking on it. <b>On a phone or tablet</b> use the "destination" button for the end point (long-press works on some devices, but not everywhere). Once the route is ready the buttons disappear to save space; drag the handle or the header to make the list taller or shorter. With "Follow me" on the list scrolls along: the next bridge or lock stays in view and is outlined. You then see the route across waterways and large open water (IJsselmeer, Markermeer, border lakes, Zeeland waters), with all bridges and locks in order of passage — including the lowest fixed bridge and narrowest passage. Indicative: on open water the route does not follow the buoyed channels; the Wadden Sea and North Sea are not included.</span>
@@ -3296,7 +3328,7 @@ function applyStaticLang(){
         <span class="k">Base map</span><span>© OpenStreetMap contributors.</span>
       </div>
       <p style="color:var(--muted);font-size:12.5px">Heights from different sources use different datums (NAP, chart datum/LAT, mean sea level) and cannot simply be combined with each other or with charted depths.</p>
-      <p style="color:var(--muted);font-size:12.5px">Status legend: <span class="chip good"><span class="dot good"></span>operating now</span> <span class="chip warn"><span class="dot warn"></span>caution / closed</span> <span class="chip ser"><span class="dot ser"></span>restriction</span> <span class="chip crit"><span class="dot crit"></span>blocked / no operation</span> <span class="chip mut"><span class="dot mut"></span>fixed object</span> <span class="chip live"><span class="dot live"></span>bridge is open now</span> <span class="chip plan"><span class="dot plan"></span>planned opening</span></p>
+      <p style="color:var(--muted);font-size:12.5px">Status legend: <span class="chip good"><span class="dot good"></span>operating now</span> <span class="chip warn"><span class="dot warn"></span>caution / closed</span> <span class="chip ser"><span class="dot ser"></span>restriction</span> <span class="chip crit"><span class="dot crit"></span>blocked / no operation</span> <span class="chip mut"><span class="dot mut"></span>fixed object</span> <span class="chip live"><span class="dot live"></span>bridge is open now</span> <span class="chip plan"><span class="dot plan"></span>expected opening</span></p>
       <p style="color:var(--muted);font-size:12.5px"><b>Not an official source</b> — when in doubt check the notice via its link, or call the bridge/lock on VHF or phone.</p>
     </div>
     <div class="p-sec"><h3 style="color:var(--ink)">As an app on your phone</h3>
