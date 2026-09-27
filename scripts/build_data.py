@@ -18,12 +18,12 @@ OUT = os.path.join(os.path.dirname(__file__), "..", "data")
 UA = {"User-Agent": "bruggen-sluizen-dashboard (persoonlijk gebruik)"}
 
 
-def get(url):
+def get(url, tries=5, timeout=90):
     last = None
-    for i in range(5):
+    for i in range(tries):
         try:
             req = urllib.request.Request(url, headers=UA)
-            with urllib.request.urlopen(req, timeout=90) as r:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
                 return json.load(r)
         except Exception as e:  # noqa: BLE001
             last = e
@@ -101,7 +101,10 @@ def compact_ot(o):
 
 
 def build_full():
-    gen = get(f"{BASE}/geogeneration")["GeoGeneration"]
+    # snelle proef: reageert de FIS-server niet, dan meteen stoppen i.p.v. ~25 min
+    # retries (GitHub-runners krijgen 's nachts vaak geen antwoord); het volgende
+    # uurlijkse draaien probeert het opnieuw zolang de dataset >20 uur oud is.
+    gen = get(f"{BASE}/geogeneration", tries=2, timeout=30)["GeoGeneration"]
     print("geogeneration", gen)
     raw = {}
     for t in ["bridge", "lock", "opening", "operatingtimes", "radiocallinpoint",
@@ -322,6 +325,15 @@ def write_meta(static_ok, strem_ok):
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     full = "--full" in sys.argv
+    if not full:
+        # volledige dataset ouder dan 20 uur (bijv. mislukte nachtrun)? dan nu inhalen
+        try:
+            _m = json.load(open(os.path.join(OUT, "meta.json")))
+            if time.time() * 1000 - _m.get("staticTs", 0) > 20 * 3600 * 1000:
+                print("volledige dataset >20 uur oud: inhaalpoging")
+                full = True
+        except Exception:  # noqa: BLE001
+            pass
     static_ok = strem_ok = False
     if full:
         try:
