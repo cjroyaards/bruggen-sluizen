@@ -18,7 +18,7 @@ OUT = os.path.join(os.path.dirname(__file__), "..", "data")
 UA = {"User-Agent": "bruggen-sluizen-dashboard (persoonlijk gebruik)"}
 
 
-def get(url, tries=5, timeout=90):
+def get(url, tries=8, timeout=60):
     last = None
     for i in range(tries):
         try:
@@ -28,7 +28,9 @@ def get(url, tries=5, timeout=90):
         except Exception as e:  # noqa: BLE001
             last = e
             print(f"  retry {i+1} {e}", file=sys.stderr)
-            time.sleep(3 * (i + 1))
+            # vaarweginformatie.nl weigert GitHub-runners regelmatig kort
+            # ("connection refused"); even wachten en opnieuw proberen helpt meestal
+            time.sleep(min(5 * (i + 1), 30))
     raise SystemExit(f"FOUT: {url}: {last}")
 
 
