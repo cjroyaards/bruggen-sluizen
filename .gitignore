@@ -1,2 +1,14 @@
 shot_*.png
 __pycache__/
+.DS_Store
+.env
+.env.*
+!.env.example
+node_modules/
+venv/
+.venv/
+*.pyc
+.wrangler/
+.herstel/
+.godot/
+*.log
